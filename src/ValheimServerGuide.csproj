@@ -1,0 +1,130 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ValheimServerGuide</AssemblyName>
+    <RootNamespace>ValheimServerGuide</RootNamespace>
+    <Version>0.1.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the
+         replacement (textWrappingMode) may not exist in Valheim's shipped runtime TMP, so we
+         keep the obsolete property for runtime safety. -->
+    <NoWarn>CS0436;NU1701;CS0618</NoWarn>
+    <!-- Override on other machines: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim" -->
+    <VALHEIM_INSTALL Condition=" '$(VALHEIM_INSTALL)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
+    <ManagedDir>$(VALHEIM_INSTALL)\valheim_Data\Managed</ManagedDir>
+    <BepInExDir>$(VALHEIM_INSTALL)\BepInEx</BepInExDir>
+    <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
+    <!-- Override on other machines: dotnet build -p:R2MODMAN_PROFILE_DIR="..." -->
+    <R2MODMAN_PROFILE_DIR Condition=" '$(R2MODMAN_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Mod Test Profile</R2MODMAN_PROFILE_DIR>
+    <R2ModmanInstallDir>$(R2MODMAN_PROFILE_DIR)\BepInEx\plugins\ValheimServerGuide</R2ModmanInstallDir>
+    <!-- Override on other machines: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..." -->
+    <VALHEIM_DEDICATED_SERVER_DIR Condition=" '$(VALHEIM_DEDICATED_SERVER_DIR)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server</VALHEIM_DEDICATED_SERVER_DIR>
+    <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\ValheimServerGuide</DedicatedServerInstallDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(ManagedDir)\assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+      <Publicize>true</Publicize>
+    </Reference>
+    <Reference Include="assembly_utils">
+      <HintPath>$(ManagedDir)\assembly_utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_guiutils">
+      <HintPath>$(ManagedDir)\assembly_guiutils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(ManagedDir)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AnimationModule">
+      <HintPath>$(ManagedDir)\UnityEngine.AnimationModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(ManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(ManagedDir)\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(ManagedDir)\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>$(ManagedDir)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(ManagedDir)\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExDir)\core\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Jotunn">
+      <HintPath>$(BepInExDir)\plugins\ValheimModding-Jotunn\Jotunn.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
+       ValheimModding-YamlDotNet package that's a transitive dep of Jötunn. -->
+  <Target Name="DeployToBepInEx" AfterTargets="Build" Condition="Exists('$(BepInExDir)')">
+    <MakeDir Directories="$(PluginInstallDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginInstallDir)" />
+    <Message Text="Deployed ValheimServerGuide to $(PluginInstallDir)" Importance="high" />
+  </Target>
+
+  <Target Name="DeployToR2Modman" AfterTargets="Build" Condition="Exists('$(R2MODMAN_PROFILE_DIR)')">
+    <MakeDir Directories="$(R2ModmanInstallDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(R2ModmanInstallDir)" />
+    <Message Text="Deployed ValheimServerGuide to $(R2ModmanInstallDir)" Importance="high" />
+  </Target>
+
+  <Target Name="DeployToDedicatedServer" AfterTargets="Build" Condition="Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')">
+    <MakeDir Directories="$(DedicatedServerInstallDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DedicatedServerInstallDir)" />
+    <Message Text="Deployed ValheimServerGuide to $(DedicatedServerInstallDir)" Importance="high" />
+  </Target>
+
+</Project>

@@ -1,0 +1,87 @@
+# Example ValheimServerGuide config.
+# Copy to:  <profile>/BepInEx/config/ValheimServerGuide/guidance.yaml
+# The server reloads this file automatically on save.
+#
+# Schema cheat-sheet:
+#   id          unique key — used for fire tracking, requires/stop_when, vsg_reset
+#   scope       "player" (default, per-character) | "global" (world-wide, all players see it)
+#   trigger     type + matching field (item / creature / piece / biome / location / ...)
+#   display     mode = raven | message | chat | rune | intro
+#   once        true (default) -> fires once per character/world
+#   cooldown    seconds; throttle for recurring tips
+#   requires    list of ids; gate by chain
+#   stop_when   list of ids; if any fired, this entry stops
+#   announce.discord  message template; empty string uses BepInEx default template
+guidances:
+  # Player scope: every player's first wood arrow triggers their own raven popup.
+  - id: test_raven_wood_arrow
+    trigger: { type: craft, item: ArrowWood }
+    display:
+      mode: raven
+      topic: "First Shafts"
+      text: "Wooden arrows — a hunter's first answer to the wild."
+    once: true
+
+  - id: test_message_flint_arrow
+    trigger: { type: craft, item: ArrowFlint }
+    display:
+      mode: message
+      position: Center
+      text: "Flint bites deeper than wood. Aim true."
+    once: false
+
+  - id: test_chat_fire_arrow
+    trigger: { type: craft, item: ArrowFire }
+    display:
+      mode: chat
+      text: "[lore] Fire arrows: useful against the unliving."
+    once: false
+
+  - id: test_rune_bronze_arrow
+    trigger: { type: craft, item: ArrowBronze }
+    display:
+      mode: rune
+      topic: "Of Bronze and Bowyers"
+      text: "Bronze tips were the dwarves' gift to the bow. While this stone glows, no eye may find you."
+    once: true
+
+  - id: test_intro_iron_arrow
+    trigger: { type: craft, item: ArrowIron }
+    display:
+      mode: intro
+      topic: "The Iron Volley"
+      text: "When iron flew from yew, even the trolls knelt. The realm shifts beneath your bow, traveler."
+    once: true
+
+  # ----- Global scope examples -----
+  #
+  # A global entry runs the display for every connected player simultaneously.
+  # The first player to trigger it sends the event to the server; the server
+  # marks a world-wide flag (ZoneSystem global key "VSG.<id>", auto-syncs to
+  # clients) and broadcasts a "play now" RPC to everyone. State persists with
+  # the world save.
+
+  - id: world_eikthyr_fell
+    scope: global
+    trigger: { type: kill, creature: Eikthyr }
+    display:
+      mode: intro
+      topic: "The Stag-King Falls"
+      text: "Eikthyr is slain. The realm trembles. Your trial begins, traveler."
+    once: true
+    # Server posts this to Discord when the kill happens.
+    # Empty string would use the BepInEx default template instead.
+    announce:
+      discord: "⚔️ **{playerName}** has slain **Eikthyr** — the first boss has fallen!"
+
+  # Player-scope entry with a discord announcement. Each player's first iron
+  # craft posts an announcement (but only one player sees the in-game intro
+  # because scope is implicit player).
+  - id: player_first_iron
+    trigger: { type: craft, item: SwordIronStub }   # replace with an item you actually craft
+    display:
+      mode: message
+      text: "Iron — the soul of the swamp."
+    once: true
+    announce:
+      discord: ""   # use DefaultTemplate from BepInEx config
