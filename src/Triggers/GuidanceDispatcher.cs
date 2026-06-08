@@ -369,6 +369,7 @@ namespace ValheimServerGuide.Triggers
                 case "boss_defeated":    return Eq(t.Creature, evt.Subject);
                 case "item_acquired":    return WildcardMatch(t.Item, evt.Subject);
                 case "location_entered": return WildcardMatch(t.Location, evt.Subject);
+                case "distance":         return WildcardMatch(t.Location, evt.Subject);
                 case "npc_interacted":
                 case "npc_conversation": return Eq(t.Npc, evt.Subject);
                 case "npc_item_submit":

@@ -1,50 +1,108 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 namespace ValheimServerGuide.Config
 {
+    /// Watches the config\ValheimServerGuide folder and merges every *.yaml / *.yml
+    /// file in it into a single GuidanceConfig. Any filename works as long as the
+    /// content matches the guidance YAML schema.
+    ///
+    /// THREADING: FileSystemWatcher raises its events on a background ThreadPool
+    /// thread. The downstream of ConfigChanged touches Unity / ZRoutedRpc (broadcast
+    /// to clients, MessageHud, tutorial registration) which MUST run on the Unity
+    /// main thread. So the watcher only flags a pending reload; the actual reload +
+    /// ConfigChanged invoke is pumped from the main thread via Tick() (called from
+    /// Plugin.Update). This is what makes live-reload reach connected clients without
+    /// a server restart.
     public class GuidanceConfigLoader : IDisposable
     {
-        private readonly string _path;
+        private readonly string _dir;
         private FileSystemWatcher _watcher;
-        private DateTime _lastReload = DateTime.MinValue;
+
+        // Set on the watcher thread, consumed on the main thread in Tick().
+        private volatile bool _pending;
+        private DateTime _lastEvent = DateTime.MinValue;
+        private const double DebounceMs = 500;
 
         public event Action<GuidanceConfig> ConfigChanged;
 
-        public GuidanceConfigLoader(string path)
+        public GuidanceConfigLoader(string dir)
         {
-            _path = path;
+            _dir = dir;
         }
 
         public void Start()
         {
-            if (!File.Exists(_path))
+            Directory.CreateDirectory(_dir);
+
+            if (!HasAnyYaml())
             {
                 WriteStarterFile();
             }
 
+            // Initial load runs synchronously on the caller's (main) thread.
             Reload();
 
-            var dir = Path.GetDirectoryName(_path);
-            var file = Path.GetFileName(_path);
-            _watcher = new FileSystemWatcher(dir, file)
+            // No Filter set: FileSystemWatcher.Filter only takes a single pattern, and we
+            // want both *.yaml and *.yml. We filter by extension in the handler instead.
+            _watcher = new FileSystemWatcher(_dir)
             {
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime,
+                IncludeSubdirectories = false,
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size
+                             | NotifyFilters.CreationTime | NotifyFilters.FileName,
                 EnableRaisingEvents = true,
             };
-            _watcher.Changed += OnFileChanged;
-            _watcher.Created += OnFileChanged;
+            _watcher.Changed += OnFsEvent;
+            _watcher.Created += OnFsEvent;
+            _watcher.Deleted += OnFsEvent;
+            _watcher.Renamed += OnFsEvent;
         }
 
-        private void OnFileChanged(object sender, FileSystemEventArgs e)
+        private bool HasAnyYaml()
         {
-            // Debounce — editors often fire multiple events for one save.
-            var now = DateTime.UtcNow;
-            if ((now - _lastReload).TotalMilliseconds < 500) return;
-            _lastReload = now;
+            return Directory.Exists(_dir) && EnumerateYamlFiles().Any();
+        }
+
+        private IEnumerable<string> EnumerateYamlFiles()
+        {
+            return Directory.EnumerateFiles(_dir)
+                .Where(IsYamlPath)
+                // Deterministic, case-insensitive order so duplicate-id resolution and
+                // tracker-section precedence don't depend on filesystem enumeration order.
+                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static bool IsYamlPath(string path)
+        {
+            var ext = Path.GetExtension(path);
+            return ext.Equals(".yaml", StringComparison.OrdinalIgnoreCase)
+                || ext.Equals(".yml", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Runs on a background ThreadPool thread — do NOT touch Unity here.
+        private void OnFsEvent(object sender, FileSystemEventArgs e)
+        {
+            bool relevant = IsYamlPath(e.FullPath);
+            if (!relevant && e is RenamedEventArgs r)
+                relevant = IsYamlPath(r.OldFullPath); // a yaml renamed to something else
+            if (!relevant) return;
+
+            _lastEvent = DateTime.UtcNow;
+            _pending = true;
+        }
+
+        /// Pumped from the Unity main thread (Plugin.Update). Applies a pending reload
+        /// once the debounce window has elapsed, so editors that emit several events per
+        /// save (and files still being flushed) coalesce into one reload.
+        public void Tick()
+        {
+            if (!_pending) return;
+            if ((DateTime.UtcNow - _lastEvent).TotalMilliseconds < DebounceMs) return;
+            _pending = false;
 
             try { Reload(); }
             catch (Exception ex) { Plugin.Log.LogError($"YAML reload failed: {ex.Message}"); }
@@ -52,21 +110,61 @@ namespace ValheimServerGuide.Config
 
         public void Reload()
         {
-            var yaml = File.ReadAllText(_path);
+            var merged = LoadAndMerge();
+            var config = Validate(merged);
+            Plugin.Log.LogInfo($"Loaded {config.Guidances.Count} guidance entries from {_dir}");
+            ConfigChanged?.Invoke(config);
+        }
+
+        /// Reads and deserializes every YAML file in the folder, concatenating their
+        /// guidance entries. Duplicate ids across files are reported and dropped by
+        /// Validate (first occurrence wins). The first file (alphabetically) that
+        /// defines a `tracker:` section provides it.
+        private GuidanceConfig LoadAndMerge()
+        {
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(UnderscoredNamingConvention.Instance)
                 .IgnoreUnmatchedProperties()
                 .Build();
 
-            var raw = deserializer.Deserialize<GuidanceConfig>(yaml) ?? GuidanceConfig.Empty;
-            var config = Validate(raw);
-            Plugin.Log.LogInfo($"Loaded {config.Guidances.Count} guidance entries from {_path}");
-            ConfigChanged?.Invoke(config);
+            var merged = new GuidanceConfig();
+            var files = EnumerateYamlFiles().ToList();
+
+            foreach (var file in files)
+            {
+                GuidanceConfig part;
+                try
+                {
+                    var yaml = File.ReadAllText(file);
+                    part = deserializer.Deserialize<GuidanceConfig>(yaml);
+                }
+                catch (Exception ex)
+                {
+                    // One malformed file must not blank out every other file's guidance.
+                    Plugin.Log.LogError($"VSG: failed to parse '{Path.GetFileName(file)}' — skipped. {ex.Message}");
+                    continue;
+                }
+
+                if (part == null) continue;
+
+                if (part.Guidances != null)
+                    merged.Guidances.AddRange(part.Guidances);
+
+                if (part.Tracker != null)
+                {
+                    if (merged.Tracker == null) merged.Tracker = part.Tracker;
+                    else Plugin.Log.LogWarning(
+                        $"VSG: '{Path.GetFileName(file)}' also defines a tracker: section — ignored (first file wins).");
+                }
+            }
+
+            Plugin.Log.LogInfo($"VSG: merged {merged.Guidances.Count} raw entries from {files.Count} YAML file(s).");
+            return merged;
         }
 
         private static readonly HashSet<string> _validCategories = new HashSet<string>
         {
-            "Companions", "Trading", "Building", "Skills", "Exploration", "Inventory", "Groups"
+            "Companions", "Trading", "Building", "Skills", "Exploration", "Inventory", "Groups", "General"
         };
 
         private static GuidanceConfig Validate(GuidanceConfig raw)
@@ -137,8 +235,9 @@ namespace ValheimServerGuide.Config
 
         private void WriteStarterFile()
         {
-            File.WriteAllText(_path, StarterYaml);
-            Plugin.Log.LogInfo($"Wrote starter guidance config to {_path}");
+            var path = Path.Combine(_dir, "guidance.yaml");
+            File.WriteAllText(path, StarterYaml);
+            Plugin.Log.LogInfo($"Wrote starter guidance config to {path}");
         }
 
         public void Dispose()
@@ -150,7 +249,8 @@ namespace ValheimServerGuide.Config
         // Wood arrows need only wood -> any new character can craft them immediately.
         private const string StarterYaml =
 @"# ValheimServerGuide — server-authoritative guidance config.
-# Reloads automatically when this file is saved.
+# Reloads automatically when any *.yaml / *.yml file in this folder is saved.
+# You can split your guidance across multiple files — they are all merged.
 #
 # Test plan: every display mode is wired to a different basic arrow.
 # Craft each arrow type to verify the corresponding mode renders correctly.

@@ -110,4 +110,45 @@ Any entry with a `title` appears in the Codex. Entries without a `title` are fun
     ...
 ```
 
-The `description` field on individual chain steps also populates the Codex detail view when the entry is selected.
+---
+
+### Codex Body Text — `description`, `message`, and `summary`
+
+The body panel in the Codex right panel shows different text depending on the entry state.
+Priority order (highest first):
+
+| Chain state | What is shown |
+|---|---|
+| **Complete** — `summary:` is set | `summary` — a "Quest Complete" header followed by the recap text |
+| **Complete** — no `summary:` | Last step's `message` (the text that fired when the final step completed) |
+| **In progress** — current step | `description` (falls back to `message` if `description` is absent) |
+
+Use `description` to tell the player **what to do** to advance the current step.
+Use `message` for the text that fires **when the trigger fires** (reward, lore, follow-up tip).
+Use `summary` on the **entry** (not a step) for a short recap shown after the quest is done.
+
+```yaml
+- id: ward_chain
+  title: "Protective Ward"
+  category: Building
+  summary: >
+    You placed a ward and learned about passive repair, raid blocking, and
+    the Valkyrie taxi system. Your base is now protected.
+  steps:
+    - trigger:
+        type: build
+        piece: guard_stone
+      display:
+        mode: rune
+        topic: "Protective Ward"
+      description: >
+        Build a Protective Ward to claim your base.
+        Open your hammer's building menu, find the ward under Misc,
+        and place it inside your base perimeter.
+        Required: 5 Fine Wood, 5 Greydwarf Eye, 1 Surtling Core.
+      message: "Your ward is active. ProtectiveWards adds passive repair, raid blocking, and rain protection inside the radius."
+```
+
+While the player is on this step the Codex body shows the `description` (build instructions).
+Once the chain is complete, the Codex body shows the entry-level `summary` if one is set,
+otherwise it falls back to the final step's `message`.

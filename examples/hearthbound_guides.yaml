@@ -1,0 +1,1040 @@
+# ValheimServerGuide — Hearthbound Modpack Guides
+# hearthbound_guides.yaml
+# Loaded alongside guidance.yaml — the loader merges all *.yaml files in this directory.
+#
+# Display mode rules (see wiki/Guide-Authoring-Reference.md for full reference):
+#   rune  → craft, item_acquired, kill, build, chest_opened, skill_level, timed, boss_defeated
+#   raven → first_login, player_death, biome, distance
+#           (discover_location is a planned raven trigger, not yet implemented)
+#   message → npc_interacted, equip, location_entered, and other NPC-driven tips
+#   conversation → npc_conversation (Hold E on a trader)
+#
+# PREFAB NAMES THAT REQUIRE IN-GAME VERIFICATION BEFORE SHIPPING:
+#   guard_stone        - ProtectiveWards ward piece (vanilla ward prefab; verify mod does not rename it)
+#   ArmoirePiece       - Armoire wardrobe piece (placeholder — check mod's ZNetScene registration)
+#   ShipyardStation    - balrond_shipyard main piece (placeholder — check mod's ZNetScene registration)
+
+guidances:
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Inventory
+  # ═══════════════════════════════════════
+
+  - id: inventory_chain
+    title: "Inventory Mods"
+    category: Inventory
+    version: 1
+    once: true
+    summary: >
+      You toured four inventory mods: Quick Stack Store Sort Trash Restock for bulk container management,
+      ComfyQuickSlots for dedicated armour slots and quick-access hotkeys,
+      Recycle N Reclaim for recovering 50% of crafting materials, and
+      AzuCraftyBoxes for automatic nearby-container pulls at any crafting station.
+    steps:
+      - trigger:
+          type: chest_opened
+          item: piece_chest_wood
+        display:
+          mode: rune
+          topic: "Inventory Management"
+        message: "You placed your first chest. Quick Stack Store Sort Trash Restock adds powerful inventory tools to this server: Quick Stack pushes non-favorited items into nearby matching chests, Restock refills your inventory from nearby containers, Sort organizes any chest or your inventory in one click, and the trash can lets you discard or bulk-delete flagged items. Hold Alt and left-click any item to favorite it — favorited items are protected from all of these actions."
+
+      - trigger:
+          type: equip
+          item: HelmetLeather
+        display:
+          mode: rune
+          topic: "ComfyQuickSlots"
+        description: >
+          Equip a Leather Helmet to unlock this tip about ComfyQuickSlots.
+          Craft one at a Workbench using 2 Leather Scraps and 6 Deer Hide.
+        message: "ComfyQuickSlots expands your inventory to an 8x5 grid with dedicated armor slots along the bottom row — gear lives there instead of taking up bag space. Three quick slots (Z, V, B by default) appear next to your Forsaken power for fast access to consumables or tools you use often. If you die, equipped items spawn in a separate grave above your tombstone so nothing is lost."
+
+      - trigger:
+          type: craft
+          item: AxeBronze
+        display:
+          mode: rune
+          topic: "Recycle N Reclaim"
+        description: >
+          Craft a Bronze Axe at a Forge to unlock this tip about Recycle N Reclaim.
+          You need 8 Bronze and 4 Wood — smelt Bronze from Copper and Tin at a Forge first.
+        message: "Recycle N Reclaim lets you recover materials from crafted items. Open your crafting menu and look for the Reclaim tab — drag any item there to break it down and recover 50% of the resources used to make it. Higher quality items return proportionally more materials. Recycling supports an undo window of 20 seconds in case you reclaim something by mistake."
+
+      - trigger:
+          type: build
+          piece: piece_workbench
+        display:
+          mode: rune
+          topic: "AzuCraftyBoxes"
+        description: >
+          Build a Workbench to unlock this tip about AzuCraftyBoxes.
+          Place 10 Wood anywhere in a covered area — the bench needs a roof overhead
+          to count as sheltered and allow upgrades.
+        message: "AzuCraftyBoxes pulls materials automatically from any container within 20 blocks when you craft or build — workbench, forge, cauldron, stonecutter, and more. No need to carry everything to the station. Toggle pulling on or off with Alt+O, and hold Left Shift to pull all available fuel or ore at once. By default, one item is left in each container so your storage stays organized."
+        rewards:
+          - type: item
+            item: QueenBee
+            amount: 1
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Groups
+  # ═══════════════════════════════════════
+
+  - id: groups_chain
+    title: "Groups — Party System"
+    category: Groups
+    version: 1
+    summary: >
+      You learned about the Groups party system: use /invite [name] to form a group,
+      view party health bars on your left, toggle group chat with /p, and ping the map
+      with Left Alt. Friendly fire between members is disabled, and everyone stays
+      visible on the map with matching colour icons.
+    trigger:
+      type: timed
+      interval: "300"
+      id: groups_intro
+    display:
+      mode: raven
+      topic: "Party System"
+    message: "This server uses the Groups mod for co-op play. Use /invite [name] in chat to form a group — your party members' health bars appear on the left side of your screen. Type /p to toggle group-only chat, or /p [text] for a single group message. Hold Left Alt while pinging the map to send a group ping. Group members are always visible on the map with matching colored icons, and friendly fire between members is disabled."
+    once: true
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Building
+  # ═══════════════════════════════════════
+
+  - id: protectivewards_chain
+    title: "ProtectiveWards"
+    category: Building
+    version: 1
+    summary: >
+      You placed a Protective Ward and explored its full feature set: passive structure repair,
+      raid blocking near active fires, rain and water damage immunity, and station speed boosts.
+      You rode the Valkyrie taxi to Haldor by dropping 2000 Coins as a ward offering, and
+      learned about other taxi destinations (Hildir, Bog Witch, Sacrificial Stones).
+      The 2000 Coins taxi fee was refunded as a reward for completing the chain.
+    steps:
+      - trigger:
+          type: item_acquired
+          item: SurtlingCore
+        display:
+          mode: raven
+          topic: "Protective Ward"
+        description: >
+          Pick up a Surtling Core — the key material for crafting a Protective Ward.
+          Cores drop from Surtlings in the Ashlands or from chests inside Burial Chambers
+          scattered through the Black Forest.
+        message: "You found a Surtling Core — the key material for placing a ward. On this server, wards use the ProtectiveWards mod to protect your base far beyond what vanilla allows. Claim your territory before others do: a ward secures everything inside its radius against raids, enemy damage, and griefing."
+
+      - trigger:
+          type: build
+          piece: guard_stone  # Verify: ProtectiveWards ward piece prefab name
+        display:
+          mode: rune
+          topic: "ProtectiveWards"
+        description: >
+          Build a Protective Ward to claim and secure your base.
+          Open your hammer's building menu, find the ward under the Misc tab, and place it inside your base perimeter.
+          Required materials: 5 Fine Wood, 5 Greydwarf Eye, 1 Surtling Core.
+        message: "Your ward is active. ProtectiveWards adds layers of protection inside the radius: structures are passively repaired every 10 seconds, raids are blocked for players resting near active fires, buildings are shielded from rain damage, ships are protected from water damage, and doors close automatically after inactivity. Drop offerings directly onto the ward for special effects — Surtling Cores instantly repair nearby structures."
+
+      - trigger:
+          type: item_acquired
+          item: Coins
+        progress_trigger:
+          type: item_acquired
+          item: Coins
+        progress_goal: 2000
+        progress_label: "Coins"
+        display:
+          mode: rune
+          topic: "Ward Taxi"
+        description: >
+          Collect 2000 Coins to unlock the Valkyrie taxi to Haldor.
+          Coins can be earned by selling items at traders, looting dungeons, or completing HaldorBounties contracts.
+          The progress bar above tracks your total. Once reached, drop 2000 Coins directly onto your ward as an offering.
+        message: "You have enough coins for a Valkyrie taxi. Interact with your ward and drop 2000 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 2000 coins if you have not yet discovered him, or 500 for a return trip. Head to your ward and make the offering now. Speak to Haldor afterwards."
+
+      - trigger:
+          type: npc_interacted
+          npc: Haldor
+        display:
+          mode: message
+          position: Center
+        description: >
+          Drop 2000 Coins onto your ward to summon the Valkyrie. She will carry you directly to Haldor.
+          Interact with Haldor when you arrive to complete this step. You have 2 minutes before the Valkyrie returns you home.
+        message: "You have arrived at Haldor via the Valkyrie taxi. The ward's taxi system can reach other destinations too — drop Fuling totem for Hildir, Pukeberries for the Bog Witch, or a boss trophy for the Sacrificial Stones. Each destination has its own offering item. You have 2 minutes before the Valkyrie returns to take you home."
+
+      - trigger:
+          type: timed
+          interval: "150"
+          id: pwards_features_tip
+        display:
+          mode: rune
+          topic: "ProtectiveWards"
+        description: >
+          You are back at your base. Explore your ward's advanced features — hold LeftShift + E on the ward (while it is disabled) to open its configuration panel.
+          Adjust the protection radius, bubble appearance, and individual damage and speed multipliers to suit your playstyle.
+        message: "Back at your ward, here is what else ProtectiveWards does for your base: smelters, cooking stations, fermenters, and turrets run faster inside the radius. Stamina drain, food decay, skill loss on death, and tool durability wear are all reduced. To customize all settings, disable the ward first and then hold LeftShift + E to open the configuration panel. You can adjust range, bubble appearance, emission color, and fine-tune every damage and speed multiplier."
+        rewards:
+          - type: item
+            item: Coins
+            amount: 2000
+          - type: skill_exp
+            skill: Run
+            amount: 500
+
+  - id: armoire_chain
+    title: "Armoire — Wardrobe"
+    category: Building
+    version: 1
+    summary: >
+      You built the Armoire wardrobe and learned how it works: appearances unlock
+      automatically as you discover or craft items. Open the wardrobe to apply any
+      unlocked look to your equipped gear without touching your stats, and save up to
+      three complete outfit configurations to swap between instantly.
+    trigger:
+      type: build
+      piece: ArmoirePiece  # Verify: Armoire wardrobe piece prefab name
+    display:
+      mode: rune
+      topic: "Armoire Wardrobe"
+    message: "You built the Armoire wardrobe. This mod lets you change how your gear looks without touching your stats — item appearances are unlocked automatically as you discover or obtain them through exploration and crafting. Open the wardrobe to browse your collection and apply any unlocked look to your equipped gear. You can save up to three complete outfit configurations and swap between them instantly. Works with both vanilla and modded equipment."
+    once: true
+
+  - id: shipyard_gather_chain
+    title: "Balrond Shipyard — Gather Materials"
+    category: Building
+    version: 1
+    summary: >
+      You gathered all five materials for the Balrond Shipyard Station:
+      30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin.
+      Head to your build site and construct the Shipyard Station to begin
+      upgrading your ships.
+    steps:
+      - trigger:
+          type: item_acquired
+          item: FineWood
+        progress_trigger:
+          type: item_acquired
+          item: FineWood
+        progress_goal: 30
+        progress_label: "Fine Wood"
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Gather 30 Fine Wood to begin building the Balrond Shipyard station.
+          Chop birch or oak trees in the Meadows or Swamp edges using a Bronze Axe or better.
+          The progress bar above tracks how much you have collected.
+        message: "Fine Wood secured. You are gathering materials for the Balrond Shipyard station — a full naval upgrade system that supports seven ship types. Materials still needed: 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin. Start collecting Bronze Nails from your forge next."
+
+      - trigger:
+          type: craft
+          item: BronzeNails
+        progress_trigger:
+          type: craft
+          item: BronzeNails
+        progress_goal: 200
+        progress_label: "Bronze Nails"
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Craft 200 Bronze Nails at a Forge using Bronze ingots.
+          Each batch produces a stack — check the quantity in the crafting menu.
+          Still needed: 25 Coal, 10 Deer Hide, and 25 Resin.
+        message: "Bronze Nails ready. Still needed: 25 Coal, 10 Deer Hide, and 25 Resin. Produce Coal by burning Wood in a Charcoal Kiln or collect it from Surtling drops."
+
+      - trigger:
+          type: item_acquired
+          item: Coal
+        progress_trigger:
+          type: item_acquired
+          item: Coal
+        progress_goal: 25
+        progress_label: "Coal"
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Collect 25 Coal for the Shipyard build.
+          Burn Wood in a Charcoal Kiln (6 Wood = 1 Coal), or loot Coal from
+          Surtling drops in Mountain caves and Ashlands areas.
+        message: "Coal collected. Still needed: 10 Deer Hide and 25 Resin. Hunt deer in the Meadows for the hides."
+
+      - trigger:
+          type: item_acquired
+          item: DeerHide
+        progress_trigger:
+          type: item_acquired
+          item: DeerHide
+        progress_goal: 10
+        progress_label: "Deer Hide"
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Hunt deer in the Meadows for 10 Deer Hides.
+          Deer flee when spooked — approach from cover or use a bow for a clean
+          ranged kill. Each deer drops 1–2 hides.
+        message: "Deer Hide in hand. One material left: 25 Resin. Chop fir and pine trees in the Black Forest or collect Resin from Greydwarf drops."
+
+      - trigger:
+          type: item_acquired
+          item: Resin
+        progress_trigger:
+          type: item_acquired
+          item: Resin
+        progress_goal: 25
+        progress_label: "Resin"
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Collect 25 Resin from the Black Forest.
+          Chop fir and pine trees to gather Resin, or kill Greydwarfs and Greydwarf Brutes —
+          both drop Resin on death.
+        message: "All materials gathered. Head to your build site and construct the Shipyard Station — your naval upgrade journey begins now."
+
+  - id: shipyard_scribetable
+    title: "Balrond Shipyard — Scribe's Table"
+    category: Building
+    version: 1
+    requires: [shipyard_gather_chain]
+    summary: >
+      You built the Scribe's Table, the crafting station for ship upgrade schematics.
+      Each schematic is a blueprint for one upgrade slot — oars, shields, anchors, tents,
+      lamps, armour plating, ropes, and nameplates. Craft a schematic here, bring it to
+      the Shipyard, and apply it to your docked vessel. Build a Karve next.
+    trigger:
+      type: build
+      piece: piece_scribetable
+    display:
+      mode: rune
+      topic: "Ship Upgrades"
+    description: >
+      Build the Scribe's Table to begin crafting ship schematics.
+      Place it at your Shipyard Station — find it in the hammer's Misc or Shipyard tab.
+      All gather materials are now complete; place the station first, then the table.
+    message: "The Scribe's Table is where you craft ship schematics. Each schematic is a blueprint for one upgrade slot — oars for speed, shields for hull health, anchors, tents, lamps, armor plating, ropes, and nameplates. Craft the schematic here, bring it to the Shipyard, and apply it to your docked ship. Build a Karve next so you have a vessel ready to upgrade."
+    once: true
+
+  - id: shipyard_karve
+    title: "Balrond Shipyard — Karve"
+    category: Building
+    version: 1
+    requires: [shipyard_scribetable]
+    summary: >
+      You built a Karve — a solid first vessel with 7 upgrade slots for the Balrond
+      Shipyard system. Dock it near the Shipyard Station and craft a Plan Karve: Oars
+      schematic at the Scribe's Table to install your first upgrade.
+    trigger:
+      type: build
+      piece: Karve
+    display:
+      mode: rune
+      topic: "Ready to Upgrade"
+    description: >
+      Build a Karve at your Workbench to have a vessel ready for upgrades.
+      Required: 30 Fine Wood, 10 Deer Hide, 20 Resin, 80 Bronze Nails.
+      Dock it near the Shipyard Station once it is afloat.
+    message: "Your Karve is built. The Karve supports 7 upgrade slots, making it a solid first vessel to experiment with. Head back to the Scribe's Table and craft a Plan Karve: Oars schematic — oars are the most immediate upgrade, adding a direct speed bonus to your ship."
+    once: true
+
+  - id: shipyard_schematic
+    title: "Balrond Shipyard — First Upgrade"
+    category: Building
+    version: 1
+    requires: [shipyard_karve]
+    summary: >
+      You acquired an oar schematic and learned the full Shipyard upgrade workflow:
+      dock your ship, place the schematic in the station, and pull the lever to install.
+      Beyond speed oars, the mod adds expanded cargo holds (up to 40 slots on the Drakkar),
+      a Fishnet Trap for passive fishing, and cosmetic options for sails, shields, and figureheads.
+    trigger:
+      type: item_acquired
+      item: SchematicKarveOars
+    display:
+      mode: rune
+      topic: "Balrond Shipyard"
+    description: >
+      Craft a Plan Karve: Oars schematic at the Scribe's Table to install your first upgrade.
+      Open the table's crafting menu and look for the Karve oar plan — pick it up to continue.
+    message: "You have the oar schematic. Dock your Karve at the Shipyard, place the schematic in the station's container, and pull the lever to install it. Beyond oars, the mod also adds a Fishnet Trap structure for passive fishing using biome-specific bait, expanded cargo holds ranging from 2 slots on the Raft up to 40 on the Drakkar, and cosmetic options including sail color, shield pattern, and head decoration swaps on supported ships."
+    once: true
+    rewards:
+      - type: skill_level
+        skill: Swim
+        level: 10
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Trading
+  # ═══════════════════════════════════════
+
+  # SimpleMarket has no NPC. The market button sits in the tab menu and requires
+  # the Resting status effect to open (must be near beds, fires, or furniture).
+  - id: simplemarket_chain
+    title: "SimpleMarket — Player Market"
+    category: Trading
+    version: 1
+    summary: >
+      You learned about the player-run asynchronous market: open the Market button from
+      the tab menu while Resting to post items for sale, browse listings, and complete
+      trades without both players being online simultaneously. Items preserve their
+      durability, quality, and crafter name across transactions.
+    trigger:
+      type: item_acquired
+      item: Coins
+    display:
+      mode: rune
+      topic: "SimpleMarket"
+    message: "You have coins — perfect for the player market. Open the tab menu and press the Market button while you have the Resting status effect to access it. Post items for sale at your own price, browse other players' listings, and complete trades asynchronously — neither of you needs to be online at the same time. Sellers can offer bulk discounts on stacked quantities, and all traded items preserve their durability, quality, and crafter name. Check your transaction history in the UI to track past purchases and sales."
+    once: true
+
+  - id: traderoverhaul_chain
+    title: "TraderOverhaul — Unified Traders"
+    category: Trading
+    version: 1
+    requires: [simplemarket_chain]
+    summary: >
+      You entered the Black Forest and discovered TraderOverhaul's unified panel covering
+      Haldor, Hildir, and the Bog Witch. Over 590 items are organized by category, their
+      catalogues expand as you defeat bosses, and a shared coin bank pools all three
+      traders together. Buy up to 20 items per transaction and filter by name or category.
+    trigger:
+      type: biome
+      biome: BlackForest
+    display:
+      mode: raven
+      topic: "TraderOverhaul"
+    description: >
+      Enter the Black Forest biome to trigger this tip about TraderOverhaul.
+      Head east or south from spawn — Black Forest appears as darker, denser tree
+      coverage on the map. Haldor can be found somewhere within it.
+    message: "You have entered the Black Forest. Somewhere in these woods is Haldor, the merchant — find him to access the trader system. TraderOverhaul replaces the default trader interfaces for Haldor, Hildir, and the Bog Witch with a single unified panel offering 590+ items organized by category. Their catalogs expand automatically as you defeat bosses. Prices are balanced against recipe costs and biome difficulty. You can buy up to 20 items per transaction, filter by category, and search by name. Coins from sales go directly into a shared bank that all three traders draw from."
+    once: true
+
+  - id: haldorbounties_chain
+    title: "HaldorBounties — Daily Contracts"
+    category: Trading
+    version: 1
+    requires: [traderoverhaul_chain]
+    summary: >
+      You learned about Haldor's daily bounty board: kill contracts, named miniboss hunts
+      (1.5x pay), and warband raid contracts (1.25x pay). A fresh set rotates each in-game
+      day. Accept a contract, complete the objective, return to Haldor, and choose one of
+      four reward tiers. The board grows harder as you defeat bosses.
+    trigger:
+      type: timed
+      interval: "300"
+      id: haldorbounties_intro
+    display:
+      mode: rune
+      topic: "HaldorBounties"
+    description: >
+      This tip fires automatically 5 minutes after the TraderOverhaul tip.
+      Visit Haldor in the Black Forest and check his bounty board — a new set of
+      contracts rotates in each in-game day.
+    message: "Haldor also offers a daily bounty board through HaldorBounties. Each in-game day a fresh set of contracts rotates in — kill contracts for common creatures, miniboss hunts where a named hostile NPC spawns with a map marker, and raid contracts where you must clear a warband from a campfire. The board has three sections: Available, Active, and Completed. Accept a contract, finish the objective, return to Haldor, and choose one of four rewards — coins, ingots, crafting resources, or consumables, all tiered to your current biome. Miniboss bounties pay out at 1.5x and raids at 1.25x. Bounties are boss-gated so the board grows harder as you progress."
+    once: true
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Companions
+  # ═══════════════════════════════════════
+
+  # Offline Companions — companions are hired from Haldor for 2000 coins.
+  # A free starter companion also spawns automatically in new worlds.
+  - id: companions_intro
+    title: "Offline Companions — Hire and Manage"
+    category: Companions
+    version: 1
+    requires: [haldorbounties_chain]
+    summary: >
+      You learned how to hire and manage Offline Companions: buy one from Haldor for
+      2000 coins (a starter companion also spawns in new worlds). Tap E to open their
+      inventory and manage gear or food. Hold E to open the radial command wheel for
+      quick task assignments and point-and-click orders.
+    trigger:
+      type: distance
+      location: Vendor_BlackForest
+      radius: 50
+    display:
+      mode: raven
+      topic: "Companions"
+    description: >
+      Approach Haldor (Vendor_BlackForest) within 50 metres to trigger this intro.
+      Find him in the Black Forest — use the TraderOverhaul map marker or explore until
+      you spot his location pin. A starter companion may already be waiting at spawn.
+    message: "Offline Companions lets you hire a personal companion from Haldor for 2000 coins — a starter companion also spawns automatically in new worlds. Tap E on your companion to open their inventory, rename them, manage their gear, and assign up to three food items for stat bonuses. Hold E to open the radial command wheel for quick access to all modes and point-and-click orders. Companions can fight, gather, produce, and maintain your base autonomously."
+    once: true
+
+  - id: companions_combat_tip
+    title: "Offline Companions — Combat"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You received a combat reminder after dying: companions block, parry, counter-attack,
+      and execute power attacks against staggered enemies. When their health drops below 30%
+      they retreat and recover. Keep your companion geared with food, armour, and a weapon
+      so they can hold their own in a fight.
+    trigger:
+      type: player_death
+      max_fires: 2
+    display:
+      mode: raven
+      topic: "Companions"
+    description: >
+      This tip fires when you die in combat (up to twice).
+      Make sure your companion has food, a weapon, and armour equipped — open their
+      inventory with E and slot the gear yourself if needed.
+    message: "Dying alone is rough. Companions fight alongside you in battle — they block, parry, counter-attack, and execute power attacks against staggered enemies. When their health drops below 30% they retreat to safety and recover. Hire one from Haldor for 2000 coins and bring backup into your next fight."
+
+  - id: companions_woodcutting
+    title: "Offline Companions — Woodcutting"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions can chop trees, fallen logs, and stumps automatically.
+      Give your companion an axe, assign the woodcutting task via the radial command wheel
+      (hold E), and they will deposit materials into nearby chests when their carry weight
+      nears 300.
+    trigger:
+      type: item_acquired
+      item: "Axe*"
+    display:
+      mode: rune
+      topic: "Companion: Woodcutting"
+    description: >
+      Pick up any axe to unlock this companion woodcutting tip.
+      Give your companion an axe in their inventory, then hold E and select the
+      woodcutting task from the radial command wheel.
+    message: "Your companion can handle woodcutting. Set them to gather wood and they will chop trees, fallen logs, and stumps automatically — prioritizing fallen resources first. They equip the right tools from their inventory and stop at 298/300 carry weight, then deposit materials into nearby chests. Use the radial command wheel by holding E to assign the task."
+    once: true
+
+  - id: companions_mining
+    title: "Offline Companions — Mining"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions mine rock formations and ore deposits using tools from
+      their inventory. Assign the mining task via the radial command wheel (hold E) and
+      they will stop automatically at 298/300 carry weight and deposit everything into
+      nearby chests.
+    trigger:
+      type: item_acquired
+      item: "Pickaxe*"
+    display:
+      mode: rune
+      topic: "Companion: Mining"
+    description: >
+      Pick up any pickaxe to unlock this companion mining tip.
+      Give your companion a pickaxe in their inventory, then assign the mining task
+      via the radial command wheel (hold E).
+    message: "Companions can mine so you do not have to. Assign them to stone and ore gathering and they will work rock formations and ore deposits using tools from their inventory. They stop automatically at 298/300 carry weight and deposit everything into nearby chests."
+    once: true
+
+  - id: companions_foraging
+    title: "Offline Companions — Foraging"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions forage berries, mushrooms, flowers, and branches without
+      any tools. Assign the foraging task via the radial command wheel (hold E) to passively
+      stock up on ingredients while you explore or work on other tasks.
+    trigger:
+      type: item_acquired
+      item: Raspberry
+    display:
+      mode: rune
+      topic: "Companion: Foraging"
+    description: >
+      Pick up a Raspberry to unlock this companion foraging tip.
+      No tools needed — assign the foraging task from the radial command wheel
+      (hold E on your companion) and they will gather immediately.
+    message: "Your companion can forage on their own. Send them on a foraging task and they will collect berries, mushrooms, flowers, and branches without needing any tools. A great way to passively stock up on ingredients while you explore or work on other tasks."
+    once: true
+
+  - id: companions_smelting
+    title: "Offline Companions — Smelting"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions manage the full smelting chain within 25 metres: refilling
+      kilns and furnaces, collecting finished bars, and depositing them into nearby chests.
+      They intelligently prioritise ore when fuel is adequate and switch to fueling when
+      stocks run critically low.
+    trigger:
+      type: build
+      piece: charcoal_kiln
+    display:
+      mode: rune
+      topic: "Companion: Smelting"
+    description: >
+      Build a Charcoal Kiln to unlock this companion smelting tip.
+      Place ore and fuel in nearby chests within 25 metres of the kiln and furnace,
+      then assign the smelting task from the radial command wheel (hold E).
+    message: "A companion can manage your entire smelting chain. Assign them to smelting and they will refill kilns and furnaces within 25 meters, collect finished bars, and deposit them into nearby chests. They intelligently prioritize ore when fuel is adequate and switch to fueling when stocks run critically low."
+    once: true
+
+  - id: companions_farming
+    title: "Offline Companions — Farming"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions run your farm: harvesting ripe crops, replanting seeds
+      in grid layouts, and depositing produce into chests automatically. Define Farm Zones
+      to designate planting areas and crop types — those assignments persist across sessions.
+    trigger:
+      type: equip
+      item: Cultivator
+    display:
+      mode: rune
+      topic: "Companion: Farming"
+    description: >
+      Equip a Cultivator to unlock this companion farming tip.
+      Give your companion seeds and the cultivator, then assign the farming task
+      from the radial command wheel (hold E). Define Farm Zones to set planting areas.
+    message: "Companions can run your farm. Assign one to farming and they will harvest ripe crops, replant seeds in grid layouts, and deposit produce into chests automatically. Define Farm Zones to designate exactly which areas to plant and which crops to grow — those assignments persist across sessions."
+    once: true
+
+  - id: companions_fishing
+    title: "Offline Companions — Fishing"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions fish automatically: they cast for 15–20 seconds, hook
+      with an 85% success rate, and reel in over 4–6 seconds. Stock their inventory with
+      the right bait — different baits attract different species using vanilla probability tables.
+    trigger:
+      type: equip
+      item: FishingRod
+    display:
+      mode: rune
+      topic: "Companion: Fishing"
+    description: >
+      Equip a Fishing Rod to unlock this companion fishing tip.
+      Stock your companion's inventory with bait, then assign the fishing task
+      from the radial command wheel (hold E). Position them near a body of water.
+    message: "Let your companion fish while you do other things. They cast for 15–20 seconds, hook fish with an 85% success rate, and reel in over 4–6 seconds. Stock their inventory with the right bait — different baits attract different species using vanilla probability tables."
+    once: true
+
+  - id: companions_hunting
+    title: "Offline Companions — Hunting"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions hunt passive wildlife — boars, deer, chickens, and hares —
+      using a bow from a safe standoff distance to avoid spooking prey. Give your companion
+      a bow and arrows via the radial command wheel (hold E) to assign the hunting task.
+    trigger:
+      type: item_acquired
+      item: "Bow*"
+    display:
+      mode: rune
+      topic: "Companion: Hunting"
+    description: >
+      Pick up any bow to unlock this companion hunting tip.
+      Give your companion a bow and a stack of arrows in their inventory, then
+      assign the hunting task from the radial command wheel (hold E).
+    message: "A companion with a bow can hunt for you. Assign them to hunting and they will track and kill passive wildlife — boars, deer, chickens, and hares — using ranged weapons while maintaining a safe standoff distance to avoid spooking prey. Make sure their inventory has a bow and arrows."
+    once: true
+
+  - id: companions_cooking
+    title: "Offline Companions — Cooking"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions manage the full kitchen and brewery: crafting meals at
+      cauldrons, brewing mead bases, filling fermenters, and tapping finished meads into
+      storage — all from ingredients in nearby chests without any intervention needed.
+    trigger:
+      type: build
+      piece: piece_cookingstation
+    display:
+      mode: rune
+      topic: "Companion: Cooking"
+    description: >
+      Build a Cooking Station to unlock this companion cooking tip.
+      Stock nearby chests with ingredients, then assign the cooking task from
+      the radial command wheel (hold E). A Cauldron is needed for advanced meals.
+    message: "Companions can run your kitchen and brewery. Assign one to cooking and they will craft meals at cauldrons using ingredients from nearby chests, brew mead bases, fill fermenters, and tap finished meads into storage — managing the full production chain on their own."
+    once: true
+
+  - id: companions_base
+    title: "Offline Companions — Base Maintenance"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned about Stay Home mode: every 60 seconds your companion repairs damaged
+      structures within 40 metres, refuels fires below 30% capacity, and consolidates items
+      across chests. Enable Wander and they will also patrol a 50-metre radius around base.
+    trigger:
+      type: build
+      piece: bed
+    display:
+      mode: rune
+      topic: "Companion: Stay Home"
+    description: >
+      Build a Bed to unlock this companion base maintenance tip.
+      Set your companion to Stay Home mode via the radial command wheel (hold E)
+      before leaving base — they will repair, refuel, and consolidate automatically.
+    message: "Set your companion to Stay Home and they will maintain your base while you are away. Every 60 seconds they rotate through tasks: repairing damaged structures within 40 meters, refueling campfires, hearths, and torches below 30% capacity, and consolidating items across chests. Enable the Wander setting and they will patrol a 50-meter radius around the base."
+    once: true
+
+  - id: companions_portal
+    title: "Offline Companions — Portal Travel"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You learned that companions follow you through portals and dungeon entrances
+      automatically — just step through and they teleport alongside you. The only exception
+      is Stay Home mode: companions set to guard the base will remain there.
+    trigger:
+      type: build
+      piece: portal_wood
+    display:
+      mode: rune
+      topic: "Companion: Portals"
+    description: >
+      Build a portal to unlock this companion portal travel tip.
+      Make sure your companion is not in Stay Home mode — set them to Follow
+      via the radial command wheel (hold E) before stepping through.
+    message: "Companions follow you through portals and dungeon entrances automatically — just step through and they teleport alongside you. The only exception is Stay Home mode: companions set to guard the base will remain there rather than follow you through."
+    once: true
+
+  # Wandering Companions has no tameable NPC creature. Wanderers are hostile humanoids
+  # that roam the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands.
+  # They are optional challenge encounters — not friendly or hireable on encounter.
+  - id: wandering_companions_chain
+    title: "Wandering Companions — Dangerous Encounters"
+    category: Companions
+    version: 1
+    requires: [companions_intro]
+    summary: >
+      You were warned about hostile wandering humanoids patrolling six biomes: Black Forest,
+      Mountains, Swamps, Plains, Mistlands, and Ashlands. After defeating Eikthyr and
+      The Elder you received further warnings as their territory expanded. These are
+      optional challenge encounters — block, parry, and know when to retreat.
+    steps:
+      - trigger:
+          type: first_login
+        display:
+          mode: raven
+          topic: "Wandering Companions"
+        description: >
+          This warning fires on your very first login.
+          Wanderers are hostile humanoid NPCs patrolling six biomes.
+          Do not engage them until your gear and combat skills are ready.
+        message: "Warning! Dangerous wanderers roam this world — in the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands. They are not friendly. If you are looking for a real challenge, seek them out."
+
+      - trigger:
+          type: boss_defeated
+          creature: Eikthyr
+        display:
+          mode: rune
+          topic: "Wandering Companions"
+        description: >
+          Defeat Eikthyr to advance this chain into the Black Forest phase.
+          Activate his Forsaken power runestone near spawn to reveal his location on the map,
+          then hunt him down. Bring fire arrows and a shield.
+        message: "With Eikthyr defeated, the Black Forest lies ahead. Wanderers are already patrolling those dark trees. They are formidable fighters — do not underestimate them on your first encounter."
+
+      - trigger:
+          type: boss_defeated
+          creature: gd_king
+        display:
+          mode: rune
+          topic: "Wandering Companions"
+        description: >
+          Defeat The Elder (gd_king) to advance this chain into Swamp and Mountain territory.
+          Find The Elder in the Black Forest — activate his Forsaken power at spawn to get a
+          map marker. Bring poison resistance mead and a good bow.
+        message: "Wanderers have spread through the Swamp and Mountains. They grow more dangerous as you progress deeper into the world. If you want a true challenge, seek them out in the mist."
+
+      - trigger:
+          type: player_death
+          max_fires: 2
+        display:
+          mode: raven
+          topic: "Wandering Companions"
+        description: >
+          This tip fires when you die in combat (up to twice after The Elder is defeated).
+          Review your armour rating and food buffs before re-engaging.
+          Wanderers use advanced combat AI — blocking and parrying are essential.
+        message: "Wanderers will not hold back. If one caught you off guard, study how they fight before your next encounter — or avoid their patrol zones entirely until you are better prepared."
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Skills
+  # ═══════════════════════════════════════
+
+  - id: slayerskills_chain
+    title: "SlayerSkills — Trophy Hunter"
+    category: Skills
+    version: 1
+    discord_on_complete: true
+    summary: >
+      You completed the Trophy Hunter chain: collected 20 trophies, defeated Eikthyr for
+      a boss slayer bonus, and reached the slayer cap for at least one creature type.
+      Capping a creature type earns permanent Slayer status — those skill points can no
+      longer be lost on death, and all damage bonuses against that creature are fully unlocked.
+    steps:
+      - trigger:
+          type: item_acquired
+          item: "Trophy*"
+        display:
+          mode: rune
+          topic: "SlayerSkills"
+        description: >
+          Kill creatures that drop trophies to start building SlayerSkills experience.
+          Any trophy counts — stronger creatures and starred variants award more slayer points.
+          Check the Trophy panel UI to see your progress for each creature type.
+        message: "Trophy collected. SlayerSkills tracks creature kills and builds creature-specific slayer experience whenever a trophy drops. Check the Trophy panel UI to see your slayer progress for each creature type. As your slayer skill grows, you deal more damage to that creature type across all damage categories — physical, elemental, poison, and spirit. Starred creatures award bonus slayer points, so tougher encounters advance your skills faster."
+
+      - trigger:
+          type: item_acquired
+          item: "Trophy*"
+        display:
+          mode: rune
+          topic: "Trophy Collector"
+        description: >
+          Keep collecting trophies to build slayer experience. Specialising in one creature
+          type levels that skill faster than spreading your hunts thin.
+          Aim for five trophies of the same creature type for an early bonus surge.
+        message: "Five trophies gathered. Your slayer damage bonuses are building — specializing in one creature type pushes those bonuses higher faster than spreading your hunts thin. In multiplayer, kill credit is distributed across the party using one of four modes: Random, All, Distribute, or Killing Blow. Kills by your tamed animals also count toward your slayer skills."
+
+      - trigger:
+          type: boss_defeated
+          creature: Eikthyr
+        display:
+          mode: rune
+          topic: "Boss Slayer"
+        description: >
+          Defeat Eikthyr, the first boss, to advance the slayer chain.
+          Activate his Forsaken power runestone near spawn to get a map marker,
+          then hunt him down. Boss kills award massive slayer point multipliers.
+        message: "First boss defeated. Boss encounters grant special slayer point multipliers that far exceed normal creature kills — hunting bosses repeatedly is one of the fastest ways to accelerate your slayer progression for those creature types. Keep pushing your slayer skills toward the maximum cap."
+
+      - trigger:
+          type: item_acquired
+          item: "Trophy*"
+        display:
+          mode: rune
+          topic: "True Slayer"
+        description: >
+          Continue hunting and collecting trophies toward 20 total.
+          Target your most-hunted creature type and push it to the slayer cap —
+          reaching it grants permanent Slayer status and protects those points from death.
+        message: "Twenty trophies — you have dedicated yourself to the hunt. Reaching the maximum slayer cap for any creature type earns you Slayer status for that creature: your skill points for it can no longer be lost on death, and all damage bonuses against it are fully unlocked. Target your most-hunted creature types and push them to the cap."
+        rewards:
+          - type: buff
+            effect: SE_Rested
+            duration_override: 1200
+          - type: skill_exp
+            skill: Swords
+            amount: 1000
+
+  - id: impactfulskills_run
+    title: "ImpactfulSkills — Movement Skills"
+    category: Skills
+    version: 1
+    summary: >
+      You learned about ImpactfulSkills movement perks: Running increases movement speed,
+      Jump improves jump height, distance, and safe fall range while reducing fall damage,
+      and Sneak boosts movement speed with noise reduction unlocking at level 50 —
+      similar to troll armour's effect.
+    trigger:
+      type: skill_level
+      skill: Run
+      level: 25
+    display:
+      mode: rune
+      topic: "ImpactfulSkills"
+    message: "Your Run skill is growing. ImpactfulSkills adds distinct, meaningful perks to every skill as you level — not just stat bumps, but real changes to how you play. Running increases your movement speed beyond the standard stamina reduction. Jump improves your jump height and distance, raises your safe fall distance, and reduces fall damage. Sneaking improves movement speed and at level 50 begins reducing noise generation, similar to troll armor."
+    once: true
+
+  - id: impactfulskills_woodcutting
+    title: "ImpactfulSkills — Gathering Skills"
+    category: Skills
+    version: 1
+    summary: >
+      You learned about ImpactfulSkills gathering perks: Woodcutting boosts wood, seed,
+      and resin yields plus chop damage; Pickaxes improve ore and stone yields with AOE
+      mining unlocking at level 50; Farming boosts harvest quantities, scythe range,
+      and unlocks AOE harvesting at level 50.
+    trigger:
+      type: skill_level
+      skill: WoodCutting
+      level: 25
+    display:
+      mode: rune
+      topic: "Gathering Skills"
+    message: "Your Woodcutting skill is paying off. ImpactfulSkills boosts wood, seed, and resin yields as Woodcutting levels, and increases chop damage for faster tree felling. Pickaxes improve ore and stone collection and unlock an expanding AOE mining effect at level 50. Farming boosts harvest quantities and scythe range, and also unlocks AOE harvesting at level 50 that grows wider with skill."
+    once: true
+
+  - id: impactfulskills_chain
+    title: "ImpactfulSkills — Sword Milestones"
+    category: Skills
+    version: 1
+    summary: >
+      You reached Swords level 50 and learned the full ImpactfulSkills picture:
+      all weapon skills reduce stamina costs up to 50% at level 100, with current bonuses
+      shown on each item tooltip. Five new skill types are also available: Voyager (sailing),
+      Hauling (carry weight), Animal Whisper (taming), Cooking (food duration), and
+      Knowledge Sharing (cross-skill acceleration).
+    steps:
+      - trigger:
+          type: skill_level
+          skill: Swords
+          level: 25
+        display:
+          mode: rune
+          topic: "Combat Skills"
+        description: >
+          Raise your Swords skill to level 25 by fighting enemies with a sword.
+          Every hit and kill grants sword skill experience. Check the item tooltip
+          on your sword to see your current ImpactfulSkills stamina reduction bonus.
+        message: "Your weapon skill is growing. ImpactfulSkills reduces stamina costs for all weapon types as they level — up to 50% reduction at level 100 by default. The current bonus for your weapon shows directly on its item tooltip so you always know exactly what you have gained. Blood Magic grants bonus XP for damage absorbed by your shields, with an extra burst of XP whenever a shield breaks."
+
+      - trigger:
+          type: skill_level
+          skill: Swords
+          level: 50
+        display:
+          mode: rune
+          topic: "New Skills"
+        description: >
+          Raise your Swords skill to level 50 to unlock this milestone tip.
+          Continue fighting with swords — stamina cost reductions keep improving toward
+          the 50% cap at level 100. New skill types are now visible in your skills panel.
+        message: "ImpactfulSkills also introduces three new skill types alongside the vanilla set. Voyager grants sailing bonuses including paddle speed, close-hauling, and boat durability — at level 75 your vessel becomes immune to collision impact damage. Hauling increases your carry weight. Animal Whisper reduces taming time and improves drops from tamed creatures. Cooking extends food buff duration so your meals decay slower. Finally, Knowledge Sharing lets progress in one skill accelerate learning across related skills, easing specialization for the whole party."
+        rewards:
+          - type: buff
+            effect: SE_Rested
+            duration_override: 600
+          - type: skill_exp
+            skill: Run
+            amount: 500
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Exploration
+  # ═══════════════════════════════════════
+
+  - id: more_world_locations_1
+    title: "More World Locations AIO"
+    category: Exploration
+    version: 1
+    summary: >
+      You discovered your first More World Locations site and learned that this mod
+      adds 178 points of interest across all biomes — ports, shrines, dungeons, puzzle
+      sites, and special traders — scattered throughout the world waiting to be explored.
+    trigger:
+      type: location_entered
+      location: "MWL_*"
+    display:
+      mode: raven
+      topic: "World Locations"
+    message: "You discovered a new location. More World Locations AIO adds 178 points of interest across all biomes — ports, shrines, dungeons, puzzle sites, and special traders are scattered throughout the world."
+    once: true
+
+  - id: more_world_locations_2
+    title: "More World Locations AIO"
+    category: Exploration
+    version: 1
+    requires: [more_world_locations_1]
+    summary: >
+      You discovered a second MWL site and learned about the variety: coastal ports with
+      trade goods, ancient shrines granting temporary blessings, and hidden dungeons with
+      boss-tier enemies and unique drops. Check your map for unfamiliar markers.
+    trigger:
+      type: location_entered
+      location: "MWL_*"
+    display:
+      mode: raven
+      topic: "World Locations"
+    description: >
+      Discover a second More World Locations site by exploring any biome.
+      Watch for map markers with unfamiliar names — MWL locations appear automatically
+      when you enter their detection radius.
+    message: "Location types vary widely: coastal ports offer trade goods, ancient shrines grant temporary blessings, and hidden dungeons contain boss-tier enemies with unique drops."
+    once: true
+
+  - id: more_world_locations_3
+    title: "More World Locations AIO"
+    category: Exploration
+    version: 1
+    requires: [more_world_locations_2]
+    summary: >
+      You received the final MWL tip: some locations contain special traders with rare
+      stock and puzzle rooms with environment-based rewards. Review your map markers
+      carefully — distinctive icons mark trader and puzzle locations worth a dedicated visit.
+    trigger:
+      type: timed
+      interval: "60"
+      id: mwl_reward_tip
+    display:
+      mode: raven
+      topic: "World Locations"
+    description: >
+      This tip fires automatically 1 minute after discovering your second MWL location.
+      Open your map and review any recently added markers — trader and puzzle locations
+      show distinctive icons and are worth a dedicated visit.
+    message: "Some locations contain special traders with rare stock and puzzle rooms with environment-based rewards. Check your map markers carefully for hidden points of interest."
+    once: true
+
+  # ZenBossStone has no buildable piece. The Boss Stone is pre-placed in the Spawn
+  # Temple. Each player has their own personal achievements on it. Sacrificing boss
+  # trophies at the stone unlocks boss items for that player only.
+  - id: zenbossstone_chain
+    title: "ZenBossStone — Boss Progression"
+    category: Exploration
+    version: 1
+    scope: player
+    summary: >
+      You slew Eikthyr and learned about the personal Boss Stone in the Spawn Temple.
+      Sacrifice boss trophies at your stone to unlock exclusive boss items for your
+      character only. Each victory is tracked individually — your stone is yours alone.
+    trigger:
+      type: item_acquired
+      item: TrophyEikthyr
+    display:
+      mode: rune
+      topic: "Boss Stone"
+    message: "You have slain Eikthyr and claimed his trophy. Return to the Spawn Temple and sacrifice the trophy at your personal Boss Stone — the stone tracks your boss victories and yours alone. Each sacrifice unlocks powerful boss items exclusive to that victory. The Boss Stone is waiting at the Spawn Temple."
+    once: true
+
+
+  # ═══════════════════════════════════════
+  # CATEGORY: General
+  # ═══════════════════════════════════════
+
+  - id: recovery_tips
+    title: "Death Recovery"
+    category: General
+    version: 1
+    summary: >
+      You received multiple death recovery reminders: find your grave marker on the map
+      to recover your gear, and remember that skill experience lost on death recovers with
+      use. ComfyQuickSlots also spawns equipped items in a separate grave above your
+      tombstone so nothing is ever truly lost.
+    trigger:
+      type: player_death
+      max_fires: 3
+    display:
+      mode: raven
+      topic: "Death Recovery"
+    message: "Your grave marks where your gear fell — look for the tombstone icon on your map. You lose some skill exp on death, but it recovers with use."
+    once: false

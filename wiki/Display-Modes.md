@@ -16,10 +16,15 @@ display:
 Shows Hugin (the raven) flying in with a popup message — the same style used for vanilla tutorial hints.
 
 ```yaml
-display:
-  mode: raven
-  topic: "Stone Axe"
-  text: "A crude edge, but it bites. Fell trees, gather wood."
+- id: first_axe_hint
+  trigger:
+    type: item_acquired
+    item: AxeStone
+  message: "Welcome, {player_name}! Stone is plentiful — craft tools at a workbench."
+  display:
+    mode: raven
+    topic: "Stone Axe"
+  once: true
 ```
 
 **Best for:** First-time lore, progression hints, new-player guidance.
@@ -28,7 +33,8 @@ display:
 - Raven popups respect the player's "Dismiss" click — they can close it early.
 - `display.topic` becomes the popup's title.
 - The mod's raven hints fire even when the player has disabled vanilla tutorials in game options. This is controlled by the `RavenEnabled` option in the BepInEx config (default on), independently of the vanilla "Tutorials Enabled" setting.
-- Text tokens (`{playerName}` etc.) are **not** expanded in raven mode because text is baked in at config load. Use `message` or `chat` mode for personalised messages.
+- **Text source:** Write the message in the top-level `message:` field (same as all other modes). Alternatively use `display.text`. `message:` takes priority if both are set.
+- **Text tokens are supported** (`{player_name}`, `{biome}`, etc.). The text is updated with the rendered value each time the entry fires.
 
 ---
 
@@ -137,6 +143,67 @@ display:
 - While the panel is open, player movement, attacks, inventory, camera, and the pause menu are all disabled.
 - If no choices are defined, a default "Dismiss" button is shown.
 - See [NPC Conversations](NPC-Conversations) for full setup.
+
+---
+
+## Server Display Mode Assignment Rules
+
+When authoring guides for a server modpack, every trigger type should map to a fixed
+display mode. The rules below reflect the Hearthbound modpack convention and are
+documented fully in `wiki/Guide-Authoring-Reference.md`.
+
+### Rune triggers (action events — player actively did something)
+
+Use `rune` for triggers that fire in response to a deliberate player action. The
+full-screen presentation + ghost mode ensures the player stops and reads the text.
+
+| Trigger type | Why rune |
+|---|---|
+| `craft` | Player just crafted something — brief pause is natural |
+| `item_acquired` | Major pickup moment; lore/tip reinforces the discovery |
+| `kill` | Kill confirmation; ghost mode prevents kill-stealing mid-read |
+| `build` | Piece just placed; player is in build mode anyway |
+| `chest_opened` | First container interaction — tutorial moment |
+| `skill_level` | Level-up milestone — deserves drama |
+| `timed` | Follow-up tips in a chain — must be dismissable so nothing goes unread |
+| `boss_defeated` | Boss victory moment — most dramatic possible timing |
+
+### Raven triggers (environmental / existential events)
+
+Use `raven` for triggers that fire because of something *that happened to* the player
+or because of a world state transition, not a deliberate action.
+
+| Trigger type | Why raven |
+|---|---|
+| `first_login` | Welcome message; ambient delivery suits a new arrival |
+| `player_death` | Post-death tip; raven appearing after respawn feels thematically correct |
+| `biome` | Entering a biome for the first time — discovery moment |
+| `distance` | Proximity alert — ambient warning, not an action |
+| `discover_location` *(planned)* | Map discovery — world speaks to the player |
+
+### Message / conversation triggers (NPC-based or minor contextual tips)
+
+Use `message` or `conversation` for triggers tied to NPC interactions or minor tips
+that should not interrupt gameplay.
+
+| Trigger type | Recommended mode |
+|---|---|
+| `npc_interacted` | `message` (Center or TopLeft) |
+| `npc_conversation` | `conversation` (holds E, choice panel) |
+| `npc_item_submit` | `rune` (submission is a deliberate dramatic act) |
+| `location_entered` | `message` (brief, non-blocking) |
+| `equip` | `message` (fires on equip + load; rune would be too disruptive) |
+| `entry_finished` | inherits from the entry being chained to |
+
+### Quick reference table
+
+| Trigger | Mode |
+|---|---|
+| craft, item_acquired, kill, build, chest_opened, skill_level, timed, boss_defeated | `rune` |
+| first_login, player_death, biome, distance | `raven` |
+| npc_interacted, equip, location_entered | `message` |
+| npc_conversation | `conversation` |
+| npc_item_submit | `rune` |
 
 ---
 

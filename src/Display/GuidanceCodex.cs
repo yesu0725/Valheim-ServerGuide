@@ -605,20 +605,27 @@ namespace ValheimServerGuide.Display
                 }
             }
 
-            // Body text: current step message (or last step for completed chains).
-            if (entry.Steps != null && entry.Steps.Count > 0)
+            // Body text: completed entries with a summary show that recap first.
+            // In-progress chains show the current step description (what to DO).
+            // Completed chains without a summary fall back to the last step's message.
+            if (complete && !string.IsNullOrEmpty(entry.Summary))
+            {
+                _bodyText.text = "<color=#96F296><b>Quest Complete</b></color>\n\n" + entry.Summary;
+            }
+            else if (entry.Steps != null && entry.Steps.Count > 0)
             {
                 GuidanceStep displayStep;
                 if (complete)
                 {
                     displayStep = entry.Steps[entry.Steps.Count - 1];
+                    _bodyText.text = StepMessage(displayStep);
                 }
                 else
                 {
                     var idx = ChainState.GetStep(player, entry.Id);
                     displayStep = idx < entry.Steps.Count ? entry.Steps[idx] : null;
+                    _bodyText.text = displayStep?.Description ?? "";
                 }
-                _bodyText.text = StepMessage(displayStep);
             }
             else
             {
@@ -755,6 +762,15 @@ namespace ValheimServerGuide.Display
             if (step == null) return "";
             if (!string.IsNullOrEmpty(step.Message)) return step.Message;
             return step.Display?.Text ?? "";
+        }
+
+        /// For the current (incomplete) step: prefer Description over Message so the Codex
+        /// shows what the player needs to DO rather than the reward text that fires on completion.
+        private static string StepDescription(GuidanceStep step)
+        {
+            if (step == null) return "";
+            if (!string.IsNullOrEmpty(step.Description)) return step.Description;
+            return StepMessage(step);
         }
 
         private static string TruncateStepTitle(string text)

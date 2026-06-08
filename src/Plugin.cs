@@ -19,7 +19,7 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.1.0";
+        public const string PluginVersion = "0.2.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -55,7 +55,6 @@ namespace ValheimServerGuide
         private static GuidanceConfigLoader _loader;
         private static readonly object _loaderLock = new object();
         private static string _configDir;
-        private static string _yamlPath;
 
         private void Awake()
         {
@@ -147,7 +146,6 @@ namespace ValheimServerGuide
                 Log.LogInfo($"Harmony patched: {m.DeclaringType?.Name}.{m.Name}");
 
             _configDir = Path.Combine(Paths.ConfigPath, PluginName);
-            _yamlPath = Path.Combine(_configDir, "guidance.yaml");
 
             GuidanceSync.Register();
             GuidanceDisplay.Initialize();
@@ -178,10 +176,10 @@ namespace ValheimServerGuide
             {
                 if (_loader != null) return;
                 Directory.CreateDirectory(_configDir);
-                _loader = new GuidanceConfigLoader(_yamlPath);
+                _loader = new GuidanceConfigLoader(_configDir);
                 _loader.ConfigChanged += Instance.OnConfigChanged;
                 _loader.Start();
-                Log.LogInfo($"Guidance YAML loader started ({_yamlPath}).");
+                Log.LogInfo($"Guidance YAML loader started ({_configDir}).");
             }
         }
 
@@ -232,6 +230,18 @@ namespace ValheimServerGuide
                 MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft,
                     $"[VSG] Guide config reloaded — {newConfig.Guidances.Count} entries loaded.");
             }
+        }
+
+        /// Pumps the YAML loader on the Unity main thread. FileSystemWatcher events fire
+        /// on a background thread where Unity/ZRoutedRpc calls are illegal (they throw and
+        /// get swallowed) — that is why YAML edits previously needed a server restart to
+        /// reach connected clients. Tick() applies the debounced reload here so the broadcast
+        /// and HUD refresh run on the main thread and propagate live.
+        private void Update()
+        {
+            GuidanceConfigLoader loader;
+            lock (_loaderLock) { loader = _loader; }
+            loader?.Tick();
         }
 
         private void OnDestroy()

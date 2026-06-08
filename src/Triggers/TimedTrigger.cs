@@ -3,14 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.Net;
+using ValheimServerGuide.State;
 
 namespace ValheimServerGuide.Triggers
 {
-    /// Server/host-side recurring timer that fires guidance entries on a schedule.
-    /// On a dedicated server (batch mode): broadcasts VSG_TimedGuidance RPC so each
-    /// client evaluates its own dispatcher gates (once, cooldown, max_fires).
-    /// On a host/single-player: raises the event directly via GuidanceDispatcher.
-    /// Pure clients never run timers — they receive broadcasts from the server instead.
+    /// Recurring timer that fires guidance entries on a schedule.
+    ///
+    /// Scope routing:
+    ///   player-scope — each client runs its own coroutine and raises the event locally so
+    ///                  per-player gates (requires, once, cooldown) are evaluated independently.
+    ///                  The dedicated server does NOT broadcast player-scope timers.
+    ///   global-scope — server/host runs the coroutine; dedicated server broadcasts via RPC so
+    ///                  every client receives the event. Pure clients skip global timers.
     internal static class TimedTrigger
     {
         private static readonly Dictionary<string, Coroutine> _coroutines =
@@ -20,7 +24,9 @@ namespace ValheimServerGuide.Triggers
         {
             StopAll();
             if (config?.Guidances == null) return;
-            if (!IsServerOrHost()) return;
+
+            var isDedicatedServer = Application.isBatchMode && IsServerOrHost();
+            var isPureClient      = !IsServerOrHost();
 
             foreach (var entry in config.Guidances)
             {
@@ -34,11 +40,21 @@ namespace ValheimServerGuide.Triggers
                     continue;
                 }
 
-                var entryId = entry.Id;
+                var isGlobal = SeenTracker.IsGlobalScope(entry.Scope);
+
+                // Dedicated server: runs only global-scope timers (broadcasts them to clients).
+                //                   Player-scope timers are owned by each client individually.
+                if (isDedicatedServer && !isGlobal) continue;
+
+                // Pure client: runs only player-scope timers locally.
+                //              Global-scope timers arrive via RPC from the server.
+                if (isPureClient && isGlobal) continue;
+
+                var entryId   = entry.Id;
                 var triggerId = entry.Trigger.Id ?? entry.Id;
-                var coroutine = Plugin.Instance.StartCoroutine(TimerRoutine(entryId, triggerId, interval));
+                var coroutine = Plugin.Instance.StartCoroutine(TimerRoutine(entryId, triggerId, interval, isGlobal));
                 _coroutines[entryId] = coroutine;
-                Plugin.Log.LogInfo($"[timed] scheduled '{entryId}' every {interval}s.");
+                Plugin.Log.LogInfo($"[timed] scheduled '{entryId}' every {interval}s ({(isGlobal ? "global" : "player")}).");
             }
         }
 
@@ -50,21 +66,21 @@ namespace ValheimServerGuide.Triggers
             _coroutines.Clear();
         }
 
-        private static IEnumerator TimerRoutine(string entryId, string triggerId, float interval)
+        private static IEnumerator TimerRoutine(string entryId, string triggerId, float interval, bool isGlobal)
         {
             yield return new WaitForSeconds(interval);
             while (true)
             {
                 Plugin.Log.LogInfo($"[timed] '{entryId}' firing.");
 
-                if (Application.isBatchMode)
+                if (isGlobal && Application.isBatchMode)
                 {
-                    // Dedicated server: let each client evaluate its own dispatcher gates.
+                    // Dedicated server + global scope: broadcast to all clients.
                     GuidanceSync.BroadcastTimedGuidance(entryId);
                 }
                 else
                 {
-                    // Host or single-player: raise locally.
+                    // Host, single-player, or client running a player-scope timer: raise locally.
                     GuidanceDispatcher.Raise(new TriggerEvent { Type = "timed", Subject = triggerId });
                 }
 

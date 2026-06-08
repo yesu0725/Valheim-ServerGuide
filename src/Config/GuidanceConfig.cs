@@ -84,6 +84,9 @@ namespace ValheimServerGuide.Config
         /// NPC conversation data: the choices shown when the conversation panel opens.
         public ConversationSpec Conversation { get; set; }
         public List<RewardSpec> Rewards { get; set; } = new List<RewardSpec>();
+        /// Short recap shown in the Codex body when the entry is complete.
+        /// Reminds the player what the quest was about without re-reading every step.
+        public string Summary { get; set; }
     }
 
     /// One step in a multi-step chain. Step N fires only after Step N-1 has fired.

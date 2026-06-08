@@ -66,7 +66,7 @@ trigger:
 
 ## `biome`
 
-Fires when the player enters a specific biome. Checked every 0.5 seconds.
+Fires when the player enters a specific biome. Checked every 2 seconds.
 
 ```yaml
 trigger:
@@ -80,26 +80,16 @@ trigger:
 
 ## `distance`
 
-Fires when the player steps within `radius` metres of a named map location. Checked every 0.5 seconds.
+Fires when the player steps within `radius` metres of a named world location. Checked every 5 seconds. Fires at most once per location per character.
 
 ```yaml
 trigger:
   type: distance
-  location: Vendor_BlackForest    # ZoneSystem location name
-  radius: 50                      # metres
+  location: Vendor_BlackForest    # ZoneSystem location prefab name
+  radius: 50                      # metres (default 50 when omitted)
 ```
 
 **Common location names:** `Vendor_BlackForest` (Haldor), `TrollCave02`, `Crypt2` (Burial Chambers), `VikingVillage`
-
-You can also use coordinates instead of a named location by specifying `x` and `z`:
-
-```yaml
-trigger:
-  type: distance
-  x: 512
-  z: -200
-  radius: 30
-```
 
 ---
 
@@ -250,10 +240,14 @@ Fires on a repeating interval while the player is in the world.
 ```yaml
 trigger:
   type: timed
-  interval: "30m"       # e.g. "30s", "5m", "1h"
+  id: my_tip_id        # required — stable identifier used to dispatch this entry
+  interval: "1800"     # seconds as a plain number: 1800 = 30 min, 300 = 5 min, 3600 = 1 h
+                       # or the keywords: "hourly" (3600 s), "daily" (86400 s)
 ```
 
-Useful for periodic tips, reminders, or time-based events. The interval resets each time the entry fires. Combine with `stop_when` to stop after a condition is met.
+The `id` field is required — it acts as the dispatch subject that links the timer to this entry. Without it the timer runs but the entry never fires. The interval is always in **seconds** (plain number); shorthand like `"30m"` or `"1h"` is not supported. Useful for periodic tips, reminders, or time-based events. The interval resets each time the entry fires. Combine with `stop_when` to stop after a condition is met.
+
+> **Limitation:** `timed` only works on **individual (non-chain) entries**. Placing it inside a chain step (`steps:` list) silently does nothing — no coroutine is started for step-level triggers. To deliver a sequence of timed tips one after another, convert each step to its own standalone entry and use `requires: [previous_id]` to gate each one on the previous entry completing.
 
 ---
 

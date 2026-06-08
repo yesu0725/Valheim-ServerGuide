@@ -60,7 +60,7 @@ namespace ValheimServerGuide.Display
                     m_name = entry.Id,
                     m_label = entry.Display.Topic ?? entry.Id,
                     m_topic = entry.Display.Topic ?? entry.Id,
-                    m_text = entry.Display.Text ?? "",
+                    m_text = entry.Message ?? entry.Display.Text ?? "",
                 });
                 RegisteredTutorialNames.Add(entry.Id);
             }
@@ -78,13 +78,27 @@ namespace ValheimServerGuide.Display
                     return;
                 }
                 EnsureTutorialRegistered(entry);
+                // Overwrite the baked text with the live-rendered version so that
+                // (a) top-level `message:` fields are honoured, and
+                // (b) template variables ({player_name} etc.) are expanded before display.
+                UpdateTutorialText(entry.Id, renderedText);
                 if (Player.m_localPlayer == null) { Plugin.Log.LogWarning("[show] raven: no local player."); return; }
+                if (Tutorial.instance == null) { Plugin.Log.LogWarning("[show] raven: Tutorial.instance null."); return; }
+                // Vanilla gates the raven on Player.m_shownTutorials: Player.ShowTutorial
+                // no-ops when HaveSeenTutorial(id) is true (its `force` arg is ignored by
+                // Tutorial.ShowText), Raven.CheckSpawn's RemoveSeendTempTexts strips any
+                // already-seen temp text, and Raven.Spawn marks a seen key as already-talked.
+                // That seen-set persists in the character save, so a raven entry shows once
+                // and never again — and vsg_reset (which only clears VSG state) can't revive
+                // it. VSG owns repeat semantics via `once`/SeenTracker, so clear the vanilla
+                // seen-flag here and queue the text directly through Tutorial.ShowText.
+                ClearVanillaTutorialSeen(entry.Id);
                 // Two patches make this fire even with vanilla tutorials disabled:
                 //   RavenGetBestTextPatch — forces our queued temp text to win selection
                 //                            (otherwise a stuck static text like haldor
                 //                            starves it, since Spawn() bails on the gate).
                 //   RavenSpawnBypassPatch — flips the static gate true for that one Spawn().
-                Player.m_localPlayer.ShowTutorial(entry.Id, force: true);
+                Tutorial.instance.ShowText(entry.Id, true);
                 return;
             }
 
@@ -312,6 +326,40 @@ namespace ValheimServerGuide.Display
         private static bool Eq(string a, string b)
             => string.Equals(a, b, System.StringComparison.OrdinalIgnoreCase);
 
+        /// Vanilla gates the raven on Player.m_shownTutorials (HaveSeenTutorial). That set
+        /// persists in the character save and ignores ShowTutorial's `force` arg, so clearing
+        /// the id is the only way to let the same raven display again. VSG decides when that
+        /// should happen (a fresh `once`-cleared trigger, or vsg_reset).
+        internal static void ClearVanillaTutorialSeen(string id)
+        {
+            var p = Player.m_localPlayer;
+            if (p == null || string.IsNullOrEmpty(id)) return;
+            p.m_shownTutorials.Remove(id);
+        }
+
+        /// Clear the vanilla seen-flag for every raven id VSG has registered (entries +
+        /// chain step keys). Used by `vsg_reset all` so raven entries become showable again.
+        internal static void ClearAllVsgTutorialSeen()
+        {
+            var p = Player.m_localPlayer;
+            if (p == null) return;
+            foreach (var id in RegisteredTutorialNames)
+                p.m_shownTutorials.Remove(id);
+        }
+
+        /// Clear the vanilla seen-flag for one entry id plus any of its chain-step keys
+        /// (registered as "{id}_s{n}"). Used by `vsg_reset <id>`.
+        internal static void ClearVsgTutorialSeenForEntry(string entryId)
+        {
+            var p = Player.m_localPlayer;
+            if (p == null || string.IsNullOrEmpty(entryId)) return;
+            p.m_shownTutorials.Remove(entryId);
+            var stepPrefix = entryId + "_s";
+            foreach (var id in RegisteredTutorialNames)
+                if (id.StartsWith(stepPrefix, System.StringComparison.Ordinal))
+                    p.m_shownTutorials.Remove(id);
+        }
+
         private static void EnsureTutorialRegistered(GuidanceEntry entry)
         {
             if (Tutorial.instance == null) return;
@@ -322,9 +370,23 @@ namespace ValheimServerGuide.Display
                 m_name = entry.Id,
                 m_label = entry.Display?.Topic ?? entry.Id,
                 m_topic = entry.Display?.Topic ?? entry.Id,
-                m_text = entry.Display?.Text ?? "",
+                m_text = entry.Message ?? entry.Display?.Text ?? "",
             });
             RegisteredTutorialNames.Add(entry.Id);
+        }
+
+        /// Overwrite the m_text of an already-registered tutorial slot with the
+        /// current rendered value so templates and top-level message: fields take effect.
+        private static void UpdateTutorialText(string id, string text)
+        {
+            if (Tutorial.instance == null) return;
+            var list = Tutorial.instance.m_texts;
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (list[i].m_name != id) continue;
+                list[i].m_text = text;
+                return;
+            }
         }
 
         private static MessageHud.MessageType ParsePosition(string position)
