@@ -27,10 +27,11 @@ Each ID is tagged with:
 
 | Tag | Meaning |
 |---|---|
-| `[fired]` | This entry has already fired for the current character (player scope) |
+| `[fired]` | This entry has already fired for the current character (`once: true` entries) |
+| `[fired N/max]` | This entry uses `max_fires`; shows current count vs cap (these never appear in the Fired list above) |
 | `[global]` | This is a global-scope entry |
 | `[discord]` | This entry has an `announce.discord` configured |
-| `[cooldown]` | This entry uses a cooldown instead of once |
+| `[Complete ✓ (vN)]` | Chain entry — all steps done, at version N |
 
 ---
 
@@ -44,7 +45,17 @@ Clears the fired state for one or all entries.
 vsg_reset all
 ```
 
-Clears every **player-scope** fired ID and cooldown for the **current character**. Also empties the raven display queue and the dungeon-deferred raven queue, so no pending raven messages carry over. Global-scope state is untouched.
+Clears all player-scope state for the **current character**:
+
+- Every `once`-fired ID (`VSG.fired`)
+- Every `max_fires` counter (`VSG.fc.*`) — **required** so capped entries like `player_death` tips can fire again
+- All chain progress, NPC item-submit counts, and item-acquired goal state
+- All in-memory cooldowns
+- The raven display queue and dungeon-deferred raven queue
+- Stale vanilla raven temp-texts for all VSG entries (so raven re-show isn't blocked by a leftover `Raven.m_tempTexts` entry)
+- Vanilla `Player.m_shownTutorials` flags for all VSG raven entries
+
+Global-scope state is untouched.
 
 ### Reset a specific entry
 
@@ -57,7 +68,11 @@ Clears the fired state and cooldown for a single entry. The command auto-detects
 - **Player-scope ID** — cleared from the local character's `m_customData`. Only affects the admin running the command.
 - **Global-scope ID** — must be run on the server/host. Removes the `VSG.<id>` global key from `ZoneSystem`. The entry can fire again for the entire world.
 
-If the entry is currently waiting in the raven queue (or the dungeon-deferred queue), it is also removed from there so the stale popup never appears.
+For a single-id reset, the following are also cleared for that entry:
+- The `max_fires` counter (`VSG.fc.<id>`)
+- Any pending raven queue entry or dungeon-deferred entry
+- Any stale `RavenText` in the vanilla `Raven.m_tempTexts` list (so the raven can re-show without being blocked by a leftover from before the reset)
+- The vanilla `Player.m_shownTutorials` seen-flag (for raven entries)
 
 ### Tab completion
 

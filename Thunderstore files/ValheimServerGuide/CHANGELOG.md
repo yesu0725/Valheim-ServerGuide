@@ -1,4 +1,14 @@
 # Changelog
+## 0.5.1
+
+### Bug Fixes
+
+- **Raven re-show after `vsg_reset` fixed.** After `vsg_reset` (all or single-id), raven entries now correctly re-show when re-triggered. The root cause was that Vanilla's `Raven.AddTempText` silently no-ops when a `RavenText` with the same key already exists in its static list, and `vsg_reset` clearing the seen-flag disabled vanilla's own cleanup for that entry. The fix evicts stale `RavenText` entries from `Raven.m_tempTexts` on every reset path and defensively before every re-show.
+- **`max_fires` entries re-fire after `vsg_reset`.** Entries using `trigger.max_fires: N` (such as `player_death` tips) were permanently blocked after hitting their cap, even after `vsg_reset all`. Fire counts are stored in separate `VSG.fc.*` keys that the old reset code never cleared. `vsg_reset all` and `vsg_reset <id>` now also clear these counters.
+- **`vsg_list` surfaces `max_fires` progress.** Entries using `max_fires` never appeared as "fired" in `vsg_list` (they don't write `VSG.fired`). They are now tagged `[fired N/max]` in the configured-entries list so you can see their counter and confirm it cleared after a reset.
+- **`skill_level` trigger fires on login for skills already above threshold.** Previously the `skill_level` trigger only fired when a skill level actively increased during the session. If a player logged in with a skill already above one or more thresholds, those entries were silently skipped. On login the mod now scans every configured `skill_level` threshold; any threshold the player already meets that has not yet fired is raised in ascending level order. For chains, this means all qualifying steps cascade automatically — step 1 fires first (advancing the chain), then step 2 fires, and so on.
+- **`location_entered` trigger now detects mod-added locations reliably.** The previous implementation read `ZoneSystem.m_locationInstances` and required `m_placed = true`, which is only set after the server re-syncs location data to the client. Locations generated after login never received that re-sync, so the trigger was permanently skipped for any zone entered for the first time. Detection now uses `Location.s_allLocations` (the scene's live spawned Location components) as the primary source, with the ZoneSystem as a fallback for locations lacking a `Location` component. The fallback also now tries `m_name` when `m_prefabName` is empty. Both paths emit `LogDebug` lines (enable `LogLevel = Debug` in `BepInEx.cfg`) so you can confirm the exact prefab names being detected and verify your wildcard patterns.
+
 ## 0.5.0
 
 ### New Features

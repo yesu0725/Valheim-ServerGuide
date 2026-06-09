@@ -14,8 +14,9 @@ For each matching entry, the dispatcher checks in this order:
 2. **`stop_when`** — if ANY listed ID has fired for this player, this entry is skipped permanently.
 3. **`once`** — if `true` and already fired (per scope), skip.
 4. **`cooldown`** — if the cooldown window hasn't expired yet, skip.
+5. **`max_fires`** — if `trigger.max_fires > 0` and fire count ≥ cap, skip.
 
-If all four pass, the entry fires.
+If all five pass, the entry fires.
 
 ---
 
@@ -85,13 +86,33 @@ When a global-scope entry passes all local gates:
 
 ---
 
+## `max_fires` (int, default: `0`)
+
+`trigger.max_fires: N` caps how many times an entry fires per character. Unlike `once: true`, the entry is NOT marked in `VSG.fired` — it counts in a separate per-entry key `VSG.fc.<id>`.
+
+- `0` (default): no cap (unlimited fires if `once: false`).
+- `N > 0`: entry fires at most N times. After that the `max_fires` gate blocks it permanently.
+- `max_fires` entries do NOT appear in the "Fired" section of `vsg_list`; they show as `[fired N/max]` in the configured-entries list.
+- `vsg_reset` must clear the `VSG.fc.<id>` key or the cap is permanent even after reset.
+
+**Typical use:** death tips that should only nag new players a couple of times:
+```yaml
+trigger:
+  type: player_death
+  max_fires: 2
+once: false
+```
+
+---
+
 ## Criteria
 
-- [ ] `requires` failure is a skip (not an error); entry remains eligible to fire in future triggers.
-- [ ] `stop_when` suppression is permanent for that player's session (not re-evaluated after the stop condition clears — clearing is done via `vsg_reset`).
-- [ ] `once: true` + `cooldown > 0`: cooldown is irrelevant — the `once` gate permanently blocks after first fire.
-- [ ] `once: false` + `cooldown: 0`: entry can fire every time the trigger event is raised.
-- [ ] Cooldown is per-entry (keyed by `id`), not per-trigger-type.
-- [ ] Cooldown resets on game restart (expected behavior — not a bug).
-- [ ] Global-scope entries mark a local cooldown to prevent client-side spam before server responds.
-- [ ] All gate checks log at `LogInfo` level with a reason when skipping (for debuggability).
+- [x] `requires` failure is a skip (not an error); entry remains eligible to fire in future triggers.
+- [x] `stop_when` suppression is permanent for that player's session (not re-evaluated after the stop condition clears — clearing is done via `vsg_reset`).
+- [x] `once: true` + `cooldown > 0`: cooldown is irrelevant — the `once` gate permanently blocks after first fire.
+- [x] `once: false` + `cooldown: 0`: entry can fire every time the trigger event is raised.
+- [x] Cooldown is per-entry (keyed by `id`), not per-trigger-type.
+- [x] Cooldown resets on game restart (expected behavior — not a bug).
+- [x] Global-scope entries mark a local cooldown to prevent client-side spam before server responds.
+- [x] All gate checks log at `LogInfo` level with a reason when skipping (for debuggability).
+- [x] `max_fires` counts are stored in `VSG.fc.<id>` (not `VSG.fired`) and cleared by `vsg_reset`.

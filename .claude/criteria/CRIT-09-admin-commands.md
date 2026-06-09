@@ -15,11 +15,25 @@ Reset fired guidance state.
 | `all` | Clear all **player-scope** fired IDs + all cooldowns for the current character. Global-scope entries are NOT touched. |
 | `<id>` | Clear a specific entry. Scope is auto-detected from the current config. |
 
+**`vsg_reset all` clears ALL of the following:**
+
+| State bucket | Key pattern | Cleared by |
+|---|---|---|
+| `once` fired set | `VSG.fired` | `SeenTracker.ClearAllFired` |
+| `max_fires` counters | `VSG.fc.*` | `SeenTracker.ClearAllFired` (iterates keys) |
+| Chain progress | `VSG.cd.*`, `VSG.cp.*`, `VSG.cc.*` | `ChainState.ResetAll` |
+| NPC item-submit counts | `VSG.is.*` | `SubmitState.ResetAll` |
+| Item-acquired goal started | `VSG.ig.*` | `GoalStartedState.ResetAll` |
+| Vanilla raven seen-flags | `Player.m_shownTutorials` | `GuidanceDisplay.ClearAllVsgTutorialSeen` |
+| Vanilla raven temp-texts | `Raven.m_tempTexts` | `GuidanceDisplay.ClearRavenState` → `RemoveAllVanillaTempTexts` |
+| In-memory raven queues | `_ravenQueue`, `_dungeonDeferred` | `GuidanceDisplay.ClearRavenState` |
+| In-memory cooldowns | `SeenTracker.CooldownExpiry` | `SeenTracker.ClearAllFired` |
+
 **Scope-aware reset for `<id>`:**
 
 | Situation | Action |
 |---|---|
-| Entry is player-scope | `SeenTracker.ClearFired(player, id, "player")` — local |
+| Entry is player-scope | `SeenTracker.ClearFired(player, id, "player")` — clears `VSG.fired` entry + `VSG.fc.<id>` counter + cooldown |
 | Entry is global-scope AND we are the server/host | `SeenTracker.ClearFired(null, id, "global")` — removes the ZoneSystem global key locally; vanilla replication broadcasts the removal to all clients |
 | Entry is global-scope AND we are an admin client | `GuidanceSync.SendAdminResetGlobal(id)` → `VSG_AdminResetGlobal` RPC → server re-verifies admin status and removes the key |
 
@@ -34,15 +48,17 @@ Fired (N):
   - id_one
   - id_two
 Configured by server (M):
-  - eikthyr_lore  [global, discord, fired]
-  - arrow_hint    [fired]
+  - eikthyr_lore        [global, discord, fired]
+  - arrow_hint          [fired]
+  - companions_tip      [fired 2/2]
   - mine_ore
 ```
 
 Tags shown inline with each configured entry:
 - `global` — entry has `scope: global`
 - `discord` — entry has `announce.discord` set
-- `fired` — this player/world has already fired the entry
+- `fired` — this player/world has already fired the entry (`once: true` entries only)
+- `fired N/max` — `max_fires` entry; shows current count vs cap (these never appear in the "Fired" list above since they don't write `VSG.fired`)
 
 ---
 
@@ -93,8 +109,11 @@ This protects against modded/malicious clients crafting the RPC directly without
 - [x] `vsg_reset <id>` auto-detects scope from the current config.
 - [x] Global reset from admin client goes through `VSG_AdminResetGlobal` RPC; server re-verifies admin.
 - [x] Server-side re-verification uses `ZNet.instance.IsAdmin(hostName)` (not client-provided data).
-- [x] `vsg_list` shows `global`, `discord`, and `fired` tags where applicable.
+- [x] `vsg_list` shows `global`, `discord`, `fired`, and `fired N/max` tags where applicable.
 - [x] `vsg_list` shows the correct fired state for global-scope entries (checks ZoneSystem global key).
+- [x] `vsg_reset all` clears ALL state buckets: `VSG.fired`, `VSG.fc.*`, chain state, submit state, goal state, vanilla seen-flags, raven temp-texts, raven queues, and cooldowns.
+- [x] `vsg_reset <id>` clears the `max_fires` counter (`VSG.fc.<id>`) in addition to `VSG.fired` and cooldown.
+- [x] Stale `RavenText` entries are evicted from `Raven.m_tempTexts` on all reset paths (both `all` and single-id).
 - [x] Tab completion for `vsg_reset` includes all fired + configured IDs.
 - [x] Commands never crash when called with no local player (early `null` check + message).
 - [x] `_registered` guard prevents double-registration of commands on hot-reload.

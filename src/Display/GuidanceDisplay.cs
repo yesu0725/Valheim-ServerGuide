@@ -154,6 +154,11 @@ namespace ValheimServerGuide.Display
             if (Player.m_localPlayer == null) { Plugin.Log.LogWarning("[show] raven: no local player."); return; }
             if (Tutorial.instance == null) { Plugin.Log.LogWarning("[show] raven: Tutorial.instance null."); return; }
             EnsureTutorialRegistered(entry);
+            // Evict any stale temp text for this key first. Raven.AddTempText early-returns
+            // on a duplicate key, so a leftover entry (e.g. one the player never clicked, or
+            // one orphaned by vsg_reset clearing the seen-flag) would silently block re-show.
+            // We only reach here with no active raven, so removing it is safe.
+            RemoveVanillaTempText(entry.Id);
             // Overwrite the baked text with the live-rendered version so that
             // (a) top-level `message:` fields are honoured, and
             // (b) template variables ({player_name} etc.) are expanded before display.
@@ -235,6 +240,11 @@ namespace ValheimServerGuide.Display
             _ravenQueue.Clear();
             _dungeonDeferred.Clear();
             _wasInInterior = false;
+            // Also evict our leftover temp texts from the vanilla raven queue (see
+            // RemoveVanillaTempText). vsg_reset all clears Player.m_shownTutorials, which
+            // disables vanilla's own RemoveSeendTempTexts cleanup, so a lingering temp text
+            // would otherwise block Raven.AddTempText forever and the raven never re-shows.
+            RemoveAllVanillaTempTexts();
             Plugin.Log.LogInfo("[raven] raven queue and deferral state cleared.");
         }
 
@@ -250,6 +260,12 @@ namespace ValheimServerGuide.Display
                 _activeRavenKey = null;
                 Plugin.Log.LogInfo($"[raven] cancelled active raven '{id}' via vsg_reset.");
             }
+
+            // Evict any leftover temp text for this id from the vanilla raven queue so a
+            // reset entry can be re-added by Raven.AddTempText (it early-returns on a
+            // duplicate key, and vsg_reset has just cleared the seen-flag that vanilla
+            // would otherwise use to clean it up). See RemoveVanillaTempText.
+            RemoveVanillaTempText(id);
 
             var removed = FilterQueue(_ravenQueue, id) + FilterQueue(_dungeonDeferred, id);
             if (removed > 0)
@@ -491,6 +507,27 @@ namespace ValheimServerGuide.Display
             foreach (var id in RegisteredTutorialNames)
                 if (id.StartsWith(stepPrefix, System.StringComparison.Ordinal))
                     p.m_shownTutorials.Remove(id);
+        }
+
+        /// Remove the temp RavenText with this key from the vanilla static queue
+        /// (Raven.m_tempTexts). Raven.AddTempText refuses to add a duplicate key, and
+        /// vanilla only clears a temp text once Player.HaveSeenTutorial(key) is true —
+        /// a condition vsg_reset deliberately breaks by clearing the seen-flag. Without
+        /// this, a leftover temp text permanently blocks the raven from re-showing after
+        /// a reset. Safe to call when the list is empty or the key isn't present.
+        internal static void RemoveVanillaTempText(string id)
+        {
+            if (Raven.m_tempTexts == null || string.IsNullOrEmpty(id)) return;
+            Raven.m_tempTexts.RemoveAll(t =>
+                t != null && string.Equals(t.m_key, id, System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// Remove every VSG-registered temp text from the vanilla raven queue. Used by
+        /// vsg_reset all / session teardown. See RemoveVanillaTempText for the rationale.
+        internal static void RemoveAllVanillaTempTexts()
+        {
+            if (Raven.m_tempTexts == null) return;
+            Raven.m_tempTexts.RemoveAll(t => t != null && RegisteredTutorialNames.Contains(t.m_key));
         }
 
         private static void EnsureTutorialRegistered(GuidanceEntry entry)

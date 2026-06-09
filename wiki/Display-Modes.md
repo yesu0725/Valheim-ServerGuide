@@ -37,6 +37,7 @@ Shows Hugin (the raven) flying in with a popup message — the same style used f
 - **Text tokens are supported** (`{player_name}`, `{biome}`, etc.). The text is updated with the rendered value each time the entry fires.
 - **One at a time — automatically queued.** If multiple raven entries fire before the player has interacted with the current one, they are held in a FIFO queue. Each raven waits for the previous one to be acknowledged (or auto-dismissed by the raven) before appearing. No message is lost.
 - **Dungeon deferral.** If a raven entry fires while the player is inside a dungeon or interior, it is held in a separate deferred queue. As soon as the player exits the interior, the deferred entries drain into the normal raven queue and show in order. The player will never miss a raven message because they were underground when it triggered.
+- **Correctly re-shows after `vsg_reset`.** The vanilla raven system stores pending texts in a static list (`Raven.m_tempTexts`) and only evicts a text when `Player.HaveSeenTutorial` is true. Because `vsg_reset` clears that seen-flag so VSG owns repeat logic, we explicitly remove stale entries from that list before every re-show and on every reset path. This prevents the raven being silently blocked by a leftover text from a previous fire.
 
 ---
 

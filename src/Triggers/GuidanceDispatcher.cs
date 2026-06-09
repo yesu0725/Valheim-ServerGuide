@@ -546,6 +546,7 @@ namespace ValheimServerGuide.Triggers
             if (__instance != Player.m_localPlayer) return;
             GuidanceDispatcher.CheckVersionUpdates(__instance, Plugin.CurrentConfig);
             ItemAcquiredTrigger.CheckAllCountGoals();
+            SkillLevelTrigger.CheckAllSkillLevels();
         }
     }
 

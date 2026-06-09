@@ -9,6 +9,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 |---|---|
 | GUID | `com.valheimserverguide` |
 | Version | `0.1.0` |
+| Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
 | Jötunn dep | `[BepInDependency(Jotunn.Main.ModGuid)]` |

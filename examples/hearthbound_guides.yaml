@@ -91,8 +91,8 @@ guidances:
       with Left Alt. Friendly fire between members is disabled, and everyone stays
       visible on the map with matching colour icons.
     trigger:
-      type: timed
-      interval: "300"
+      type: biome
+      biome: Swamp
       id: groups_intro
     display:
       mode: raven
@@ -118,6 +118,7 @@ guidances:
       - trigger:
           type: item_acquired
           item: SurtlingCore
+          requires: [traderoverhaul_chain]
         display:
           mode: raven
           topic: "Protective Ward"
@@ -154,25 +155,7 @@ guidances:
           Collect 100 Coins to unlock the Valkyrie taxi to Haldor.
           Coins can be earned by selling items at traders, looting dungeons, or completing HaldorBounties contracts.
           The progress bar above tracks your total. Once reached, offer 100 Coins directly onto your ward as an offering.
-        message: "You have enough coins for a Valkyrie taxi. Interact with your ward and drop 100 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 100 coins if you have not yet discovered him, or 500 for a return trip. Head to your ward and make the offering now. Speak to Haldor afterwards."
-
-      - trigger:
-          type: timed
-          interval: "150"
-          id: pwards_features_tip
-        display:
-          mode: rune
-          topic: "ProtectiveWards"
-        description: >
-          Valkyrie will pick up you after 2 minutes.
-        message: "Back at your ward, here is what else ProtectiveWards does for your base: smelters, cooking stations, fermenters, and turrets run faster inside the radius. Stamina drain, food decay, skill loss on death, and tool durability wear are all reduced."
-        rewards:
-          - type: item
-            item: Coins
-            amount: 100
-          - type: skill_exp
-            skill: Run
-            amount: 500
+        message: "You have enough coins for a Valkyrie taxi. Go to your ward and use 100 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 100 coins if you have not yet discovered him, or 20 for a return trip. (WARNING: DO NOT SKIP VALKYRIE FLIGHT)"
 
   - id: armoire_chain
     title: "Armoire — Wardrobe"
@@ -192,104 +175,65 @@ guidances:
     message: "You built the Armoire wardrobe. This mod lets you change how your gear looks without touching your stats — item appearances are unlocked automatically as you discover or obtain them through exploration and crafting. Open the wardrobe to browse your collection and apply any unlocked look to your equipped gear. You can save up to three complete outfit configurations and swap between them instantly. Works with both vanilla and modded equipment."
     once: true
 
-  - id: shipyard_gather_chain
-    title: "Balrond Shipyard — Gather Materials"
+  - id: shipyard_chain
+    title: "Balrond Shipyard"
     category: Building
     version: 2
     once: true
     summary: >
-      You gathered all five materials for the Balrond Shipyard Station:
-      30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin.
-      Head to your build site and construct the Shipyard Station to begin
-      upgrading your ships.
-    trigger:
-      type: item_acquired
-      goals:
-        - item: FineWood
-          count: 30
-        - item: BronzeNails
-          count: 200
-        - item: Coal
-          count: 25
-        - item: DeerHide
-          count: 10
-        - item: Resin
-          count: 25
-    display:
-      mode: rune
-      topic: "Balrond Shipyard"
-    message: "All five Shipyard materials gathered: 30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin. Head to your build site and construct the Balrond Shipyard Station — a full naval upgrade system supporting seven ship types. Your naval upgrade journey begins now."
+      You completed the full Balrond Shipyard setup: built a Karve; constructed the Balrond
+      Shipyard Station and the Scribe's Table; and installed your first Plan Karve: Oars schematic.
+      The full naval upgrade system — seven ship types, expanded cargo holds, Fishnet Traps,
+      and cosmetic swaps — is now available.
+    steps:
+      - trigger:
+          type: build
+          piece: Karve
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Build a Karve at your Workbench to begin the Balrond Shipyard upgrade journey.
+          Required: 30 Fine Wood, 10 Deer Hide, 20 Resin, 80 Bronze Nails.
+        message: "Your Karve is built — a solid first vessel with 7 upgrade slots for the Balrond Shipyard system. To start upgrading it, gather the materials to construct the Balrond Shipyard Station: 30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin."
 
-  - id: shipyard_scribetable
-    title: "Balrond Shipyard — Scribe's Table"
-    category: Building
-    version: 1
-    requires: [shipyard_gather_chain]
-    summary: >
-      You built the Scribe's Table, the crafting station for ship upgrade schematics.
-      Each schematic is a blueprint for one upgrade slot — oars, shields, anchors, tents,
-      lamps, armour plating, ropes, and nameplates. Craft a schematic here, bring it to
-      the Shipyard, and apply it to your docked vessel. Build a Karve next.
-    trigger:
-      type: build
-      piece: piece_scribetable
-    display:
-      mode: rune
-      topic: "Ship Upgrades"
-    description: >
-      Build the Scribe's Table to begin crafting ship schematics.
-      Place it at your Shipyard Station — find it in the hammer's Misc or Shipyard tab.
-      All gather materials are now complete; place the station first, then the table.
-    message: "The Scribe's Table is where you craft ship schematics. Each schematic is a blueprint for one upgrade slot — oars for speed, shields for hull health, anchors, tents, lamps, armor plating, ropes, and nameplates. Craft the schematic here, bring it to the Shipyard, and apply it to your docked ship. Build a Karve next so you have a vessel ready to upgrade."
-    once: true
+      - trigger:
+          type: build
+          piece: ShipyardStation  # Verify: balrond_shipyard main piece prefab name
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Build the Balrond Shipyard Station using your gathered materials:
+          30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin.
+          Find it in the hammer's Building or Shipyard tab and place it at your coastal build site.
+        message: "The Balrond Shipyard Station is built. This is the centrepiece of the naval upgrade system — dock your ships here to install schematics and begin upgrading. Next, build the Scribe's Table nearby to start crafting upgrade schematics."
 
-  - id: shipyard_karve
-    title: "Balrond Shipyard — Karve"
-    category: Building
-    version: 1
-    requires: [shipyard_scribetable]
-    summary: >
-      You built a Karve — a solid first vessel with 7 upgrade slots for the Balrond
-      Shipyard system. Dock it near the Shipyard Station and craft a Plan Karve: Oars
-      schematic at the Scribe's Table to install your first upgrade.
-    trigger:
-      type: build
-      piece: Karve
-    display:
-      mode: rune
-      topic: "Ready to Upgrade"
-    description: >
-      Build a Karve at your Workbench to have a vessel ready for upgrades.
-      Required: 30 Fine Wood, 10 Deer Hide, 20 Resin, 80 Bronze Nails.
-      Dock it near the Shipyard Station once it is afloat.
-    message: "Your Karve is built. The Karve supports 7 upgrade slots, making it a solid first vessel to experiment with. Head back to the Scribe's Table and craft a Plan Karve: Oars schematic — oars are the most immediate upgrade, adding a direct speed bonus to your ship."
-    once: true
+      - trigger:
+          type: build
+          piece: piece_scribetable
+        display:
+          mode: rune
+          topic: "Ship Upgrades"
+        description: >
+          Build the Scribe's Table to begin crafting ship schematics.
+          Place it near your Balrond Shipyard Station — find it in the hammer's Misc or Shipyard tab.
+        message: "The Scribe's Table is where you craft ship schematics. Each schematic is a blueprint for one upgrade slot — oars for speed, shields for hull health, anchors, tents, lamps, armor plating, ropes, and nameplates. Craft a Plan Karve: Oars schematic here, bring it to the Shipyard, and apply it to your docked Karve."
 
-  - id: shipyard_schematic
-    title: "Balrond Shipyard — First Upgrade"
-    category: Building
-    version: 1
-    requires: [shipyard_karve]
-    summary: >
-      You acquired an oar schematic and learned the full Shipyard upgrade workflow:
-      dock your ship, place the schematic in the station, and pull the lever to install.
-      Beyond speed oars, the mod adds expanded cargo holds (up to 40 slots on the Drakkar),
-      a Fishnet Trap for passive fishing, and cosmetic options for sails, shields, and figureheads.
-    trigger:
-      type: item_acquired
-      item: SchematicKarveOars
-    display:
-      mode: rune
-      topic: "Balrond Shipyard"
-    description: >
-      Craft a Plan Karve: Oars schematic at the Scribe's Table to install your first upgrade.
-      Open the table's crafting menu and look for the Karve oar plan — pick it up to continue.
-    message: "You have the oar schematic. Dock your Karve at the Shipyard, place the schematic in the station's container, and pull the lever to install it. Beyond oars, the mod also adds a Fishnet Trap structure for passive fishing using biome-specific bait, expanded cargo holds ranging from 2 slots on the Raft up to 40 on the Drakkar, and cosmetic options including sail color, shield pattern, and head decoration swaps on supported ships."
-    once: true
-    rewards:
-      - type: skill_level
-        skill: Swim
-        level: 10
+      - trigger:
+          type: craft
+          item: SchematicKarveOars
+        display:
+          mode: rune
+          topic: "Balrond Shipyard"
+        description: >
+          Craft a Plan Karve: Oars schematic at the Scribe's Table to install your first upgrade.
+          Open the table's crafting menu and look for the Karve oar plan — pick it up to continue.
+        message: "You have the oar schematic. Dock your Karve at the Shipyard, place the schematic in the station's container, and pull the lever to install it. Beyond oars, the mod also adds a Fishnet Trap structure for passive fishing using biome-specific bait, expanded cargo holds ranging from 2 slots on the Raft up to 40 on the Drakkar, and cosmetic options including sail color, shield pattern, and head decoration swaps on supported ships."
+        rewards:
+          - type: skill_level
+            skill: Swim
+            level: 10
 
   # ═══════════════════════════════════════
   # CATEGORY: Trading
@@ -349,17 +293,17 @@ guidances:
       day. Accept a contract, complete the objective, return to Haldor, and choose one of
       four reward tiers. The board grows harder as you defeat bosses.
     trigger:
-      type: timed
-      interval: "300"
-      id: haldorbounties_intro
+      type: kill
+      creature: Troll
     display:
-      mode: rune
+      mode: raven
       topic: "HaldorBounties"
     description: >
-      This tip fires automatically 5 minutes after the TraderOverhaul tip.
-      Visit Haldor in the Black Forest and check his bounty board — a new set of
-      contracts rotates in each in-game day.
-    message: "Haldor also offers a daily bounty board through HaldorBounties. Each in-game day a fresh set of contracts rotates in — kill contracts for common creatures, miniboss hunts where a named hostile NPC spawns with a map marker, and raid contracts where you must clear a warband from a campfire. The board has three sections: Available, Active, and Completed. Accept a contract, finish the objective, return to Haldor, and choose one of four rewards — coins, ingots, crafting resources, or consumables, all tiered to your current biome. Miniboss bounties pay out at 1.5x and raids at 1.25x. Bounties are boss-gated so the board grows harder as you progress."
+      Kill a Troll to unlock this tip about HaldorBounties.
+      Trolls roam the Black Forest — the same biome where Haldor can be found.
+      Check his bounty board after the kill; a contract on a creature like this
+      would have paid out far more than an empty-handed hunt.
+    message: "You just killed a Troll — and left coin on the table. Haldor posts daily kill contracts, named miniboss hunts, and warband raid contracts on his bounty board. A Troll kill under contract pays out in coins, ingots, crafting resources, or consumables — your choice of four reward tiers, all scaled to your current biome. If you are going to hunt, get paid for it — visit Haldor and pick up a contract before your next fight."
     once: true
 
   # ═══════════════════════════════════════
@@ -369,39 +313,31 @@ guidances:
   # Offline Companions — companions are hired from Haldor for 2000 coins.
   # A free starter companion also spawns automatically in new worlds.
   - id: companions_intro
-    title: "Offline Companions — Hire and Manage"
+    title: "Companions — Hire and Manage"
     category: Companions
     version: 1
     requires: [haldorbounties_chain]
     summary: >
-      You learned how to hire and manage Offline Companions: buy one from Haldor for
+      You learned how to hire and manage Companions: buy one from Haldor for
       2000 coins (a starter companion also spawns in new worlds). Tap E to open their
       inventory and manage gear or food. Hold E to open the radial command wheel for
       quick task assignments and point-and-click orders.
     trigger:
-      type: distance
-      location: Vendor_BlackForest
-      radius: 50
+      type: biome
+      biome: BlackForest
     display:
       mode: raven
       topic: "Companions"
     description: >
-      Approach Haldor (Vendor_BlackForest) within 50 metres to trigger this intro.
-      Find him in the Black Forest — use the TraderOverhaul map marker or explore until
-      you spot his location pin. A starter companion may already be waiting at spawn.
-    message: "Offline Companions lets you hire a personal companion from Haldor for 2000 coins — a starter companion also spawns automatically in new worlds. Tap E on your companion to open their inventory, rename them, manage their gear, and assign up to three food items for stat bonuses. Hold E to open the radial command wheel for quick access to all modes and point-and-click orders. Companions can fight, gather, produce, and maintain your base autonomously."
+      Enter the Black Forest biome.
+    message: "Companions mod lets you hire a personal companion from Haldor for 2000 coins. Companions can fight, gather, produce, and maintain your base autonomously."
     once: true
 
   - id: companions_combat_tip
-    title: "Offline Companions — Combat"
+    title: "Companions — Combat"
     category: Companions
     version: 1
-    requires: [companions_intro]
-    summary: >
-      You received a combat reminder after dying: companions block, parry, counter-attack,
-      and execute power attacks against staggered enemies. When their health drops below 30%
-      they retreat and recover. Keep your companion geared with food, armour, and a weapon
-      so they can hold their own in a fight.
+    requires: [companions_intro]    
     trigger:
       type: player_death
       max_fires: 2
@@ -415,7 +351,7 @@ guidances:
     message: "Dying alone is rough. Companions fight alongside you in battle — they block, parry, counter-attack, and execute power attacks against staggered enemies. When their health drops below 30% they retreat to safety and recover. Hire one from Haldor for 2000 coins and bring backup into your next fight."
 
   - id: companions_woodcutting
-    title: "Offline Companions — Woodcutting"
+    title: "Companions — Woodcutting"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -425,8 +361,8 @@ guidances:
       (hold E), and they will deposit materials into nearby chests when their carry weight
       nears 300.
     trigger:
-      type: item_acquired
-      item: "Axe*"
+      type: equip
+      item: AxeIron
     display:
       mode: rune
       topic: "Companion: Woodcutting"
@@ -438,7 +374,7 @@ guidances:
     once: true
 
   - id: companions_mining
-    title: "Offline Companions — Mining"
+    title: "Companions — Mining"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -448,8 +384,8 @@ guidances:
       they will stop automatically at 298/300 carry weight and deposit everything into
       nearby chests.
     trigger:
-      type: item_acquired
-      item: "Pickaxe*"
+      type: Equip
+      item: PickaxeIron
     display:
       mode: rune
       topic: "Companion: Mining"
@@ -461,7 +397,7 @@ guidances:
     once: true
 
   - id: companions_foraging
-    title: "Offline Companions — Foraging"
+    title: "Companions — Foraging"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -483,7 +419,7 @@ guidances:
     once: true
 
   - id: companions_smelting
-    title: "Offline Companions — Smelting"
+    title: "Companions — Smelting"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -506,7 +442,7 @@ guidances:
     once: true
 
   - id: companions_farming
-    title: "Offline Companions — Farming"
+    title: "Companions — Farming"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -528,7 +464,7 @@ guidances:
     once: true
 
   - id: companions_fishing
-    title: "Offline Companions — Fishing"
+    title: "Companions — Fishing"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -550,7 +486,7 @@ guidances:
     once: true
 
   - id: companions_hunting
-    title: "Offline Companions — Hunting"
+    title: "Companions — Hunting"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -559,8 +495,8 @@ guidances:
       using a bow from a safe standoff distance to avoid spooking prey. Give your companion
       a bow and arrows via the radial command wheel (hold E) to assign the hunting task.
     trigger:
-      type: item_acquired
-      item: "Bow*"
+      type: equip
+      item: BowDraugrFang
     display:
       mode: rune
       topic: "Companion: Hunting"
@@ -572,7 +508,7 @@ guidances:
     once: true
 
   - id: companions_cooking
-    title: "Offline Companions — Cooking"
+    title: "Companions — Cooking"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -582,7 +518,7 @@ guidances:
       storage — all from ingredients in nearby chests without any intervention needed.
     trigger:
       type: build
-      piece: piece_cookingstation
+      piece: piece_cauldron
     display:
       mode: rune
       topic: "Companion: Cooking"
@@ -594,7 +530,7 @@ guidances:
     once: true
 
   - id: companions_base
-    title: "Offline Companions — Base Maintenance"
+    title: "Companions — Base Maintenance"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -604,7 +540,7 @@ guidances:
       across chests. Enable Wander and they will also patrol a 50-metre radius around base.
     trigger:
       type: build
-      piece: bed
+      piece: piece_bed02
     display:
       mode: rune
       topic: "Companion: Stay Home"
@@ -616,7 +552,7 @@ guidances:
     once: true
 
   - id: companions_portal
-    title: "Offline Companions — Portal Travel"
+    title: "Companions — Portal Travel"
     category: Companions
     version: 1
     requires: [companions_intro]
@@ -641,62 +577,26 @@ guidances:
   # that roam the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands.
   # They are optional challenge encounters — not friendly or hireable on encounter.
   - id: wandering_companions_chain
-    title: "Wandering Companions — Dangerous Encounters"
+    title: "Wanderers — Dangerous Encounters"
     category: Companions
     version: 1
-    requires: [companions_intro]
+    requires: [companions_combat_tip]
     summary: >
       You were warned about hostile wandering humanoids patrolling six biomes: Black Forest,
       Mountains, Swamps, Plains, Mistlands, and Ashlands. After defeating Eikthyr and
       The Elder you received further warnings as their territory expanded. These are
       optional challenge encounters — block, parry, and know when to retreat.
-    steps:
-      - trigger:
-          type: first_login
-        display:
-          mode: raven
-          topic: "Wandering Companions"
-        description: >
-          This warning fires on your very first login.
-          Wanderers are hostile humanoid NPCs patrolling six biomes.
-          Do not engage them until your gear and combat skills are ready.
-        message: "Warning! Dangerous wanderers roam this world — in the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands. They are not friendly. If you are looking for a real challenge, seek them out."
-
-      - trigger:
-          type: boss_defeated
-          creature: Eikthyr
-        display:
-          mode: rune
-          topic: "Wandering Companions"
-        description: >
-          Defeat Eikthyr to advance this chain into the Black Forest phase.
-          Activate his Forsaken power runestone near spawn to reveal his location on the map,
-          then hunt him down. Bring fire arrows and a shield.
-        message: "With Eikthyr defeated, the Black Forest lies ahead. Wanderers are already patrolling those dark trees. They are formidable fighters — do not underestimate them on your first encounter."
-
-      - trigger:
-          type: boss_defeated
-          creature: gd_king
-        display:
-          mode: rune
-          topic: "Wandering Companions"
-        description: >
-          Defeat The Elder (gd_king) to advance this chain into Swamp and Mountain territory.
-          Find The Elder in the Black Forest — activate his Forsaken power at spawn to get a
-          map marker. Bring poison resistance mead and a good bow.
-        message: "Wanderers have spread through the Swamp and Mountains. They grow more dangerous as you progress deeper into the world. If you want a true challenge, seek them out in the mist."
-
-      - trigger:
-          type: player_death
-          max_fires: 2
-        display:
-          mode: raven
-          topic: "Wandering Companions"
-        description: >
-          This tip fires when you die in combat (up to twice after The Elder is defeated).
-          Review your armour rating and food buffs before re-engaging.
-          Wanderers use advanced combat AI — blocking and parrying are essential.
-        message: "Wanderers will not hold back. If one caught you off guard, study how they fight before your next encounter — or avoid their patrol zones entirely until you are better prepared."
+    trigger:
+      type: biome
+      biome: BlackForest
+    display:
+      mode: raven
+      topic: "Wandering Companions"
+    description: >
+      This warning fires on your very first login.
+      Wanderers are hostile humanoid NPCs patrolling six biomes.
+      Do not engage them until your gear and combat skills are ready.
+    message: "Warning! Dangerous wanderers roam this world — in the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands. They are not friendly. If you are looking for a real challenge, seek them out."
 
   # ═══════════════════════════════════════
   # CATEGORY: Skills
@@ -752,7 +652,7 @@ guidances:
           Defeat Eikthyr, the first boss, to advance the slayer chain.
           Activate his Forsaken power runestone near spawn to get a map marker,
           then hunt him down. Boss kills award massive slayer point multipliers.
-        message: "First boss defeated. Boss encounters grant special slayer point multipliers that far exceed normal creature kills — hunting bosses repeatedly is one of the fastest ways to accelerate your slayer progression for those creature types. Keep pushing your slayer skills toward the maximum cap."
+        message: "Boss encounters grant special slayer point multipliers that far exceed normal creature kills — hunting bosses repeatedly is one of the fastest ways to accelerate your slayer progression for those creature types. Keep pushing your slayer skills toward the maximum cap."
 
       - trigger:
           type: item_acquired

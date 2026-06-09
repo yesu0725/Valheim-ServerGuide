@@ -176,6 +176,15 @@ namespace ValheimServerGuide.Commands
                     var hasFired = SeenTracker.HasFired(player, g.Id, g.Scope);
                     if (hasFired) tags.Add("fired");
 
+                    // max_fires entries don't write VSG.fired; surface their counter so
+                    // they're visible as "fired" and you can confirm a reset cleared them.
+                    var maxFires = g.Trigger?.MaxFires ?? 0;
+                    if (maxFires > 0)
+                    {
+                        var fc = SeenTracker.GetFireCount(player, g.Id);
+                        if (fc > 0) tags.Add($"fired {fc}/{maxFires}");
+                    }
+
                     // 10-D: version stamp for completed chains where stored version ≠ config version.
                     if (g.Steps?.Count > 0 && ChainState.IsComplete(player, g.Id))
                     {

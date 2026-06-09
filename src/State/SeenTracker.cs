@@ -87,12 +87,23 @@ namespace ValheimServerGuide.State
                 return true;
             }
             if (player == null) return false;
+            // Always drop the max_fires counter + cooldown for this id, even if it was
+            // never in the VSG.fired set (max_fires entries don't write VSG.fired).
+            var hadCount = ClearFireCount(player, id);
+            CooldownExpiry.Remove(id);
             var set = GetSet(player);
-            if (!set.Remove(id)) return false;
+            if (!set.Remove(id)) return hadCount;
             if (set.Count == 0) player.m_customData.Remove(Key);
             else player.m_customData[Key] = string.Join(",", set);
-            CooldownExpiry.Remove(id);
             return true;
+        }
+
+        /// Remove the per-entry max_fires counter (VSG.fc.&lt;id&gt;). Returns true if one
+        /// existed. vsg_reset must call this or a capped max_fires entry can never fire again.
+        public static bool ClearFireCount(Player player, string id)
+        {
+            if (player?.m_customData == null || string.IsNullOrEmpty(id)) return false;
+            return player.m_customData.Remove(FireCountPrefix + id);
         }
 
         /// Clears player-scope fires for this character. Global fires are NOT cleared
@@ -104,6 +115,11 @@ namespace ValheimServerGuide.State
             if (player == null) return 0;
             var count = GetSet(player).Count;
             player.m_customData.Remove(Key);
+            // Also wipe every max_fires counter (VSG.fc.*) — otherwise capped entries
+            // (e.g. player_death tips) stay blocked after a full reset.
+            var fcKeys = player.m_customData.Keys
+                .Where(k => k.StartsWith(FireCountPrefix)).ToList();
+            foreach (var k in fcKeys) player.m_customData.Remove(k);
             CooldownExpiry.Clear();
             return count;
         }

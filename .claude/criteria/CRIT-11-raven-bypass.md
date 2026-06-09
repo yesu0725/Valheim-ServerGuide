@@ -80,12 +80,39 @@ For Raven to spawn a popup, the tutorial entry must be in `Tutorial.instance.m_t
 
 ---
 
+## Raven TempText Lifecycle and Reset
+
+`Raven.AddTempText(key, …)` (vanilla) **early-returns if `m_key` already exists** in the static `Raven.m_tempTexts` list. Vanilla only removes a temp text in `RemoveSeendTempTexts()`, which fires only when `Player.HaveSeenTutorial(key)` is true.
+
+`vsg_reset` clears `Player.m_shownTutorials` (the vanilla seen-flag) so VSG owns repeat semantics. This permanently disables vanilla's own cleanup — a leftover `RavenText` blocks `AddTempText` forever and the raven never re-shows.
+
+**Fix:** Always call `RemoveVanillaTempText(id)` / `RemoveAllVanillaTempTexts()` before (re-)submitting a raven:
+
+| Call site | What it does |
+|---|---|
+| `ShowRavenNow(entry, …)` | Evicts any stale temp text for `entry.Id` defensively before calling `Tutorial.ShowText`. Handles the "player walked away without clicking" orphan case too. |
+| `ClearRavenQueueForId(id)` | Called by `vsg_reset <id>` — also evicts from `m_tempTexts`. |
+| `ClearRavenState()` | Called by `vsg_reset all` / session teardown — evicts all VSG-registered temp texts. |
+
+```csharp
+internal static void RemoveVanillaTempText(string id)
+    => Raven.m_tempTexts?.RemoveAll(t => t != null &&
+           string.Equals(t.m_key, id, StringComparison.OrdinalIgnoreCase));
+
+internal static void RemoveAllVanillaTempTexts()
+    => Raven.m_tempTexts?.RemoveAll(t => t != null &&
+           RegisteredTutorialNames.Contains(t.m_key));
+```
+
+---
+
 ## Criteria
 
-- [ ] When vanilla "Tutorials Enabled" is OFF, our raven hints still show if `RavenEnabled = true`.
-- [ ] When vanilla "Tutorials Enabled" is ON, vanilla raven hints are unaffected by our bypass.
-- [ ] `Raven.m_tutorialsEnabled` is restored to its original value immediately after `Spawn()` returns.
-- [ ] The `RavenSpawnBypassPatch` only activates for entry IDs in `RegisteredTutorialNames`.
-- [ ] `RavenEnabled = false` suppresses all our raven hints without touching vanilla hints.
-- [ ] Tutorial entries are never added to `m_texts` more than once (deduped via `RegisteredTutorialNames`).
-- [ ] Harmony patch parameter `text` must match the actual method signature (not `raventext`).
+- [x] When vanilla "Tutorials Enabled" is OFF, our raven hints still show if `RavenEnabled = true`.
+- [x] When vanilla "Tutorials Enabled" is ON, vanilla raven hints are unaffected by our bypass.
+- [x] `Raven.m_tutorialsEnabled` is restored to its original value immediately after `Spawn()` returns.
+- [x] The `RavenSpawnBypassPatch` only activates for entry IDs in `RegisteredTutorialNames`.
+- [x] `RavenEnabled = false` suppresses all our raven hints without touching vanilla hints.
+- [x] Tutorial entries are never added to `m_texts` more than once (deduped via `RegisteredTutorialNames`).
+- [x] Harmony patch parameter `text` must match the actual method signature (not `raventext`).
+- [x] Stale `RavenText` entries are evicted from `Raven.m_tempTexts` before re-show and on all reset paths so a reset entry can always re-fire.

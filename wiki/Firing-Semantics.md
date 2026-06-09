@@ -106,6 +106,27 @@ Combine both to create narrow windows:
 
 ---
 
+## `max_fires`
+
+Cap how many times an entry fires per character without using `once: true`.
+
+```yaml
+- id: companions_combat_tip
+  trigger:
+    type: player_death
+    max_fires: 2          # show at most twice, then stop
+  display:
+    mode: raven
+    topic: "Companions"
+  message: "Dying alone is rough. Hire a companion from Haldor..."
+```
+
+Unlike `once: true`, the entry is NOT added to the "Fired" list in `vsg_list`. Instead, `vsg_list` shows it as `[fired 1/2]` so you can see the counter.
+
+After the cap is reached, `vsg_reset <id>` or `vsg_reset all` will clear the counter so the entry can fire again. If the counter is not cleared, the entry stays permanently blocked — a full reset always handles this.
+
+---
+
 ## `version`
 
 If you update the text of an entry that players have already seen, bump `version` to re-deliver it.
@@ -134,7 +155,8 @@ When a trigger event occurs, the dispatcher checks in this order:
 3. **`stop_when`** — Has any stop condition fired?
 4. **`once`** — Has this entry already fired for this character (if `once: true`)?
 5. **`cooldown`** — Is the entry still on cooldown?
-6. **Fire** — All checks passed; show the display.
+6. **`max_fires`** — Has the per-character fire count reached the cap?
+7. **Fire** — All checks passed; show the display.
 
 The entry fires if and only if all checks pass.
 
@@ -142,10 +164,11 @@ The entry fires if and only if all checks pass.
 
 ## Fire Modes Reference
 
-| Setting | Behaviour |
-|---|---|
-| `once: true` (default) | Fire once, ever, per character (or per world for global scope). |
-| `once: false` (no cooldown) | Fire every time the trigger condition is met. |
-| `once: false` + `cooldown: N` | Fire at most once every N seconds. |
-| `stop_when: [id]` | Stop firing permanently once `id` has fired. |
-| `requires: [id]` | Don't fire at all until `id` has fired. |
+| Setting | Behaviour | Stored in |
+|---|---|---|
+| `once: true` (default) | Fire once, ever, per character (or per world for global scope). | `VSG.fired` |
+| `once: false` (no cooldown) | Fire every time the trigger condition is met. | — |
+| `once: false` + `cooldown: N` | Fire at most once every N seconds. | in-memory |
+| `trigger.max_fires: N` | Fire at most N times total per character. | `VSG.fc.<id>` |
+| `stop_when: [id]` | Stop firing permanently once `id` has fired. | — |
+| `requires: [id]` | Don't fire at all until `id` has fired. | — |
