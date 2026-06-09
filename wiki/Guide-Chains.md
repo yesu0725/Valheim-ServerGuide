@@ -39,7 +39,7 @@ Each step in the `steps` list supports:
 | `description` | string | Tooltip shown when hovering the HUD tracker row for this step. |
 | `progress_goal` | int | If > 0, this is a counter step — fires only after this many trigger events. |
 | `progress_trigger` | TriggerSpec | The trigger counted toward `progress_goal`. Required when `progress_goal > 0`. |
-| `progress_label` | string | Label shown in the progress bar (e.g. `"Trophies"`, `"Kills"`). |
+| `progress_label` | string | Label for the counter (e.g. `"Trophies"`, `"Kills"`). |
 
 ---
 
@@ -73,7 +73,7 @@ steps:
     message: "Quest complete! Return to camp."
 ```
 
-The progress bar in the HUD tracker shows `Trolls: 2 / 5` as the player kills them. The step fires when the counter reaches `progress_goal`.
+The HUD tracker shows the step's progress as a `2/5` count next to the chain title as the player kills them. The step fires when the counter reaches `progress_goal`.
 
 ---
 
@@ -124,7 +124,7 @@ While a chain is in progress, the HUD tracker (top-right by default) shows:
 
 - The chain's `title`
 - The current step's `message` (truncated if long)
-- A progress bar for counter steps
+- A `current/goal` count for counter steps
 - Hovering the row shows the step's `description` tooltip (if set)
 
 Once the final step fires, the chain row shows a completion animation and is removed from the tracker after a short delay.

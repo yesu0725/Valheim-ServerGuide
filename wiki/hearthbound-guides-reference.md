@@ -127,18 +127,26 @@ Step 5 grants rewards: 2000× Coins + 500 Run skill exp.
 
 > **Note:** This is a single entry, not a multi-step chain.
 
-#### `shipyard_gather_chain` — Balrond Shipyard — Gather Materials (5 steps)
+#### `shipyard_gather_chain` — Balrond Shipyard — Gather Materials (single multi-goal entry)
 - **Mod:** balrond_shipyard
+- **Trigger:** `item_acquired` with a `goals:` list (all required at once)
+- **Display:** `rune` (topic: "Balrond Shipyard")
 
-| Step | Trigger | Display | Progress goal | Message summary |
-|---|---|---|---|---|
-| 1 | `item_acquired` `FineWood` (progress 30) | rune (topic: "Balrond Shipyard") | 30 Fine Wood | Materials needed; 7 ship types; collect Bronze Nails next |
-| 2 | `craft` `BronzeNails` (progress 200) | rune (topic: "Balrond Shipyard") | 200 Bronze Nails | Nails done; still need Coal, Deer Hide, Resin |
-| 3 | `item_acquired` `Coal` (progress 25) | rune (topic: "Balrond Shipyard") | 25 Coal | Coal done; hunt deer for hides |
-| 4 | `item_acquired` `DeerHide` (progress 10) | rune (topic: "Balrond Shipyard") | 10 Deer Hide | Hides done; collect Resin from Black Forest |
-| 5 | `item_acquired` `Resin` (progress 25) | rune (topic: "Balrond Shipyard") | 25 Resin | All materials gathered; build the Shipyard Station |
+| Goal | Item | Count |
+|---|---|---|
+| 1 | `FineWood` | 30 |
+| 2 | `BronzeNails` | 200 |
+| 3 | `Coal` | 25 |
+| 4 | `DeerHide` | 10 |
+| 5 | `Resin` | 25 |
 
-> **Note:** Step 2 uses `craft BronzeNails` (not `item_acquired`) because BronzeNails are produced at a forge, not picked up from the world.
+The entry fires once all five goals are satisfied simultaneously (any collection order). The HUD
+tracker shows `N / 5 goals`; its tooltip and the Codex list each item's `current/goal`. Crafted
+items (Bronze Nails) count toward their goal just like pickups.
+
+> **Note:** This replaces the former 5-step sequential chain. Because it is a standalone entry,
+> the downstream `requires: [shipyard_gather_chain]` entries still gate correctly — the entry marks
+> itself fired on completion.
 
 #### `shipyard_scribetable` — Balrond Shipyard — Scribe's Table
 - **Mod:** balrond_shipyard
@@ -308,15 +316,16 @@ Step 5 grants rewards: 2000× Coins + 500 Run skill exp.
 | Step | Trigger | Display | Message summary |
 |---|---|---|---|
 | 1 | `item_acquired` `Trophy*` | rune (topic: "SlayerSkills") | First trophy; creature-specific slayer XP and damage bonus intro; starred creatures give more points |
-| 2 | `item_acquired` `Trophy*` | rune (topic: "Trophy Collector") | Slayer bonuses building; multiplayer kill credit modes; tamed animal kills count |
+| 2 | `item_acquired` `Trophy*`, `progress_goal: 5` | rune (topic: "Trophy Collector") | Collect 5 trophies; slayer bonuses building; multiplayer kill credit modes; tamed animal kills count |
 | 3 | `boss_defeated` `Eikthyr` | rune (topic: "Boss Slayer") | Boss kills grant special slayer multipliers; hunting bosses repeatedly accelerates progression |
-| 4 | `item_acquired` `Trophy*` | rune (topic: "True Slayer") | Reaching the max cap earns Slayer status: skill points cannot be lost on death; all bonuses unlocked |
+| 4 | `item_acquired` `Trophy*`, `progress_goal: 20` | rune (topic: "True Slayer") | Collect 20 trophies; reaching the max cap earns Slayer status: skill points cannot be lost on death; all bonuses unlocked |
 
 Step 4 grants rewards: SE_Rested (1200 s) + 1000 Swords skill exp.
 
-> **Design note:** Steps 2 and 4 use plain `item_acquired Trophy*` (no progress counter). They fire on
-> the next trophy pickup after the previous step completes. The message text references "Five trophies"
-> and "Twenty trophies" as flavor — no actual counting occurs at those steps.
+> **Design note:** Steps 2 and 4 are counter steps (`progress_goal: 5` and `20`) that count `Trophy*`
+> pickups. The HUD tracker shows the running `current/goal` count and each step fires only when its
+> trophy total is reached, matching the "Five trophies" / "Twenty trophies" message wording. The counter
+> seeds from existing inventory when the step activates, so trophies already held count toward the goal.
 
 #### `impactfulskills_run` — ImpactfulSkills Movement Skills
 - **Mod:** ImpactfulSkills
@@ -390,7 +399,7 @@ Step 6 grants rewards: SE_Rested (1200 s) + 2000 Swords skill exp.
 |---|---|---|
 | Inventory | 4 | 10 (chain 7 + 3 singles) |
 | Groups | 1 | 1 |
-| Building | 7 | 14 (protectivewards 5, shipyard_gather 5, 5 singles) |
+| Building | 7 | 10 (protectivewards 5, shipyard_gather multi-goal 1, 5 singles) |
 | Trading | 3 | 3 |
 | Companions | 12 | 15 (wandering 4, 11 singles) |
 | Skills | 4 | 6 (slayer 4, impactful 2, 2 singles) |
@@ -415,15 +424,11 @@ The `hearthbound_guides.yaml` file hot-reloads on save — no game restart neede
 | 11 | Wait ~5 min on first login | Raven: "Party System" — /invite, health bars, group chat | `groups_chain` |
 | 12 | Pick up a Surtling Core | Raven: "Protective Ward" — ward protection intro | `protectivewards_chain` step 1 |
 | 13 | Place a ward (`guard_stone`) | Rune: "ProtectiveWards" — full feature list; auto-repair, raid block | `protectivewards_chain` step 2 |
-| 14 | Accumulate 2000 Coins (progress bar visible) | Rune: "Ward Taxi" — 2000 coins = Valkyrie taxi | `protectivewards_chain` step 3 |
+| 14 | Accumulate Coins (count shown) | Rune: "Ward Taxi" — coins = Valkyrie taxi | `protectivewards_chain` step 3 |
 | 15 | Short-press E on Haldor | Center message: arrived via taxi; other destination offerings | `protectivewards_chain` step 4 |
 | 16 | Wait 150 s after step 15 | Rune: "ProtectiveWards" — stat bonuses, config panel; 2000 Coins + 500 Run exp | `protectivewards_chain` step 5 |
 | 17 | Build an Armoire piece (`ArmoirePiece`) | Rune: "Armoire Wardrobe" — cosmetic overview | `armoire_chain` |
-| 18 | Pick up 30 Fine Wood (progress bar) | Rune: "Balrond Shipyard" — materials list | `shipyard_gather_chain` step 1 |
-| 19 | Craft 200 Bronze Nails at forge (progress bar) | Rune: "Balrond Shipyard" — nails done | `shipyard_gather_chain` step 2 |
-| 20 | Pick up 25 Coal (progress bar) | Rune: "Balrond Shipyard" — coal done; hunt deer | `shipyard_gather_chain` step 3 |
-| 21 | Pick up 10 Deer Hide (progress bar) | Rune: "Balrond Shipyard" — hides done; collect Resin | `shipyard_gather_chain` step 4 |
-| 22 | Pick up 25 Resin (progress bar) | Rune: "Balrond Shipyard" — all materials gathered | `shipyard_gather_chain` step 5 |
+| 18 | Gather 30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, 25 Resin (`N / 5 goals` shown) | Rune: "Balrond Shipyard" — all materials gathered; build the Shipyard Station | `shipyard_gather_chain` (multi-goal `item_acquired`) |
 | 23 | Build a Scribe's Table (`piece_scribetable`) | Rune: "Ship Upgrades" — schematics and Karve guidance | `shipyard_scribetable` |
 | 24 | Build a Karve | Rune: "Ready to Upgrade" — 7 slots; craft oar schematic next | `shipyard_karve` |
 | 25 | Pick up `SchematicKarveOars` | Rune: "Balrond Shipyard" — install schematic guide; Swim skill set to 10 | `shipyard_schematic` |
@@ -445,9 +450,9 @@ The `hearthbound_guides.yaml` file hot-reloads on save — no game restart neede
 | 41 | First login (fresh character) | Raven: "Wandering Companions" — biome warning | `wandering_companions_chain` step 1 |
 | 42 | Kill Eikthyr | Two rune overlays: "Wandering Companions" (Black Forest warning) + "Eikthyr Slain" (Boss Stone) | `wandering_companions_chain` step 2 + `zenbossstone_chain` step 2 |
 | 43 | Pick up first trophy (`Trophy*`) | Rune: "SlayerSkills" — trophy hunter intro | `slayerskills_chain` step 1 |
-| 44 | Pick up another trophy | Rune: "Trophy Collector" — slayer bonuses building | `slayerskills_chain` step 2 |
+| 44 | Collect 5 trophies total (`2/5` count) | Rune: "Trophy Collector" — slayer bonuses building | `slayerskills_chain` step 2 |
 | 45 | Kill The Elder (`gd_king`) | Rune: "Wandering Companions" escalation + Rune: "The Elder Slain" (Boss Stone) | `wandering_companions_chain` step 3 + `zenbossstone_chain` step 3 |
-| 46 | Pick up any trophy after Eikthyr kill | Rune: "True Slayer" — max cap info; SE_Rested (1200 s) + 1000 Swords exp | `slayerskills_chain` step 4 |
+| 46 | Collect 20 trophies total (`12/20` count) after Eikthyr kill | Rune: "True Slayer" — max cap info; SE_Rested (1200 s) + 1000 Swords exp | `slayerskills_chain` step 4 |
 | 47 | Reach Run skill level 25 | Rune: "ImpactfulSkills" — movement skill perks | `impactfulskills_run` |
 | 48 | Reach WoodCutting skill level 25 | Rune: "Gathering Skills" — yield and AOE perks | `impactfulskills_woodcutting` |
 | 49 | Reach Swords skill level 25 | Rune: "Combat Skills" — stamina reduction; Blood Magic XP | `impactfulskills_chain` step 1 |
@@ -471,9 +476,10 @@ The `hearthbound_guides.yaml` file hot-reloads on save — no game restart neede
 - **`boss_defeated` overlap:** `zenbossstone_chain` and `wandering_companions_chain` share
   `Eikthyr` and `gd_king` boss steps. Both advance independently — two rune overlays appear
   in sequence.
-- **`slayerskills_chain` steps 2 and 4:** These use plain `item_acquired Trophy*` with no
-  progress counter. The message text references "Five trophies" and "Twenty trophies" as
-  flavor only — these steps fire on the next single trophy pickup after the previous step.
+- **`slayerskills_chain` steps 2 and 4:** Counter steps (`progress_goal: 5` and `20`) that count
+  `Trophy*` pickups, so the HUD shows a running `current/goal` and each step fires only when its
+  trophy total is reached — matching the "Five trophies" / "Twenty trophies" message wording. The
+  counter seeds from existing inventory when the step activates.
 - **Companion trigger deviations:** `companions_farming` (`equip Cultivator`) and
   `companions_fishing` (`equip FishingRod`) use `rune` instead of the standard `message` for
   equip triggers. This is intentional — both are gated behind `companions_intro` and serve as
@@ -489,5 +495,7 @@ The `hearthbound_guides.yaml` file hot-reloads on save — no game restart neede
   (SeenTracker guard). The `haldorbounties_chain` must have fired first due to `requires:`.
 - **ZenBossStone scope:** `scope: player` ensures each character's Boss Stone progression is
   tracked independently. `discord_on_complete: true` posts when the chain finishes per player.
-- **`shipyard_gather_chain` step 2:** Uses `craft BronzeNails` (not `item_acquired`) because
-  Bronze Nails are produced at the forge and never exist as world-drop pickups.
+- **`shipyard_gather_chain` multi-goal:** A single `item_acquired` entry with a `goals:` list
+  (FineWood 30, BronzeNails 200, Coal 25, DeerHide 10, Resin 25). Crafted Bronze Nails count toward
+  their goal via the crafting hook, so no separate `craft` step is needed. Fires only when all five
+  goals are met at once; downstream `requires: [shipyard_gather_chain]` entries gate off its completion.

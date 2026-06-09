@@ -218,9 +218,29 @@ Omitting `item` matches the first craft of any item.
 trigger:
   type: item_acquired
   item: "Trophy*"           # supports trailing * wildcard
+  count: 1                  # >1 = collection goal (current/goal count shown)
 ```
 Fires when the player picks up a matching item. `Trophy*` matches `TrophyGreydwarf`,
 `TrophyBoar`, etc. Use exact prefab names for specific items (`Coins`, `Wood`, etc.).
+With `count > 1` the entry tracks the inventory total (pickups + crafting) and fires
+once the goal is reached.
+
+For several different items at once, use a `goals:` list instead of `item`/`count`.
+The entry fires only when every goal is met simultaneously:
+```yaml
+trigger:
+  type: item_acquired
+  goals:
+    - item: FineWood
+      count: 30
+    - item: BronzeNails
+      count: 200
+    - item: Resin
+      count: 25
+```
+The tracker row shows `N / M goals`; its tooltip and the Codex body list each item's
+`current/goal`. Once started, the entry stays visible even if the items are later
+removed, and is marked complete only when all goals are currently satisfied.
 
 ### `kill`
 ```yaml
@@ -319,7 +339,7 @@ trigger:
   type: npc_item_submit
   npc: Haldor               # trader to submit to
   item: TrophyEikthyr       # specific item prefab; omit for catch-all
-  count: 1                  # items required (>1 = progress bar)
+  count: 1                  # items required (>1 = current/goal count shown)
   consume: true             # remove items on submission
 ```
 Fires when the player presses a hotbar key (1-8) near the named trader.

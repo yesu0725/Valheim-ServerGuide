@@ -88,12 +88,21 @@ trigger:
   skill: Swords         # skill name for skill_level trigger
   level: 50             # threshold level for skill_level trigger
   npc: Haldor           # NPC prefab name for npc_interacted/npc_conversation/npc_item_submit
-  count: 5              # for npc_item_submit: how many items required
+  count: 5              # npc_item_submit OR item_acquired: how many required (>1 = collection goal)
   consume: true         # for npc_item_submit: remove items from inventory
+  goals:                # item_acquired only: require several items at once (see below)
+    - { item: FineWood, count: 30 }
+    - { item: Resin, count: 25 }
   interval: "30m"       # for timed: e.g. "5m", "1h", "30s"
   entry: other_id       # for entry_finished: the entry that must complete
   damage_type: Fire     # for damage_type trigger
 ```
+
+For an `item_acquired` trigger, `count > 1` requires N of a single item, while a
+`goals:` list requires several different items simultaneously (it takes precedence over
+`item`/`count`). The HUD tracker and Codex show a `current/goal` count — no progress bar.
+Once collection begins the entry stays visible even if the items are later removed, and
+completes only when every goal is currently satisfied. See [Trigger Types](Trigger-Types#item_acquired).
 
 ---
 

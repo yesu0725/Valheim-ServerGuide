@@ -34,7 +34,38 @@ trigger:
   item: TrollHide         # prefab name
 ```
 
-This fires on any item gain — picking up from the ground, looting a chest, or receiving from a drop.
+This fires on any item gain — picking up from the ground, looting a chest, crafting, or receiving from a drop. The `item` field supports a trailing `*` wildcard (e.g. `Trophy*` matches any trophy).
+
+### Collection goal (`count`)
+
+Add `count: N` (N > 1) to require the player to accumulate **N** of the item before the entry fires. Progress is the current inventory total (all matching stacks summed); both pickups and crafted items count. The HUD tracker shows a `current/goal` count while collecting and the entry fires once the total reaches the goal.
+
+```yaml
+trigger:
+  type: item_acquired
+  item: SurtlingCore
+  count: 5
+```
+
+### Multiple goals (`goals`)
+
+Use a `goals:` list to require several **different** items at once. Each goal has its own `item` and `count`. The entry fires only when **every** goal is satisfied simultaneously; items may be gathered in any order.
+
+```yaml
+trigger:
+  type: item_acquired
+  goals:
+    - item: FineWood
+      count: 30
+    - item: BronzeNails
+      count: 200
+    - item: Resin
+      count: 25
+```
+
+The HUD tracker row shows `N / M goals` (completed goals out of total); its hover tooltip and the Codex body list each item's `current/goal` breakdown. Once collection begins, the entry stays visible in the tracker and Codex even if the items are later removed from the inventory — it is only marked complete when all goals are currently met.
+
+When `goals` is present it takes precedence over the single-item `item`/`count` fields.
 
 ---
 
@@ -175,7 +206,7 @@ trigger:
   consume: true           # remove the items from inventory (default true)
 ```
 
-When `count > 1`, the entry shows a progress bar in the HUD tracker and Codex until all items are submitted. Items are consumed incrementally — the player can hand them in across multiple interactions.
+When `count > 1`, the entry shows a `submitted/goal` count in the HUD tracker and Codex until all items are submitted. Items are consumed incrementally — the player can hand them in across multiple interactions.
 
 ---
 

@@ -9,7 +9,7 @@ The HUD tracker is an on-screen widget that shows active guide chains and their 
 - Appears in the **top-right corner** by default (below the minimap).
 - Shows up to **3 active chains** by default. Additional chains collapse into a `+N more` label.
 - Each row shows the chain's current step message.
-- Counter steps show a progress bar: `Trophies: 2 / 5`.
+- Counter steps show a `current/goal` count: `Trophies   2/5`. Hovering the row reveals a tooltip; for multi-goal `item_acquired` entries the tooltip lists each item's progress (e.g. `FineWood: 18/30`).
 - When a chain completes, the row flashes gold and a level-up VFX plays on the player, then the row fades out.
 - The tracker **auto-hides** after 5 seconds of no new progress (configurable). It reappears when progress is made.
 

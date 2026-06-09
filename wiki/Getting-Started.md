@@ -80,7 +80,7 @@ Players can open the in-game guide browser at any time by pressing **F3** (defau
 
 ## The HUD Tracker
 
-Active quest chains appear in a small panel in the top-right corner of the screen (default). Players can toggle it with **F10** (default). The tracker shows step names and progress bars for counter steps.
+Active quest chains appear in a small panel in the top-right corner of the screen (default). Players can toggle it with **F10** (default). The tracker shows step names and a `current/goal` count for counter steps.
 
 ---
 
