@@ -1,4 +1,19 @@
 # Changelog
+## 0.5.0
+
+### New Features
+
+- **Multi-goal `item_acquired` triggers.** An `item_acquired` entry can now require several different items at once via a `goals:` list (each with its own `item` and `count`). The entry fires only when every goal is met simultaneously. Items may be collected in any order, and crafted items count toward their goals. Replaces the need to chain several single-item collection steps.
+- **Per-item goal progress.** Multi-goal entries show a per-item breakdown (`FineWood: 18/30`, `Coal: 12/25`, …) — in the HUD Tracker row tooltip and in the Guide Codex body — so the player always knows exactly what is still needed. The Codex badge shows `N / M goals` completed.
+- **Persistent "started" state.** Once the player has collected toward any goal, the entry stays visible in both the HUD Tracker and the Codex even if those items are later removed from the inventory (crafted away, dropped, or lost on death). Visibility is no longer tied to the current inventory once collection has begun.
+
+### Improvements
+
+- **Plain numeric progress.** The HUD progress *bar* has been removed in favour of a simple `current/goal` count across all collection displays (chain counter steps, `npc_item_submit`, and `item_acquired` goals) for a cleaner, consistent look.
+- **Chain counter steps show their count.** A chain step with a `progress_goal` now displays its `current/goal` count in the HUD Tracker row.
+- **Codex completion is goal-accurate.** A multi-goal `item_acquired` entry is only marked complete in the Codex when every goal is currently satisfied, re-checked live against the inventory.
+- **`vsg_reset` clears goal state.** `vsg_reset all` and `vsg_reset <id>` now also clear the latched goal-started flag.
+
 ## 0.4.0
 
 ### Improvements

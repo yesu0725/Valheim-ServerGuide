@@ -66,6 +66,7 @@ namespace ValheimServerGuide.Commands
                 var n = SeenTracker.ClearAllFired(player);
                 ChainState.ResetAll(player);
                 SubmitState.ResetAll(player);
+                GoalStartedState.ResetAll(player);
                 // Raven entries also carry vanilla's per-character "seen tutorial" flag
                 // (Player.m_shownTutorials), which gates the raven independently of VSG
                 // state. Clear it for our ids or reset raven entries would never re-show.
@@ -128,10 +129,15 @@ namespace ValheimServerGuide.Commands
             var hadSubmitProgress = SubmitState.Get(player, target) > 0;
             if (hadSubmitProgress) SubmitState.Clear(player, target);
 
-            if (singleCleared || isChain || hadSubmitProgress)
+            // item_acquired multi-goal entries latch a "started" flag (VSG.ig.<id>).
+            var hadGoalStarted = GoalStartedState.IsStarted(player, target);
+            if (hadGoalStarted) GoalStartedState.Clear(player, target);
+
+            if (singleCleared || isChain || hadSubmitProgress || hadGoalStarted)
             {
                 args.Context.AddString($"vsg_reset: cleared '{target}'" + (isChain ? " (chain state)" : "") +
-                    (hadSubmitProgress ? " (item-submit progress)" : "") + ".");
+                    (hadSubmitProgress ? " (item-submit progress)" : "") +
+                    (hadGoalStarted ? " (goal progress)" : "") + ".");
                 Plugin.Log.LogInfo($"[cmd] {player.GetPlayerName()} reset '{target}' (chain={isChain}).");
                 GuidanceHudTracker.Instance?.Refresh();
             }

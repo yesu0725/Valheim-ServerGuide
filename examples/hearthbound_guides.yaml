@@ -111,9 +111,9 @@ guidances:
     summary: >
       You placed a Protective Ward and explored its full feature set: passive structure repair,
       raid blocking near active fires, rain and water damage immunity, and station speed boosts.
-      You rode the Valkyrie taxi to Haldor by dropping 2000 Coins as a ward offering, and
+      You rode the Valkyrie taxi to Haldor by dropping 100 Coins as a ward offering, and
       learned about other taxi destinations (Hildir, Bog Witch, Sacrificial Stones).
-      The 2000 Coins taxi fee was refunded as a reward for completing the chain.
+      The 100 Coins taxi fee was refunded as a reward for completing the chain.
     steps:
       - trigger:
           type: item_acquired
@@ -145,27 +145,16 @@ guidances:
         progress_trigger:
           type: item_acquired
           item: Coins
-        progress_goal: 2000
+        progress_goal: 100
         progress_label: "Coins"
         display:
           mode: rune
           topic: "Ward Taxi"
         description: >
-          Collect 2000 Coins to unlock the Valkyrie taxi to Haldor.
+          Collect 100 Coins to unlock the Valkyrie taxi to Haldor.
           Coins can be earned by selling items at traders, looting dungeons, or completing HaldorBounties contracts.
-          The progress bar above tracks your total. Once reached, drop 2000 Coins directly onto your ward as an offering.
-        message: "You have enough coins for a Valkyrie taxi. Interact with your ward and drop 2000 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 2000 coins if you have not yet discovered him, or 500 for a return trip. Head to your ward and make the offering now. Speak to Haldor afterwards."
-
-      - trigger:
-          type: npc_interacted
-          npc: Haldor
-        display:
-          mode: message
-          position: Center
-        description: >
-          Drop 2000 Coins onto your ward to summon the Valkyrie. She will carry you directly to Haldor.
-          Interact with Haldor when you arrive to complete this step. You have 2 minutes before the Valkyrie returns you home.
-        message: "You have arrived at Haldor via the Valkyrie taxi. The ward's taxi system can reach other destinations too — drop Fuling totem for Hildir, Pukeberries for the Bog Witch, or a boss trophy for the Sacrificial Stones. Each destination has its own offering item. You have 2 minutes before the Valkyrie returns to take you home."
+          The progress bar above tracks your total. Once reached, offer 100 Coins directly onto your ward as an offering.
+        message: "You have enough coins for a Valkyrie taxi. Interact with your ward and drop 100 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 100 coins if you have not yet discovered him, or 500 for a return trip. Head to your ward and make the offering now. Speak to Haldor afterwards."
 
       - trigger:
           type: timed
@@ -175,13 +164,12 @@ guidances:
           mode: rune
           topic: "ProtectiveWards"
         description: >
-          You are back at your base. Explore your ward's advanced features — hold LeftShift + E on the ward (while it is disabled) to open its configuration panel.
-          Adjust the protection radius, bubble appearance, and individual damage and speed multipliers to suit your playstyle.
-        message: "Back at your ward, here is what else ProtectiveWards does for your base: smelters, cooking stations, fermenters, and turrets run faster inside the radius. Stamina drain, food decay, skill loss on death, and tool durability wear are all reduced. To customize all settings, disable the ward first and then hold LeftShift + E to open the configuration panel. You can adjust range, bubble appearance, emission color, and fine-tune every damage and speed multiplier."
+          Valkyrie will pick up you after 2 minutes.
+        message: "Back at your ward, here is what else ProtectiveWards does for your base: smelters, cooking stations, fermenters, and turrets run faster inside the radius. Stamina drain, food decay, skill loss on death, and tool durability wear are all reduced."
         rewards:
           - type: item
             item: Coins
-            amount: 2000
+            amount: 100
           - type: skill_exp
             skill: Run
             amount: 500
@@ -207,97 +195,30 @@ guidances:
   - id: shipyard_gather_chain
     title: "Balrond Shipyard — Gather Materials"
     category: Building
-    version: 1
+    version: 2
+    once: true
     summary: >
       You gathered all five materials for the Balrond Shipyard Station:
       30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin.
       Head to your build site and construct the Shipyard Station to begin
       upgrading your ships.
-    steps:
-      - trigger:
-          type: item_acquired
-          item: FineWood
-        progress_trigger:
-          type: item_acquired
-          item: FineWood
-        progress_goal: 30
-        progress_label: "Fine Wood"
-        display:
-          mode: rune
-          topic: "Balrond Shipyard"
-        description: >
-          Gather 30 Fine Wood to begin building the Balrond Shipyard station.
-          Chop birch or oak trees in the Meadows or Swamp edges using a Bronze Axe or better.
-          The progress bar above tracks how much you have collected.
-        message: "Fine Wood secured. You are gathering materials for the Balrond Shipyard station — a full naval upgrade system that supports seven ship types. Materials still needed: 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin. Start collecting Bronze Nails from your forge next."
-
-      - trigger:
-          type: craft
-          item: BronzeNails
-        progress_trigger:
-          type: craft
-          item: BronzeNails
-        progress_goal: 200
-        progress_label: "Bronze Nails"
-        display:
-          mode: rune
-          topic: "Balrond Shipyard"
-        description: >
-          Craft 200 Bronze Nails at a Forge using Bronze ingots.
-          Each batch produces a stack — check the quantity in the crafting menu.
-          Still needed: 25 Coal, 10 Deer Hide, and 25 Resin.
-        message: "Bronze Nails ready. Still needed: 25 Coal, 10 Deer Hide, and 25 Resin. Produce Coal by burning Wood in a Charcoal Kiln or collect it from Surtling drops."
-
-      - trigger:
-          type: item_acquired
-          item: Coal
-        progress_trigger:
-          type: item_acquired
-          item: Coal
-        progress_goal: 25
-        progress_label: "Coal"
-        display:
-          mode: rune
-          topic: "Balrond Shipyard"
-        description: >
-          Collect 25 Coal for the Shipyard build.
-          Burn Wood in a Charcoal Kiln (6 Wood = 1 Coal), or loot Coal from
-          Surtling drops in Mountain caves and Ashlands areas.
-        message: "Coal collected. Still needed: 10 Deer Hide and 25 Resin. Hunt deer in the Meadows for the hides."
-
-      - trigger:
-          type: item_acquired
-          item: DeerHide
-        progress_trigger:
-          type: item_acquired
-          item: DeerHide
-        progress_goal: 10
-        progress_label: "Deer Hide"
-        display:
-          mode: rune
-          topic: "Balrond Shipyard"
-        description: >
-          Hunt deer in the Meadows for 10 Deer Hides.
-          Deer flee when spooked — approach from cover or use a bow for a clean
-          ranged kill. Each deer drops 1–2 hides.
-        message: "Deer Hide in hand. One material left: 25 Resin. Chop fir and pine trees in the Black Forest or collect Resin from Greydwarf drops."
-
-      - trigger:
-          type: item_acquired
-          item: Resin
-        progress_trigger:
-          type: item_acquired
-          item: Resin
-        progress_goal: 25
-        progress_label: "Resin"
-        display:
-          mode: rune
-          topic: "Balrond Shipyard"
-        description: >
-          Collect 25 Resin from the Black Forest.
-          Chop fir and pine trees to gather Resin, or kill Greydwarfs and Greydwarf Brutes —
-          both drop Resin on death.
-        message: "All materials gathered. Head to your build site and construct the Shipyard Station — your naval upgrade journey begins now."
+    trigger:
+      type: item_acquired
+      goals:
+        - item: FineWood
+          count: 30
+        - item: BronzeNails
+          count: 200
+        - item: Coal
+          count: 25
+        - item: DeerHide
+          count: 10
+        - item: Resin
+          count: 25
+    display:
+      mode: rune
+      topic: "Balrond Shipyard"
+    message: "All five Shipyard materials gathered: 30 Fine Wood, 200 Bronze Nails, 25 Coal, 10 Deer Hide, and 25 Resin. Head to your build site and construct the Balrond Shipyard Station — a full naval upgrade system supporting seven ship types. Your naval upgrade journey begins now."
 
   - id: shipyard_scribetable
     title: "Balrond Shipyard — Scribe's Table"
@@ -807,13 +728,18 @@ guidances:
       - trigger:
           type: item_acquired
           item: "Trophy*"
+        progress_trigger:
+          type: item_acquired
+          item: "Trophy*"
+        progress_goal: 5
+        progress_label: "Trophies"
         display:
           mode: rune
           topic: "Trophy Collector"
         description: >
-          Keep collecting trophies to build slayer experience. Specialising in one creature
-          type levels that skill faster than spreading your hunts thin.
-          Aim for five trophies of the same creature type for an early bonus surge.
+          Collect 5 trophies total to reach this milestone. Specialise in one creature
+          type to level that skill faster than spreading your hunts thin.
+          The counter above tracks your total Trophy* collection.
         message: "Five trophies gathered. Your slayer damage bonuses are building — specializing in one creature type pushes those bonuses higher faster than spreading your hunts thin. In multiplayer, kill credit is distributed across the party using one of four modes: Random, All, Distribute, or Killing Blow. Kills by your tamed animals also count toward your slayer skills."
 
       - trigger:
@@ -831,13 +757,19 @@ guidances:
       - trigger:
           type: item_acquired
           item: "Trophy*"
+        progress_trigger:
+          type: item_acquired
+          item: "Trophy*"
+        progress_goal: 20
+        progress_label: "Trophies"
         display:
           mode: rune
           topic: "True Slayer"
         description: >
-          Continue hunting and collecting trophies toward 20 total.
+          Hunt to 20 trophies total to reach True Slayer status.
           Target your most-hunted creature type and push it to the slayer cap —
           reaching it grants permanent Slayer status and protects those points from death.
+          The counter above tracks your total Trophy* collection.
         message: "Twenty trophies — you have dedicated yourself to the hunt. Reaching the maximum slayer cap for any creature type earns you Slayer status for that creature: your skill points for it can no longer be lost on death, and all damage bonuses against it are fully unlocked. Target your most-hunted creature types and push them to the cap."
         rewards:
           - type: buff
@@ -1032,7 +964,7 @@ guidances:
       tombstone so nothing is ever truly lost.
     trigger:
       type: player_death
-      max_fires: 3
+      max_fires: 1
     display:
       mode: raven
       topic: "Death Recovery"

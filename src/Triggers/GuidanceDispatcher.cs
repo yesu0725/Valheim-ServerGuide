@@ -49,10 +49,11 @@ namespace ValheimServerGuide.Triggers
 
                 if (!Matches(entry, evt)) continue;
 
-                // item_acquired entries with count > 1 are handled by ItemAcquiredTrigger.CheckCountGoals
-                // (inventory-total progress toward a goal) and must not fire on each individual pickup.
+                // item_acquired entries with a count goal (single or multi) are handled by
+                // ItemAcquiredTrigger.CheckCountGoals and must not fire on each individual pickup.
                 if (string.Equals(evt.Type, "item_acquired", System.StringComparison.OrdinalIgnoreCase)
-                    && entry.Trigger != null && entry.Trigger.Count > 1)
+                    && entry.Trigger != null
+                    && ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger) != null)
                 {
                     Plugin.Log.LogDebug($"[dispatch] '{entry.Id}' item_acquired count-goal — delegated to count path.");
                     continue;

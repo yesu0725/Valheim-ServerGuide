@@ -511,7 +511,7 @@ namespace ValheimServerGuide.Display
                 {
                     var raw = ChainState.GetCounter(player, entry.Id, stepIdx);
                     var cnt = raw < 0 ? 0 : raw;
-                    progress = ProgressBar(cnt, step.ProgressGoal);
+                    progress = cnt + "/" + step.ProgressGoal;
                 }
                 else
                 {
@@ -541,28 +541,52 @@ namespace ValheimServerGuide.Display
                 var cur = SubmitState.Get(player, entry.Id);
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
-                rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
+                rows.Add(RowPrefix + entry.Title + "   " + cur + "/" + goal);
                 descs.Add(null);
                 rowChainIds.Add(entry.Id);
             }
 
-            // item_acquired count-goal entries: show a progress bar while the player is
-            // still collecting (inventory total > 0 and < goal). Single-count entries have no bar.
+            // item_acquired count-goal entries: show X/Y progress while collecting.
             foreach (var entry in config.Guidances)
             {
                 if (entry.Trigger == null) continue;
                 if (!string.Equals(entry.Trigger.Type, "item_acquired",
                         System.StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.IsNullOrEmpty(entry.Title)) continue;
-                if (entry.Trigger.Count <= 1) continue;
                 if (SeenTracker.HasFired(player, entry.Id, entry.Scope)) continue;
 
-                var goal = entry.Trigger.Count;
-                var cur = ItemAcquiredTrigger.CountInInventory(player, entry.Trigger.Item);
-                if (cur <= 0 || cur >= goal) continue;
+                var goals = ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger);
+                if (goals == null) continue;
 
-                rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
-                descs.Add(null);
+                // A latched "started" flag keeps the row visible after the player has begun
+                // collecting, even if every goal item is later removed from the inventory.
+                var started = GoalStartedState.IsStarted(player, entry.Id);
+
+                string progress;
+                if (goals.Count == 1)
+                {
+                    var cur = ItemAcquiredTrigger.CountInInventory(player, goals[0].Item);
+                    if (cur >= goals[0].Count) continue;   // complete — should have fired
+                    if (cur <= 0 && !started) continue;     // not started yet
+                    progress = cur + "/" + goals[0].Count;
+                }
+                else
+                {
+                    var completedGoals = 0;
+                    var totalProgress = 0;
+                    foreach (var g in goals)
+                    {
+                        var cur = ItemAcquiredTrigger.CountInInventory(player, g.Item);
+                        if (cur >= g.Count) completedGoals++;
+                        else totalProgress += cur;
+                    }
+                    if (completedGoals >= goals.Count) continue; // all done, should have fired
+                    if (completedGoals == 0 && totalProgress == 0 && !started) continue; // not started
+                    progress = completedGoals + "/" + goals.Count + " goals";
+                }
+
+                rows.Add(RowPrefix + entry.Title + "   " + progress);
+                descs.Add(ItemAcquiredTrigger.BuildGoalProgressText(player, goals));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -661,23 +685,6 @@ namespace ValheimServerGuide.Display
             // Force an immediate layout pass so ContentSizeFitter recalculates the panel height
             // and TMP regenerates each row's geometry against its now-correct width.
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
-        }
-
-        // Bar uses TMP rich-text color: all segments are always rendered (fixed width), filled ones
-        // are white and empty ones are dark-gray "ghosts". Width = goal capped at 12; goals above
-        // cap fall back to proportional rounded fill so the row never overflows.
-        private static string ProgressBar(int current, int goal)
-        {
-            if (goal <= 0) return "[] " + current + "/" + goal;
-            var width  = Mathf.Clamp(goal, 1, 12);
-            var filled = goal <= 12
-                ? Mathf.Clamp(current, 0, width)
-                : Mathf.Clamp(Mathf.RoundToInt((float)current / goal * width), 0, width);
-            var sb = new System.Text.StringBuilder("[");
-            if (filled > 0)         sb.Append("<color=#FFFFFF>").Append(new string('=', filled)).Append("</color>");
-            if (filled < width)     sb.Append("<color=#555555>").Append(new string('=', width - filled)).Append("</color>");
-            sb.Append("] ").Append(current).Append("/").Append(goal);
-            return sb.ToString();
         }
 
         public void FlashCompletion(string chainId)

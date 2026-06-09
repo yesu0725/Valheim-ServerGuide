@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.State;
+using ValheimServerGuide.Triggers;
 
 namespace ValheimServerGuide.Display
 {
@@ -589,13 +590,23 @@ namespace ValheimServerGuide.Display
             }
             else
             {
-                // Non-chain entry. Multi-count item-submit entries show a collection counter;
-                // everything else shows Complete or nothing.
-                var goal = ItemSubmitGoal(entry);
-                if (goal > 0 && !complete)
+                // Non-chain entry. Show progress counter for item-submit or item_acquired goals;
+                // otherwise show Complete or nothing.
+                var submitGoal = ItemSubmitGoal(entry);
+                var itemGoals  = entry.Trigger != null
+                    ? ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger) : null;
+                if (submitGoal > 0 && !complete)
                 {
                     var cur = SubmitState.Get(player, entry.Id);
-                    _badgeText.text  = cur + " / " + goal;
+                    _badgeText.text  = cur + " / " + submitGoal;
+                    _badgeText.color = ColText;
+                }
+                else if (itemGoals != null && !complete)
+                {
+                    var done = 0;
+                    foreach (var g in itemGoals)
+                        if (ItemAcquiredTrigger.CountInInventory(player, g.Item) >= g.Count) done++;
+                    _badgeText.text  = done + " / " + itemGoals.Count + " goals";
                     _badgeText.color = ColText;
                 }
                 else
@@ -629,17 +640,28 @@ namespace ValheimServerGuide.Display
             }
             else
             {
-                // Non-chain entry: show its message (item-submit entries get a progress line too).
+                // Non-chain entry: show its message, optionally prepended with collection progress.
                 var body = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text ?? "";
-                var goal = ItemSubmitGoal(entry);
-                if (goal > 0 && !complete)
+
+                var submitGoal = ItemSubmitGoal(entry);
+                if (submitGoal > 0 && !complete)
                 {
                     var cur = SubmitState.Get(player, entry.Id);
                     var item = entry.Trigger?.Item;
                     var label = string.IsNullOrEmpty(item) ? "items" : item;
-                    body = $"Submitted {cur} / {goal} {label}." +
+                    body = $"Submitted {cur} / {submitGoal} {label}." +
                            (string.IsNullOrEmpty(body) ? "" : "\n\n" + body);
                 }
+
+                var itemGoals = entry.Trigger != null
+                    ? ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger) : null;
+                if (itemGoals != null && !complete)
+                {
+                    var progressText = ItemAcquiredTrigger.BuildGoalProgressText(player, itemGoals);
+                    if (!string.IsNullOrEmpty(progressText))
+                        body = progressText + (string.IsNullOrEmpty(body) ? "" : "\n\n" + body);
+                }
+
                 _bodyText.text = body;
             }
 
@@ -722,9 +744,13 @@ namespace ValheimServerGuide.Display
                 return false;
             }
 
-            // Non-chain entry: visible once it has fired, OR while an item-submit goal is
-            // actively in progress (collecting items toward a multi-count submission).
+            // Non-chain entry: visible once a collection goal is in progress, all goals are
+            // currently met, or the entry has fired at least once before.
+            // HasFired is kept as a final fallback so the entry remains visible even after
+            // its materials have been consumed (IsEntryComplete would then return false).
             if (HasItemSubmitProgress(entry, player)) return true;
+            if (HasItemAcquiredGoalProgress(entry, player)) return true;
+            if (IsEntryComplete(entry, player)) return true;
             return SeenTracker.HasFired(player, entry.Id, entry.Scope ?? "player");
         }
 
@@ -732,6 +758,20 @@ namespace ValheimServerGuide.Display
         {
             if (entry.Steps != null && entry.Steps.Count > 0)
                 return ChainState.IsComplete(player, entry.Id);
+
+            // item_acquired multi-goal entries: live inventory check.
+            // HasFired is only set at the moment of completion and does not update if items are
+            // later consumed, so we re-verify the current inventory on every codex render.
+            var goals = entry.Trigger != null
+                ? ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger) : null;
+            if (goals != null)
+            {
+                foreach (var g in goals)
+                    if (ItemAcquiredTrigger.CountInInventory(player, g.Item) < g.Count)
+                        return false;
+                return true;
+            }
+
             return SeenTracker.HasFired(player, entry.Id, entry.Scope ?? "player");
         }
 
@@ -753,6 +793,34 @@ namespace ValheimServerGuide.Display
             if (goal == 0) return false;
             var cur = SubmitState.Get(player, entry.Id);
             return cur > 0 && cur < goal;
+        }
+
+        /// True while an item_acquired multi-goal entry is mid-collection: the player has
+        /// collected toward ANY goal but has not yet finished them all. A goal that is already
+        /// complete (or one sitting at 0) does not hide the entry — as long as some goal has
+        /// progress, the quest is considered started and stays visible until every goal is met.
+        private static bool HasItemAcquiredGoalProgress(GuidanceEntry entry, Player player)
+        {
+            if (entry?.Trigger == null) return false;
+            if (!string.Equals(entry.Trigger.Type, "item_acquired",
+                    System.StringComparison.OrdinalIgnoreCase)) return false;
+            var goals = ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger);
+            if (goals == null) return false;
+
+            var anyProgress = false;
+            var allComplete = true;
+            foreach (var g in goals)
+            {
+                var cur = ItemAcquiredTrigger.CountInInventory(player, g.Item);
+                if (cur > 0) anyProgress = true;
+                if (cur < g.Count) allComplete = false;
+            }
+            // The latched "started" flag keeps the entry in progress even after every goal item
+            // has been removed from the inventory, so it never disappears once collection began.
+            var started = GoalStartedState.IsStarted(player, entry.Id);
+            // Visible while started but not yet finished. When all goals are met this returns
+            // false, but IsEntryComplete is then true and IsVisible keeps it shown.
+            return (anyProgress || started) && !allComplete;
         }
 
         // ── Text helpers ──────────────────────────────────────────────────────────────────────

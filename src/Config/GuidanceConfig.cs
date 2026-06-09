@@ -117,6 +117,13 @@ namespace ValheimServerGuide.Config
         public string Discord { get; set; }
     }
 
+    /// One item/count pair used in a multi-goal item_acquired trigger.
+    public class ItemGoalSpec
+    {
+        public string Item { get; set; }
+        public int Count { get; set; } = 1;
+    }
+
     public class TriggerSpec
     {
         public string Type { get; set; }
@@ -135,9 +142,11 @@ namespace ValheimServerGuide.Config
         public int MaxFires { get; set; }
         /// entry_finished: the ID of the entry whose completion triggers this one.
         public string Entry { get; set; }
-        /// npc_item_submit: total number of `item` that must be submitted before the entry
-        /// fires. <= 1 means a single submission completes immediately. When > 1 the entry
-        /// shows a progress bar in the tracker/codex and fires only once the goal is reached.
+        /// item_acquired: list of item/count goals — all must be reached before the entry fires.
+        /// When present, takes precedence over the single-item Item/Count fields.
+        public List<ItemGoalSpec> Goals { get; set; }
+        /// npc_item_submit / single-item item_acquired: total count required.
+        /// <= 1 means a single acquisition/submission completes immediately.
         public int Count { get; set; } = 1;
         /// npc_item_submit: whether submitted items are removed from the player's inventory.
         /// Default true (the NPC "takes" the item, like Hildir's quest turn-ins). When a stack
