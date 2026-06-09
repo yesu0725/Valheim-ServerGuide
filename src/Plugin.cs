@@ -221,6 +221,10 @@ namespace ValheimServerGuide
             Display.GuidanceHudTracker.Instance?.ApplyLayout();
             Display.GuidanceHudTracker.Instance?.Refresh();
 
+            // Seed item_acquired count-goal progress from current inventory in case the player
+            // already holds qualifying items when the config first loads or reloads.
+            Triggers.ItemAcquiredTrigger.CheckAllCountGoals();
+
             // 10-F: Notify local admins of the reload. Only shown to admin players; non-admins
             // see nothing. The SynchronizationManager.PlayerIsAdmin check uses Jötunn's cached
             // admin list so it works for both host and dedicated-server admin clients.

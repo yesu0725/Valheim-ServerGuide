@@ -170,11 +170,30 @@ namespace ValheimServerGuide.Triggers
             {
                 // Not yet activated. Wait for the primary trigger.
                 if (!MatchesTrigger(step.Trigger, evt)) return false;
-                ChainState.SetCounter(player, entry.Id, stepIndex, 0);
-                Plugin.Log.LogInfo($"[chain] '{entry.Id}' step {stepIndex} counter activated (goal: {step.ProgressGoal}).");
+
+                // Seed from existing inventory when progress is counted by item_acquired.
+                var seed = 0;
+                if (step.ProgressTrigger != null &&
+                    string.Equals(step.ProgressTrigger.Type, "item_acquired",
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    seed = System.Math.Min(
+                        ItemAcquiredTrigger.CountInInventory(player, step.ProgressTrigger.Item),
+                        step.ProgressGoal);
+                }
+
+                ChainState.SetCounter(player, entry.Id, stepIndex, seed);
+                Plugin.Log.LogInfo($"[chain] '{entry.Id}' step {stepIndex} counter activated (seed: {seed}/{step.ProgressGoal}).");
                 GuidanceSync.SendChainStepUpdate(player.GetPlayerName(),
-                    entry.Id + ":" + stepIndex, "0");
+                    entry.Id + ":" + stepIndex, seed.ToString());
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
+
+                if (seed >= step.ProgressGoal)
+                {
+                    FireStepDisplay(entry, step, stepIndex, evt, player);
+                    ChainState.ClearCounter(player, entry.Id, stepIndex);
+                    AdvanceChain(entry, stepIndex, player, completedIds);
+                }
                 return true;
             }
             else
@@ -525,6 +544,7 @@ namespace ValheimServerGuide.Triggers
         {
             if (__instance != Player.m_localPlayer) return;
             GuidanceDispatcher.CheckVersionUpdates(__instance, Plugin.CurrentConfig);
+            ItemAcquiredTrigger.CheckAllCountGoals();
         }
     }
 

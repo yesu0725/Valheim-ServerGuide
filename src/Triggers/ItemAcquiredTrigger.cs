@@ -39,6 +39,46 @@ namespace ValheimServerGuide.Triggers
             CheckCountGoals(subject, displayName);
         }
 
+        /// Scans all item_acquired count-goal entries regardless of which item was just picked up.
+        /// Seeds HUD progress from existing inventory on spawn or config reload.
+        internal static void CheckAllCountGoals()
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+
+            var config = Plugin.CurrentConfig;
+            if (config?.Guidances == null) return;
+
+            foreach (var entry in config.Guidances)
+            {
+                if (entry.Trigger == null) continue;
+                if (!string.Equals(entry.Trigger.Type, "item_acquired",
+                        StringComparison.OrdinalIgnoreCase)) continue;
+                if (entry.Trigger.Count <= 1) continue;
+                if (!GuidanceDispatcher.CheckGates(entry, player)) continue;
+
+                var goal = entry.Trigger.Count;
+                var current = CountInInventory(player, entry.Trigger.Item);
+
+                Plugin.Log.LogInfo($"[item_acquired] '{entry.Id}' inventory seed: {current}/{goal}.");
+
+                if (current >= goal)
+                {
+                    Plugin.Log.LogInfo($"[item_acquired] '{entry.Id}' goal already met — firing.");
+                    GuidanceDispatcher.FireEntry(entry, new TriggerEvent
+                    {
+                        Type = "item_acquired",
+                        Subject = entry.Trigger.Item,
+                    });
+                    GuidanceHudTracker.Instance?.FlashCompletion(entry.Id);
+                }
+                else if (current > 0)
+                {
+                    GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
+                }
+            }
+        }
+
         /// Scans all item_acquired entries with count > 1 that match prefabName, sums the
         /// player's current inventory for that item, and fires or refreshes the tracker.
         internal static void CheckCountGoals(string prefabName, string displayName)

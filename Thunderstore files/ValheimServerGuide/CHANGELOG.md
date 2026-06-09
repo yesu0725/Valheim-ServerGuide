@@ -1,4 +1,12 @@
 # Changelog
+## 0.3.1
+
+### Improvements
+
+- **`item_acquired` inventory seeding.** When an `item_acquired count > 1` entry becomes eligible (on player login or config reload), the mod now immediately reads the player's current inventory and seeds the progress counter from it. Items already carried before the guide entry existed count toward the goal — the player is never penalised for having collected materials early. If the inventory total already meets the goal at that moment, the entry fires right away without requiring another pickup.
+- **Chain step inventory seeding.** When a chain counter step uses `progress_trigger: { type: item_acquired }`, activating the step now seeds the counter from the player's existing inventory instead of starting at zero. If the seeded count already meets `progress_goal`, the step advances immediately.
+- **Wiki updated.** `Trigger-Types`, `Guide-Chains`, and `YAML-Configuration` pages document the new inventory-seeding behaviour and the `count` field for standalone `item_acquired` entries.
+
 ## 0.3.0
 
 ### New Features
