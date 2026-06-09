@@ -1,4 +1,11 @@
 # Changelog
+## 0.5.2
+
+### New Features
+
+- **`vsg_list_player <playerName>`** — Show the full VSG guidance state of any currently-online player directly from the admin console. Lists fired IDs, `max_fires` counters, chain progress (step / complete), item-submit progress, and goal-started flags. Works from both listen-server hosts and remote admin clients; results appear asynchronously after the RPC round-trip.
+- **`vsg_reset_player <playerName> [all | <id>]`** — Reset a specific online player's guidance state. Mirrors `vsg_reset` exactly (clears fired IDs, fire counters, chain state, submit progress, goal state, raven flags) but targets another player's character instead of your own. The admin console receives a confirmation message once the target client executes the reset. Both commands are admin-only (`onlyAdmin: true`) and re-verified server-side.
+
 ## 0.5.1
 
 ### Bug Fixes

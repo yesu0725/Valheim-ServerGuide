@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using HarmonyLib;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.Discord;
@@ -25,6 +26,15 @@ namespace ValheimServerGuide.Net
         private const string RpcChainStateRequest = "VSG_ChainStateRequest";
         private const string RpcChainStatePush = "VSG_ChainStatePush";
         private const string RpcCompleteAnnounce = "VSG_CompleteAnnounce";
+        // Admin per-player state commands (list / reset another player's guidance state)
+        private const string RpcAdminPlayerListReq  = "VSG_APListReq";
+        private const string RpcAdminPlayerListFwd  = "VSG_APListFwd";
+        private const string RpcAdminPlayerListResp = "VSG_APListResp";
+        private const string RpcAdminPlayerListOut  = "VSG_APListOut";
+        private const string RpcAdminPlayerResetReq = "VSG_APResetReq";
+        private const string RpcAdminPlayerResetFwd = "VSG_APResetFwd";
+        private const string RpcAdminPlayerResetAck = "VSG_APResetAck";
+        private const string RpcAdminPlayerResetOut = "VSG_APResetOut";
         private static bool _registered;
         private static bool _rpcsBound;
         // Server-side: player name -> (entryId -> step value or "done")
@@ -56,6 +66,14 @@ namespace ValheimServerGuide.Net
             ZRoutedRpc.instance.Register<string>(RpcChainStateRequest, OnChainStateRequest);
             ZRoutedRpc.instance.Register<string, string>(RpcChainStatePush, OnChainStatePush);
             ZRoutedRpc.instance.Register<string, string>(RpcCompleteAnnounce, OnCompleteAnnounce);
+            ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListReq,  OnAdminPlayerListReq);
+            ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListFwd,  OnAdminPlayerListFwd);
+            ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerListResp, OnAdminPlayerListResp);
+            ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListOut,  OnAdminPlayerListOut);
+            ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerResetReq, OnAdminPlayerResetReq);
+            ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerResetFwd, OnAdminPlayerResetFwd);
+            ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerResetAck, OnAdminPlayerResetAck);
+            ZRoutedRpc.instance.Register<string>(RpcAdminPlayerResetOut, OnAdminPlayerResetOut);
             _rpcsBound = true;
             Plugin.Log.LogInfo("RPCs registered with ZRoutedRpc.");
         }
@@ -346,6 +364,258 @@ namespace ValheimServerGuide.Net
             Plugin.Log.LogInfo(removed
                 ? $"[admin-reset] cleared global '{entryId}' for admin {hostName}."
                 : $"[admin-reset] global '{entryId}' was not set; nothing to clear (request by {hostName}).");
+        }
+
+        // ---- Admin per-player list/reset commands ----
+
+        /// Called from AdminCommands when the admin IS the server (listen server).
+        /// Sends the forward RPC directly to the target peer; adminMarker = "server"
+        /// so the response path outputs to the local console instead of relaying.
+        /// Returns false if the target player is not currently online.
+        public static bool ListPlayerForLocalAdmin(string targetName)
+        {
+            var peer = FindPeerByPlayerName(targetName);
+            if (peer == null) return false;
+            ZRoutedRpc.instance?.InvokeRoutedRPC(peer.m_uid, RpcAdminPlayerListFwd, "server");
+            return true;
+        }
+
+        /// Called from AdminCommands when the admin IS the server (listen server).
+        /// Returns false if the target player is not currently online.
+        public static bool ResetPlayerForLocalAdmin(string targetName, string resetArg)
+        {
+            var peer = FindPeerByPlayerName(targetName);
+            if (peer == null) return false;
+            ZRoutedRpc.instance?.InvokeRoutedRPC(peer.m_uid, RpcAdminPlayerResetFwd, "server", resetArg ?? "all");
+            return true;
+        }
+
+        /// Admin client → server: request another player's guidance state.
+        public static void SendAdminPlayerListReq(string targetName)
+        {
+            if (ZRoutedRpc.instance == null) return;
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), RpcAdminPlayerListReq, targetName ?? "");
+        }
+
+        /// Admin client → server: reset another player's guidance state.
+        public static void SendAdminPlayerResetReq(string targetName, string resetArg)
+        {
+            if (ZRoutedRpc.instance == null) return;
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), RpcAdminPlayerResetReq, targetName ?? "", resetArg ?? "all");
+        }
+
+        /// Returns online peer names for tab completion (server has the peer list; clients get empty).
+        public static IEnumerable<string> GetOnlinePeerNames()
+        {
+            if (ZNet.instance == null) yield break;
+            foreach (var p in ZNet.instance.GetPeers())
+                if (!string.IsNullOrEmpty(p.m_playerName)) yield return p.m_playerName;
+        }
+
+        // Server handler: admin client asks to list a player's state.
+        private static void OnAdminPlayerListReq(long sender, string targetName)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            var peer = ZNet.instance.GetPeer(sender);
+            var hostName = peer?.m_socket?.GetHostName();
+            if (string.IsNullOrEmpty(hostName) || !ZNet.instance.IsAdmin(hostName))
+            {
+                Plugin.Log.LogWarning($"[admin-plist] non-admin ({sender}) tried to list '{targetName}' — denied.");
+                return;
+            }
+            var targetPeer = FindPeerByPlayerName(targetName);
+            if (targetPeer == null)
+            {
+                ZRoutedRpc.instance.InvokeRoutedRPC(sender, RpcAdminPlayerListOut,
+                    $"vsg_list_player: '{targetName}' is not currently online.");
+                return;
+            }
+            ZRoutedRpc.instance.InvokeRoutedRPC(targetPeer.m_uid, RpcAdminPlayerListFwd, sender.ToString());
+        }
+
+        // Target player handler: server asked us to collect and return our guidance state.
+        // adminMarker is either "server" (listen server admin) or the remote admin's peer UID.
+        private static void OnAdminPlayerListFwd(long sender, string adminMarker)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+            var payload = CollectPlayerStatePayload(player);
+            if (ZRoutedRpc.instance == null) return;
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), RpcAdminPlayerListResp, adminMarker, payload);
+        }
+
+        // Server handler: target player sent back their state; relay to the admin.
+        private static void OnAdminPlayerListResp(long sender, string adminMarker, string payload)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            if (adminMarker == "server")
+            {
+                foreach (var line in payload.Split('\n'))
+                    Console.instance?.AddString(line);
+                return;
+            }
+            if (long.TryParse(adminMarker, out var adminPeerId))
+                ZRoutedRpc.instance.InvokeRoutedRPC(adminPeerId, RpcAdminPlayerListOut, payload);
+        }
+
+        // Admin client handler: server relayed the state payload; print it.
+        private static void OnAdminPlayerListOut(long sender, string payload)
+        {
+            if (Player.m_localPlayer == null) return;
+            foreach (var line in payload.Split('\n'))
+                Console.instance?.AddString(line);
+        }
+
+        // Server handler: admin client asks to reset a player's state.
+        private static void OnAdminPlayerResetReq(long sender, string targetName, string resetArg)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            var peer = ZNet.instance.GetPeer(sender);
+            var hostName = peer?.m_socket?.GetHostName();
+            if (string.IsNullOrEmpty(hostName) || !ZNet.instance.IsAdmin(hostName))
+            {
+                Plugin.Log.LogWarning($"[admin-preset] non-admin ({sender}) tried to reset '{targetName}' — denied.");
+                return;
+            }
+            var targetPeer = FindPeerByPlayerName(targetName);
+            if (targetPeer == null)
+            {
+                ZRoutedRpc.instance.InvokeRoutedRPC(sender, RpcAdminPlayerResetOut,
+                    $"vsg_reset_player: '{targetName}' is not currently online.");
+                return;
+            }
+            ZRoutedRpc.instance.InvokeRoutedRPC(targetPeer.m_uid, RpcAdminPlayerResetFwd, sender.ToString(), resetArg);
+        }
+
+        // Target player handler: perform the requested reset on the local player.
+        // adminMarker is either "server" or the remote admin's peer UID string.
+        private static void OnAdminPlayerResetFwd(long sender, string adminMarker, string resetArg)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+
+            string resultMsg;
+            if (string.Equals(resetArg, "all", System.StringComparison.OrdinalIgnoreCase))
+            {
+                var n = SeenTracker.ClearAllFired(player);
+                ChainState.ResetAll(player);
+                SubmitState.ResetAll(player);
+                GoalStartedState.ResetAll(player);
+                GuidanceDisplay.ClearAllVsgTutorialSeen();
+                GuidanceDisplay.ClearRavenState();
+                GuidanceHudTracker.Instance?.Refresh();
+                resultMsg = $"vsg_reset_player: cleared {n} fired id(s) + all chain/submit/goal state for {player.GetPlayerName()}.";
+            }
+            else
+            {
+                var entry = Plugin.CurrentConfig?.Guidances?.Find(g => g.Id == resetArg);
+                var isChain = entry?.Steps?.Count > 0;
+                if (isChain) ChainState.Reset(player, resetArg);
+                GuidanceDisplay.ClearVsgTutorialSeenForEntry(resetArg);
+                GuidanceDisplay.ClearRavenQueueForId(resetArg);
+                var singleCleared = SeenTracker.ClearFired(player, resetArg, "player");
+                var hadSubmit = SubmitState.Get(player, resetArg) > 0;
+                if (hadSubmit) SubmitState.Clear(player, resetArg);
+                var hadGoal = GoalStartedState.IsStarted(player, resetArg);
+                if (hadGoal) GoalStartedState.Clear(player, resetArg);
+
+                if (singleCleared || isChain || hadSubmit || hadGoal)
+                {
+                    GuidanceHudTracker.Instance?.Refresh();
+                    resultMsg = $"vsg_reset_player: cleared '{resetArg}'"
+                        + (isChain   ? " (chain)"  : "")
+                        + (hadSubmit ? " (submit)"  : "")
+                        + (hadGoal   ? " (goal)"    : "")
+                        + $" for {player.GetPlayerName()}.";
+                }
+                else
+                {
+                    resultMsg = $"vsg_reset_player: '{resetArg}' was not set for {player.GetPlayerName()} (nothing cleared).";
+                }
+            }
+
+            Plugin.Log.LogInfo($"[admin-preset] {resultMsg}");
+            if (ZRoutedRpc.instance == null) return;
+            ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.instance.GetServerPeerID(), RpcAdminPlayerResetAck, adminMarker, resultMsg);
+        }
+
+        // Server handler: target player confirmed the reset; relay result to the admin.
+        private static void OnAdminPlayerResetAck(long sender, string adminMarker, string resultMsg)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            if (adminMarker == "server")
+            {
+                Console.instance?.AddString(resultMsg);
+                return;
+            }
+            if (long.TryParse(adminMarker, out var adminPeerId))
+                ZRoutedRpc.instance.InvokeRoutedRPC(adminPeerId, RpcAdminPlayerResetOut, resultMsg);
+        }
+
+        // Admin client handler: print the reset result relayed from the server.
+        private static void OnAdminPlayerResetOut(long sender, string resultMsg)
+        {
+            if (Player.m_localPlayer == null) return;
+            Console.instance?.AddString(resultMsg);
+        }
+
+        /// Collect all VSG state for the local player into a human-readable multi-line payload.
+        private static string CollectPlayerStatePayload(Player player)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"=== ValheimServerGuide ({player.GetPlayerName()}) ===");
+
+            var fired = SeenTracker.GetFiredIds(player).OrderBy(s => s).ToList();
+            sb.AppendLine($"Fired ({fired.Count}):");
+            if (fired.Count == 0) sb.AppendLine("  (none)");
+            else foreach (var id in fired) sb.AppendLine($"  - {id}");
+
+            // max_fires counters (VSG.fc.*)
+            var fcEntries = player.m_customData.Keys
+                .Where(k => k.StartsWith("VSG.fc.")).OrderBy(k => k).ToList();
+            if (fcEntries.Count > 0)
+            {
+                sb.AppendLine($"Fire counts ({fcEntries.Count}):");
+                foreach (var k in fcEntries)
+                    sb.AppendLine($"  - {k.Substring("VSG.fc.".Length)} = {player.m_customData[k]}");
+            }
+
+            // Chain state (VSG.cd.* = done, VSG.cp.* = step)
+            var chainDone = player.m_customData.Keys.Where(k => k.StartsWith("VSG.cd.")).OrderBy(k => k).ToList();
+            var chainStep = player.m_customData.Keys.Where(k => k.StartsWith("VSG.cp.")).OrderBy(k => k).ToList();
+            if (chainDone.Count > 0 || chainStep.Count > 0)
+            {
+                sb.AppendLine("Chain state:");
+                foreach (var k in chainDone) sb.AppendLine($"  - {k.Substring("VSG.cd.".Length)}: complete");
+                foreach (var k in chainStep) sb.AppendLine($"  - {k.Substring("VSG.cp.".Length)}: step {player.m_customData[k]}");
+            }
+
+            // Submit state (VSG.is.*)
+            var submitEntries = player.m_customData.Keys.Where(k => k.StartsWith("VSG.is.")).OrderBy(k => k).ToList();
+            if (submitEntries.Count > 0)
+            {
+                sb.AppendLine("Submit state:");
+                foreach (var k in submitEntries)
+                    sb.AppendLine($"  - {k.Substring("VSG.is.".Length)}: {player.m_customData[k]} submitted");
+            }
+
+            // Goal state (VSG.ig.*)
+            var goalEntries = player.m_customData.Keys.Where(k => k.StartsWith("VSG.ig.")).OrderBy(k => k).ToList();
+            if (goalEntries.Count > 0)
+            {
+                sb.AppendLine("Goal state:");
+                foreach (var k in goalEntries) sb.AppendLine($"  - {k.Substring("VSG.ig.".Length)}: started");
+            }
+
+            return sb.ToString().TrimEnd('\n', '\r');
+        }
+
+        private static ZNetPeer FindPeerByPlayerName(string name)
+        {
+            if (ZNet.instance == null || string.IsNullOrEmpty(name)) return null;
+            foreach (var p in ZNet.instance.GetPeers())
+                if (string.Equals(p.m_playerName, name, System.StringComparison.OrdinalIgnoreCase)) return p;
+            return null;
         }
 
         private static string Serialize(GuidanceConfig config)

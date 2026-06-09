@@ -51,7 +51,35 @@ namespace ValheimServerGuide.Commands
                 remoteCommand: false,
                 onlyAdmin: true);
 
-            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list");
+            new Terminal.ConsoleCommand(
+                "vsg_list_player",
+                "<playerName>  Show guidance fired state for another online player.",
+                ListPlayer,
+                isCheat: false,
+                isNetwork: false,
+                onlyServer: false,
+                isSecret: false,
+                allowInDevBuild: false,
+                optionsFetcher: OnlinePlayerNamesTab,
+                alwaysRefreshTabOptions: true,
+                remoteCommand: false,
+                onlyAdmin: true);
+
+            new Terminal.ConsoleCommand(
+                "vsg_reset_player",
+                "<playerName> [all|<id>]  Reset guidance state for another online player.",
+                ResetPlayer,
+                isCheat: false,
+                isNetwork: false,
+                onlyServer: false,
+                isSecret: false,
+                allowInDevBuild: false,
+                optionsFetcher: OnlinePlayersAndIdsTab,
+                alwaysRefreshTabOptions: true,
+                remoteCommand: false,
+                onlyAdmin: true);
+
+            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list, vsg_list_player, vsg_reset_player");
         }
 
         private static void Reset(Terminal.ConsoleEventArgs args)
@@ -200,6 +228,51 @@ namespace ValheimServerGuide.Commands
             }
         }
 
+        private static void ListPlayer(Terminal.ConsoleEventArgs args)
+        {
+            if (args.Length < 2) { args.Context.AddString("usage: vsg_list_player <playerName>"); return; }
+            if (ZNet.instance == null) { args.Context.AddString("vsg_list_player: not connected to a world."); return; }
+
+            var targetName = args[1];
+
+            // On listen server: send the forward RPC directly to the target peer.
+            if (ZNet.instance.IsServer())
+            {
+                if (!Net.GuidanceSync.ListPlayerForLocalAdmin(targetName))
+                    args.Context.AddString($"vsg_list_player: '{targetName}' is not currently online. (Use vsg_list for your own state.)");
+                else
+                    args.Context.AddString($"vsg_list_player: requesting state for '{targetName}'...");
+                return;
+            }
+
+            // Admin client: route through server.
+            args.Context.AddString($"vsg_list_player: requesting state for '{targetName}'...");
+            Net.GuidanceSync.SendAdminPlayerListReq(targetName);
+        }
+
+        private static void ResetPlayer(Terminal.ConsoleEventArgs args)
+        {
+            if (args.Length < 3) { args.Context.AddString("usage: vsg_reset_player <playerName> all | vsg_reset_player <playerName> <id>"); return; }
+            if (ZNet.instance == null) { args.Context.AddString("vsg_reset_player: not connected to a world."); return; }
+
+            var targetName = args[1];
+            var resetArg  = args[2];
+
+            // On listen server: send the forward RPC directly to the target peer.
+            if (ZNet.instance.IsServer())
+            {
+                if (!Net.GuidanceSync.ResetPlayerForLocalAdmin(targetName, resetArg))
+                    args.Context.AddString($"vsg_reset_player: '{targetName}' is not currently online.");
+                else
+                    args.Context.AddString($"vsg_reset_player: sent reset '{resetArg}' to '{targetName}' — result incoming...");
+                return;
+            }
+
+            // Admin client: route through server.
+            args.Context.AddString($"vsg_reset_player: sent reset '{resetArg}' to '{targetName}' — result incoming...");
+            Net.GuidanceSync.SendAdminPlayerResetReq(targetName, resetArg);
+        }
+
         /// Tab-complete: "all" plus any id the player has already fired.
         /// (Configured-but-not-fired ids are also useful, but we don't want to
         /// surface server-only ids on a client; fired-set is always known locally.)
@@ -219,6 +292,19 @@ namespace ValheimServerGuide.Commands
             if (cfg?.Guidances == null) yield break;
             foreach (var g in cfg.Guidances)
                 if (!string.IsNullOrEmpty(g.Id)) yield return g.Id;
+        }
+
+        private static List<string> OnlinePlayerNamesTab()
+            => Net.GuidanceSync.GetOnlinePeerNames().OrderBy(s => s).ToList();
+
+        // Combined tab options for vsg_reset_player: online player names + "all" + configured IDs.
+        private static List<string> OnlinePlayersAndIdsTab()
+        {
+            var opts = new List<string>();
+            opts.AddRange(Net.GuidanceSync.GetOnlinePeerNames());
+            opts.Add("all");
+            opts.AddRange(ConfiguredIds());
+            return opts.Distinct().OrderBy(s => s).ToList();
         }
     }
 }
