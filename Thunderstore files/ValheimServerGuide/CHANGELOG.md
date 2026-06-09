@@ -1,4 +1,11 @@
 # Changelog
+## 0.3.0
+
+### New Features
+
+- **`item_acquired` count goal.** Add `trigger.count: N` to any `item_acquired` entry to require the player to accumulate N of that item in their inventory before the entry fires. Progress is tracked as the current inventory total (all matching stacks summed), so two stacks of 10 count as 20. Both picking up items and crafting them count toward the goal. A `current/goal` progress bar appears in the HUD Tracker while collecting and disappears once the goal is reached.
+
+---
 
 ## 0.2.0
 

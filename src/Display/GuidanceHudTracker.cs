@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.State;
+using ValheimServerGuide.Triggers;
 
 namespace ValheimServerGuide.Display
 {
@@ -539,6 +540,26 @@ namespace ValheimServerGuide.Display
 
                 var cur = SubmitState.Get(player, entry.Id);
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
+
+                rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
+                descs.Add(null);
+                rowChainIds.Add(entry.Id);
+            }
+
+            // item_acquired count-goal entries: show a progress bar while the player is
+            // still collecting (inventory total > 0 and < goal). Single-count entries have no bar.
+            foreach (var entry in config.Guidances)
+            {
+                if (entry.Trigger == null) continue;
+                if (!string.Equals(entry.Trigger.Type, "item_acquired",
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrEmpty(entry.Title)) continue;
+                if (entry.Trigger.Count <= 1) continue;
+                if (SeenTracker.HasFired(player, entry.Id, entry.Scope)) continue;
+
+                var goal = entry.Trigger.Count;
+                var cur = ItemAcquiredTrigger.CountInInventory(player, entry.Trigger.Item);
+                if (cur <= 0 || cur >= goal) continue;
 
                 rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
                 descs.Add(null);

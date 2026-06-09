@@ -36,6 +36,19 @@ trigger:
 
 This fires on any item gain — picking up from the ground, looting a chest, or receiving from a drop.
 
+**Count goal** — add `count: N` to require the player to accumulate N of that item before the entry fires.
+Progress is the player's current inventory total across all matching stacks. Crafting the item counts too.
+A `current/goal` progress bar appears in the HUD Tracker while collecting.
+
+```yaml
+trigger:
+  type: item_acquired
+  item: BronzeNails
+  count: 200              # fires when the player has 200+ BronzeNails in inventory
+```
+
+Wildcard matching (`item: Trophy*`) sums all trophy stacks against the count goal.
+
 ---
 
 ## `kill`

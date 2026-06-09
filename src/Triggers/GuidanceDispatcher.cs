@@ -48,6 +48,16 @@ namespace ValheimServerGuide.Triggers
                 }
 
                 if (!Matches(entry, evt)) continue;
+
+                // item_acquired entries with count > 1 are handled by ItemAcquiredTrigger.CheckCountGoals
+                // (inventory-total progress toward a goal) and must not fire on each individual pickup.
+                if (string.Equals(evt.Type, "item_acquired", System.StringComparison.OrdinalIgnoreCase)
+                    && entry.Trigger != null && entry.Trigger.Count > 1)
+                {
+                    Plugin.Log.LogDebug($"[dispatch] '{entry.Id}' item_acquired count-goal — delegated to count path.");
+                    continue;
+                }
+
                 if (!RequirementsMet(entry, player)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: requires not met."); continue; }
                 if (StopConditionMet(entry, player)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: stop_when met."); continue; }
                 if (entry.Once && SeenTracker.HasFired(player, entry.Id, entry.Scope)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: already fired (once)."); continue; }
