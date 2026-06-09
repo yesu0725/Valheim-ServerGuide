@@ -41,6 +41,22 @@ namespace ValheimServerGuide.Display
         private static GameObject _overlayObj;
         private static CanvasGroup _overlayGroup;
 
+        // --- Raven queue + dungeon deferral ---
+        // Key of the VSG raven currently in Raven.m_tempTexts (null = none active).
+        private static string _activeRavenKey;
+        // Frame on which the active raven was submitted; guards against a false "gone"
+        // read on the same frame as the ShowText call (list add is synchronous but the
+        // Raven poll runs next frame).
+        private static int _activeRavenSetFrame;
+        // Entries waiting for the current raven to finish before they can show.
+        private static readonly Queue<(GuidanceEntry entry, string text)> _ravenQueue
+            = new Queue<(GuidanceEntry, string)>();
+        // Entries that arrived while the player was inside a dungeon/interior.
+        // Drained the first tick after the player exits.
+        private static readonly Queue<(GuidanceEntry entry, string text)> _dungeonDeferred
+            = new Queue<(GuidanceEntry, string)>();
+        private static bool _wasInInterior;
+
         public static void Initialize() { }
 
         public static void RegisterTutorials(GuidanceConfig config)
@@ -77,28 +93,21 @@ namespace ValheimServerGuide.Display
                     Plugin.Log.LogInfo($"[show] raven '{entry.Id}' suppressed: RavenEnabled=false in mod config.");
                     return;
                 }
-                EnsureTutorialRegistered(entry);
-                // Overwrite the baked text with the live-rendered version so that
-                // (a) top-level `message:` fields are honoured, and
-                // (b) template variables ({player_name} etc.) are expanded before display.
-                UpdateTutorialText(entry.Id, renderedText);
-                if (Player.m_localPlayer == null) { Plugin.Log.LogWarning("[show] raven: no local player."); return; }
-                if (Tutorial.instance == null) { Plugin.Log.LogWarning("[show] raven: Tutorial.instance null."); return; }
-                // Vanilla gates the raven on Player.m_shownTutorials: Player.ShowTutorial
-                // no-ops when HaveSeenTutorial(id) is true (its `force` arg is ignored by
-                // Tutorial.ShowText), Raven.CheckSpawn's RemoveSeendTempTexts strips any
-                // already-seen temp text, and Raven.Spawn marks a seen key as already-talked.
-                // That seen-set persists in the character save, so a raven entry shows once
-                // and never again — and vsg_reset (which only clears VSG state) can't revive
-                // it. VSG owns repeat semantics via `once`/SeenTracker, so clear the vanilla
-                // seen-flag here and queue the text directly through Tutorial.ShowText.
-                ClearVanillaTutorialSeen(entry.Id);
-                // Two patches make this fire even with vanilla tutorials disabled:
-                //   RavenGetBestTextPatch — forces our queued temp text to win selection
-                //                            (otherwise a stuck static text like haldor
-                //                            starves it, since Spawn() bails on the gate).
-                //   RavenSpawnBypassPatch — flips the static gate true for that one Spawn().
-                Tutorial.instance.ShowText(entry.Id, true);
+                // Defer until the player exits the dungeon/interior.
+                if (IsPlayerInInterior())
+                {
+                    _dungeonDeferred.Enqueue((entry, renderedText));
+                    Plugin.Log.LogInfo($"[show] raven '{entry.Id}' deferred: player is inside a dungeon/interior.");
+                    return;
+                }
+                // Queue if another VSG raven is already pending acknowledgement.
+                if (_activeRavenKey != null)
+                {
+                    _ravenQueue.Enqueue((entry, renderedText));
+                    Plugin.Log.LogInfo($"[show] raven '{entry.Id}' queued: raven '{_activeRavenKey}' still active ({_ravenQueue.Count} in queue).");
+                    return;
+                }
+                ShowRavenNow(entry, renderedText);
                 return;
             }
 
@@ -136,6 +145,130 @@ namespace ValheimServerGuide.Display
             }
 
             Plugin.Log.LogWarning($"[show] unknown display mode '{mode}' on '{entry.Id}'.");
+        }
+
+        /// Submit one raven entry directly to Tutorial/Raven, bypassing queue/deferral checks.
+        /// Only call this when it's confirmed safe to show: not in a dungeon, no active raven.
+        private static void ShowRavenNow(GuidanceEntry entry, string renderedText)
+        {
+            if (Player.m_localPlayer == null) { Plugin.Log.LogWarning("[show] raven: no local player."); return; }
+            if (Tutorial.instance == null) { Plugin.Log.LogWarning("[show] raven: Tutorial.instance null."); return; }
+            EnsureTutorialRegistered(entry);
+            // Overwrite the baked text with the live-rendered version so that
+            // (a) top-level `message:` fields are honoured, and
+            // (b) template variables ({player_name} etc.) are expanded before display.
+            UpdateTutorialText(entry.Id, renderedText);
+            // Vanilla gates the raven on Player.m_shownTutorials: clear the seen-flag so
+            // VSG (not vanilla) owns repeat semantics via `once`/SeenTracker.
+            ClearVanillaTutorialSeen(entry.Id);
+            // Two patches make this fire even with vanilla tutorials disabled:
+            //   RavenGetBestTextPatch — forces our queued temp text to win selection.
+            //   RavenSpawnBypassPatch — flips the static gate true for that one Spawn().
+            Tutorial.instance.ShowText(entry.Id, true);
+            _activeRavenKey = entry.Id;
+            _activeRavenSetFrame = Time.frameCount;
+            Plugin.Log.LogInfo($"[show] raven '{entry.Id}' submitted to Tutorial; awaiting player interaction.");
+        }
+
+        /// Called every frame from Plugin.Update.
+        /// Checks for dungeon exit (drain deferred queue) and raven completion (drain raven queue).
+        public static void Tick()
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+
+            // Dungeon exit: drain the deferred queue into the raven pipeline.
+            var inInterior = player.InInterior();
+            if (_wasInInterior && !inInterior && _dungeonDeferred.Count > 0)
+            {
+                Plugin.Log.LogInfo($"[raven] player exited interior — draining {_dungeonDeferred.Count} deferred raven entry/entries.");
+                while (_dungeonDeferred.Count > 0)
+                {
+                    var (e, t) = _dungeonDeferred.Dequeue();
+                    if (_activeRavenKey != null)
+                    {
+                        _ravenQueue.Enqueue((e, t));
+                        Plugin.Log.LogInfo($"[raven] '{e.Id}' re-queued (raven still busy).");
+                    }
+                    else
+                    {
+                        ShowRavenNow(e, t);
+                    }
+                }
+            }
+            _wasInInterior = inInterior;
+
+            // Raven completion: once the active key leaves Raven.m_tempTexts the player
+            // has interacted with (or the raven has dismissed) the current entry.
+            // Guard with a 1-frame delay so the list-add from ShowText is visible first.
+            if (_activeRavenKey != null
+                && Time.frameCount > _activeRavenSetFrame + 1
+                && !IsVsgRavenPending(_activeRavenKey))
+            {
+                Plugin.Log.LogInfo($"[raven] '{_activeRavenKey}' acknowledged — {_ravenQueue.Count} more in queue.");
+                _activeRavenKey = null;
+                if (_ravenQueue.Count > 0)
+                {
+                    var (e, t) = _ravenQueue.Dequeue();
+                    ShowRavenNow(e, t);
+                }
+            }
+        }
+
+        /// Returns true when our key is still present in Raven.m_tempTexts (raven not yet
+        /// acknowledged by the player or dismissed by the vanilla raven system).
+        private static bool IsVsgRavenPending(string key)
+        {
+            if (Raven.m_tempTexts == null || string.IsNullOrEmpty(key)) return false;
+            foreach (var t in Raven.m_tempTexts)
+                if (t != null && t.m_key == key) return true;
+            return false;
+        }
+
+        private static bool IsPlayerInInterior()
+            => Player.m_localPlayer != null && Player.m_localPlayer.InInterior();
+
+        /// Clear all raven queues. Called on session end (ZNet.OnDestroy) and vsg_reset all.
+        internal static void ClearRavenState()
+        {
+            _activeRavenKey = null;
+            _ravenQueue.Clear();
+            _dungeonDeferred.Clear();
+            _wasInInterior = false;
+            Plugin.Log.LogInfo("[raven] raven queue and deferral state cleared.");
+        }
+
+        /// Remove a specific entry id from the raven queue and dungeon-deferred queue.
+        /// Also cancels the active raven if it matches, allowing the next queued entry
+        /// to show on the next Tick(). Called by vsg_reset <id>.
+        internal static void ClearRavenQueueForId(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+
+            if (string.Equals(_activeRavenKey, id, System.StringComparison.OrdinalIgnoreCase))
+            {
+                _activeRavenKey = null;
+                Plugin.Log.LogInfo($"[raven] cancelled active raven '{id}' via vsg_reset.");
+            }
+
+            var removed = FilterQueue(_ravenQueue, id) + FilterQueue(_dungeonDeferred, id);
+            if (removed > 0)
+                Plugin.Log.LogInfo($"[raven] removed {removed} queued raven entry/entries for '{id}'.");
+        }
+
+        /// Rebuild a queue without entries whose entry.Id matches id. Returns the count removed.
+        private static int FilterQueue(Queue<(GuidanceEntry entry, string text)> queue, string id)
+        {
+            var before = queue.Count;
+            var kept = new List<(GuidanceEntry, string)>(queue.Count);
+            while (queue.Count > 0)
+            {
+                var item = queue.Dequeue();
+                if (!string.Equals(item.entry.Id, id, System.StringComparison.OrdinalIgnoreCase))
+                    kept.Add(item);
+            }
+            foreach (var item in kept) queue.Enqueue(item);
+            return before - kept.Count;
         }
 
         /// Make the chat panel appear immediately.
@@ -489,6 +622,14 @@ namespace ValheimServerGuide.Display
     internal static class MenuShowPatch
     {
         private static bool Prefix() => !GuidanceDisplay.IntroLockActive;
+    }
+
+    /// Clear raven queue/deferral state when the session ends (player disconnects or
+    /// returns to main menu) so stale entries do not carry over to the next session.
+    [HarmonyPatch(typeof(ZNet), nameof(ZNet.OnDestroy))]
+    internal static class ZNetDestroyRavenPatch
+    {
+        private static void Postfix() => GuidanceDisplay.ClearRavenState();
     }
 
     /// Pin the music to the configured "intro" track for IntroMusicDuration

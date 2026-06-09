@@ -44,7 +44,7 @@ Clears the fired state for one or all entries.
 vsg_reset all
 ```
 
-Clears every **player-scope** fired ID and cooldown for the **current character**. Global-scope state is untouched.
+Clears every **player-scope** fired ID and cooldown for the **current character**. Also empties the raven display queue and the dungeon-deferred raven queue, so no pending raven messages carry over. Global-scope state is untouched.
 
 ### Reset a specific entry
 
@@ -56,6 +56,8 @@ Clears the fired state and cooldown for a single entry. The command auto-detects
 
 - **Player-scope ID** — cleared from the local character's `m_customData`. Only affects the admin running the command.
 - **Global-scope ID** — must be run on the server/host. Removes the `VSG.<id>` global key from `ZoneSystem`. The entry can fire again for the entire world.
+
+If the entry is currently waiting in the raven queue (or the dungeon-deferred queue), it is also removed from there so the stale popup never appears.
 
 ### Tab completion
 

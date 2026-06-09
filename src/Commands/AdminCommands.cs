@@ -70,7 +70,8 @@ namespace ValheimServerGuide.Commands
                 // (Player.m_shownTutorials), which gates the raven independently of VSG
                 // state. Clear it for our ids or reset raven entries would never re-show.
                 GuidanceDisplay.ClearAllVsgTutorialSeen();
-                args.Context.AddString($"vsg_reset: cleared {n} player-scope fired id(s) + all chain state + item-submit progress + all cooldowns for {player.GetPlayerName()}.");
+                GuidanceDisplay.ClearRavenState();
+                args.Context.AddString($"vsg_reset: cleared {n} player-scope fired id(s) + all chain state + item-submit progress + all cooldowns + raven queue for {player.GetPlayerName()}.");
                 args.Context.AddString("(global-scope entries are NOT touched by 'all' — clear individually or use removekey VSG.<id>.)");
                 Plugin.Log.LogInfo($"[cmd] {player.GetPlayerName()} reset all player-scope guidance + chain state (n={n}).");
                 GuidanceHudTracker.Instance?.Refresh();
@@ -111,6 +112,8 @@ namespace ValheimServerGuide.Commands
             // Raven entries carry vanilla's per-character seen-tutorial flag too; clear it
             // (for the entry and any chain-step keys) so a reset raven can re-show.
             GuidanceDisplay.ClearVsgTutorialSeenForEntry(target);
+            // Remove from the display queue so a reset raven doesn't show a stale popup.
+            GuidanceDisplay.ClearRavenQueueForId(target);
 
             // Single-entry guidances store state in SeenTracker (VSG.fired).
             var singleCleared = SeenTracker.ClearFired(player, target, "player");

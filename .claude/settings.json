@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$j = [Console]::In.ReadToEnd() | ConvertFrom-Json; $fp = $j.tool_input.file_path; if ($fp -and ($fp -like '*hearthbound_guides.yaml')) { Copy-Item -Path $fp -Destination 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim dedicated server\\BepInEx\\config\\ValheimServerGuide\\hearthbound_guides.yaml' -Force }",
+            "statusMessage": "Syncing hearthbound_guides.yaml to dedicated server..."
+          },
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$j=[Console]::In.ReadToEnd()|ConvertFrom-Json; $fp=$j.tool_input.file_path; $tsDir='E:\\Valheim Modding\\Valheim ServerGuide\\Thunderstore files\\ValheimServerGuide'; $files=@('README.md','manifest.json','CHANGELOG.md','ValheimServerGuide.dll','icon.png'); $match=$files|Where-Object{$fp -like ('*\\'+$_) -and $fp -like '*Thunderstore files*'}; if($match){$date=Get-Date -Format 'yyyy-MM-dd'; $out='E:\\Valheim Modding\\Valheim ServerGuide\\Thunderstore files\\ValheimServerGuide_'+$date+'.zip'; $src=$files|ForEach-Object{Join-Path $tsDir $_}|Where-Object{Test-Path $_}; Compress-Archive -Path $src -DestinationPath $out -Force}",
+            "statusMessage": "Packaging Thunderstore zip..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "$j=[Console]::In.ReadToEnd()|ConvertFrom-Json; $cmd=$j.tool_input.command; if($cmd -like '*dotnet build*' -or $cmd -like '*dotnet publish*'){$tsDir='E:\\Valheim Modding\\Valheim ServerGuide\\Thunderstore files\\ValheimServerGuide'; $files=@('README.md','manifest.json','CHANGELOG.md','ValheimServerGuide.dll','icon.png'); $date=Get-Date -Format 'yyyy-MM-dd'; $out='E:\\Valheim Modding\\Valheim ServerGuide\\Thunderstore files\\ValheimServerGuide_'+$date+'.zip'; $src=$files|ForEach-Object{Join-Path $tsDir $_}|Where-Object{Test-Path $_}; if($src.Count -ge 1){Compress-Archive -Path $src -DestinationPath $out -Force}}",
+            "statusMessage": "Packaging Thunderstore zip after build..."
+          }
+        ]
+      }
+    ]
+  }
+}

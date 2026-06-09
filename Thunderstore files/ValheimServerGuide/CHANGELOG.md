@@ -1,4 +1,12 @@
 # Changelog
+## 0.4.0
+
+### Improvements
+
+- **Raven display queue.** Multiple raven entries that fire in quick succession are now shown one at a time instead of all at once. Each raven persists until the player interacts with it (or the raven auto-dismisses). The next queued raven appears only after the current one is acknowledged, so no message is skipped or overwritten.
+- **Dungeon deferral for raven.** Raven entries that fire while the player is inside a dungeon or interior location are held in a deferred queue. The moment the player exits, the deferred ravens drain into the normal queue and show in order.
+- **`vsg_reset` clears the raven queue.** `vsg_reset all` wipes the entire raven display queue and deferred list. `vsg_reset <id>` removes any pending instance of that specific entry from both queues and cancels it immediately if it is the currently-active raven.
+
 ## 0.3.2
 
 ### Improvements

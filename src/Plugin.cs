@@ -19,7 +19,7 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.2.0";
+        public const string PluginVersion = "0.4.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -246,6 +246,7 @@ namespace ValheimServerGuide
             GuidanceConfigLoader loader;
             lock (_loaderLock) { loader = _loader; }
             loader?.Tick();
+            GuidanceDisplay.Tick();
         }
 
         private void OnDestroy()

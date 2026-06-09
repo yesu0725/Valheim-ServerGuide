@@ -35,6 +35,8 @@ Shows Hugin (the raven) flying in with a popup message — the same style used f
 - The mod's raven hints fire even when the player has disabled vanilla tutorials in game options. This is controlled by the `RavenEnabled` option in the BepInEx config (default on), independently of the vanilla "Tutorials Enabled" setting.
 - **Text source:** Write the message in the top-level `message:` field (same as all other modes). Alternatively use `display.text`. `message:` takes priority if both are set.
 - **Text tokens are supported** (`{player_name}`, `{biome}`, etc.). The text is updated with the rendered value each time the entry fires.
+- **One at a time — automatically queued.** If multiple raven entries fire before the player has interacted with the current one, they are held in a FIFO queue. Each raven waits for the previous one to be acknowledged (or auto-dismissed by the raven) before appearing. No message is lost.
+- **Dungeon deferral.** If a raven entry fires while the player is inside a dungeon or interior, it is held in a separate deferred queue. As soon as the player exits the interior, the deferred entries drain into the normal raven queue and show in order. The player will never miss a raven message because they were underground when it triggered.
 
 ---
 
