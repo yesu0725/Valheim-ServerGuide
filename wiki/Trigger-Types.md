@@ -34,22 +34,28 @@ trigger:
   item: TrollHide         # prefab name
 ```
 
-This fires on any item gain — picking up from the ground, looting a chest, crafting, or receiving from a drop. The `item` field supports a trailing `*` wildcard (e.g. `Trophy*` matches any trophy).
+This fires on any item gain — picking up from the ground, looting a chest, or receiving from a drop.
 
-### Collection goal (`count`)
+### Collection goal (`count > 1`)
 
-Add `count: N` (N > 1) to require the player to accumulate **N** of the item before the entry fires. Progress is the current inventory total (all matching stacks summed); both pickups and crafted items count. The HUD tracker shows a `current/goal` count while collecting and the entry fires once the total reaches the goal.
+Add `count` to require the player to accumulate a total quantity before the entry fires:
 
 ```yaml
 trigger:
   type: item_acquired
-  item: SurtlingCore
-  count: 5
+  item: Stone
+  count: 20               # fires once the player's inventory holds ≥ 20 Stone
 ```
 
-### Multiple goals (`goals`)
+The HUD tracker shows a progress bar (`Stone: 12 / 20`) while the player collects. Progress is read directly from the player's inventory — **items already in the inventory count immediately** when the entry first becomes eligible (on login or config reload), so the player is never penalised for having gathered materials before the guide entry existed.
 
-Use a `goals:` list to require several **different** items at once. Each goal has its own `item` and `count`. The entry fires only when **every** goal is satisfied simultaneously; items may be gathered in any order.
+The entry fires and the bar completes as soon as the total reaches `count`. Crafted items count toward the goal as well as picked-up items.
+
+**Wildcard support:** `item: Trophy*` matches any item whose prefab name starts with `Trophy`, letting you set collection goals across a whole category.
+
+### Multiple item goals (`goals`)
+
+Use a `goals:` list to require several **different** items at once. Each goal has its own `item` and `count`. The entry fires only when **every** goal is satisfied simultaneously; items may be gathered in any order, and crafted items count.
 
 ```yaml
 trigger:
@@ -63,9 +69,7 @@ trigger:
       count: 25
 ```
 
-The HUD tracker row shows `N / M goals` (completed goals out of total); its hover tooltip and the Codex body list each item's `current/goal` breakdown. Once collection begins, the entry stays visible in the tracker and Codex even if the items are later removed from the inventory — it is only marked complete when all goals are currently met.
-
-When `goals` is present it takes precedence over the single-item `item`/`count` fields.
+The HUD tracker row shows `N / M goals` (completed goals out of total); its hover tooltip and the Codex body list each item's `current/goal` breakdown. Once collection begins, the entry stays visible (and pinnable) even if the items are later removed — it is only marked complete when all goals are currently met. When `goals` is present it takes precedence over the single-item `item`/`count` fields.
 
 ---
 
@@ -80,6 +84,29 @@ trigger:
 ```
 
 Credit is assigned to the player who dealt the killing blow or was the attacker on death.
+
+### Kill count (`count > 1`)
+
+Add `count` to require several kills before the entry fires. Progress is stored per character and shown as a `current/goal` count in the HUD tracker (once the quest is pinned) and the Codex.
+
+```yaml
+trigger:
+  type: kill
+  creature: Neck
+  count: 10               # fires after 10 Neck kills; omit (or 1) for any single kill
+```
+
+### Shared party progress (`share_progress`)
+
+On a multi-count kill, set `share_progress: true` so each kill also credits nearby players' counters for the same entry — the whole party advances together instead of only the player who landed the blow.
+
+```yaml
+trigger:
+  type: kill
+  creature: Boar
+  count: 5
+  share_progress: true    # nearby group members get credit too
+```
 
 ---
 
@@ -111,7 +138,7 @@ trigger:
 
 ## `distance`
 
-Fires when the player steps within `radius` metres of a named world location. Checked every 5 seconds. Fires at most once per location per character.
+Fires when the player steps within `radius` metres of a named **vanilla** world location. Checked every 5 seconds. Fires at most once per location per character.
 
 ```yaml
 trigger:
@@ -121,6 +148,32 @@ trigger:
 ```
 
 **Common location names:** `Vendor_BlackForest` (Haldor), `TrollCave02`, `Crypt2` (Burial Chambers), `VikingVillage`
+
+> **Note:** For mod-added locations (e.g. More World Locations AIO), use `location_entered` instead — it detects spawned Location components directly and does not depend on ZoneSystem sync state.
+
+---
+
+## `location_entered`
+
+Fires the first time the player comes within 40 metres of a spawned location instance — vanilla or mod-added. Checked every 5 seconds. Fires at most once per location per character.
+
+```yaml
+trigger:
+  type: location_entered
+  location: "MWL_*"    # trailing * wildcard supported
+```
+
+Use a trailing `*` wildcard to match all locations from a mod pack with a shared prefix:
+
+```yaml
+trigger:
+  type: location_entered
+  location: "MWL_*"    # fires for any More World Locations AIO point of interest
+```
+
+**How to find the right prefix:** Enable `LogLevel = Debug` in `BepInEx/config/BepInEx.cfg`. When the player approaches a location, a `[location_entered] Scene scan in range: 'PrefabName'` line will appear in the BepInEx log, showing the exact name to use.
+
+**Detection:** Scans `Location.s_allLocations` (all currently spawned Location components in the scene) as the primary source. This is reliable even for zones generated after login, where ZoneSystem's `m_placed` flag may not yet have been updated on the client. A secondary ZoneSystem pass catches any placed locations that lack a `Location` component.
 
 ---
 
@@ -136,6 +189,10 @@ trigger:
 ```
 
 **Valid skill names:** `Swords`, `Knives`, `Clubs`, `Polearms`, `Spears`, `Blocking`, `Axes`, `Bows`, `Crossbows`, `Unarmed`, `Pickaxes`, `WoodCutting`, `Jump`, `Sneak`, `Run`, `Swim`, `ElementalMagic`, `BloodMagic`
+
+**On-login catch-up:** On player login, the mod scans every configured `skill_level` threshold. Any threshold the player already meets that has not yet fired is raised in ascending level order. This means:
+- A player who logs in with Swords at 75 will receive all `skill_level` entries for Swords ≤ 75 that have not already fired.
+- For **chains**, all qualifying steps cascade automatically: step 1 fires first (advancing the chain), then step 2, and so on — no manual intervention needed.
 
 ---
 
@@ -206,7 +263,7 @@ trigger:
   consume: true           # remove the items from inventory (default true)
 ```
 
-When `count > 1`, the entry shows a `submitted/goal` count in the HUD tracker and Codex until all items are submitted. Items are consumed incrementally — the player can hand them in across multiple interactions.
+When `count > 1`, the entry shows a progress bar in the HUD tracker and Codex until all items are submitted. Items are consumed incrementally — the player can hand them in across multiple interactions.
 
 ---
 
@@ -261,6 +318,138 @@ trigger:
 ```
 
 **Common container prefabs:** `piece_chest_wood`, `piece_chest`, `piece_chest_blackmetal`, `TreasureChest_forestcrypt`
+
+---
+
+## Interaction Triggers
+
+These fire when the player interacts with a specific world object. Each takes an optional filter field; omit the filter to match **any** object of that kind.
+
+### `crafting_table_used`
+
+Fires when the player uses a crafting station (Workbench, Forge, etc.).
+
+```yaml
+trigger:
+  type: crafting_table_used
+  station: piece_workbench   # optional prefab filter; omit for any station
+```
+
+### `cooking_used`
+
+Fires when the player uses a cooking station or fireplace (Cooking Station, Cauldron, Fireplace).
+
+```yaml
+trigger:
+  type: cooking_used
+  station: piece_cookingstation   # optional prefab filter; omit for any
+```
+
+### `portal_used`
+
+Fires when the player uses a teleport portal.
+
+```yaml
+trigger:
+  type: portal_used
+  tag: home                  # optional portal tag filter; omit for any portal
+```
+
+### `ward_activated`
+
+Fires when the player interacts with a ward / private-area guard stone.
+
+```yaml
+trigger:
+  type: ward_activated
+```
+
+### `tamed_creature`
+
+Fires when a creature the player owns becomes tamed.
+
+```yaml
+trigger:
+  type: tamed_creature
+  creature: Lox              # optional prefab filter; omit for any creature
+```
+
+### `sign_read`
+
+Fires when the player interacts with a sign.
+
+```yaml
+trigger:
+  type: sign_read
+```
+
+### `tombstone_picked`
+
+Fires when the player retrieves their tombstone (death loot).
+
+```yaml
+trigger:
+  type: tombstone_picked
+```
+
+### `ship_sailed`
+
+Fires once the player is sailing a moving ship.
+
+```yaml
+trigger:
+  type: ship_sailed
+```
+
+---
+
+## Time & Day Triggers
+
+A background coroutine polls on a short tick and fires these when the in-game or real-world clock matches. Combine with `once: true` for a one-shot, or leave repeatable with a `cooldown` to fire each matching day.
+
+> **Limitation:** Time triggers work only on **individual (non-chain) entries**, the same as `timed`. Step-level time triggers inside a chain never start a coroutine.
+
+### `time_of_day`
+
+Fires when the in-game time of day reaches a target fraction (`EnvMan.GetDayFraction`).
+
+```yaml
+trigger:
+  type: time_of_day
+  game_time_fraction: 0.0    # 0.0 = midnight, 0.25 = morning, 0.5 = noon
+  window: 0.02               # ± tolerance as a fraction of a day (~29 in-game min)
+```
+
+### `day_number`
+
+Fires on a specific in-game day (`EnvMan.GetDay`).
+
+```yaml
+trigger:
+  type: day_number
+  day: 7                     # the in-game day counter
+```
+
+### `real_world_time`
+
+Fires at a specific real-world UTC time, daily.
+
+```yaml
+trigger:
+  type: real_world_time
+  utc_hour: 20
+  utc_minute: 0              # fires at 20:00 UTC
+```
+
+### `day_of_week`
+
+Fires on a real-world weekday.
+
+```yaml
+trigger:
+  type: day_of_week
+  day: Saturday              # weekday name
+```
 
 ---
 

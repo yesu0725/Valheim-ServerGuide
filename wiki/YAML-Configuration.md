@@ -90,12 +90,20 @@ trigger:
   skill: Swords         # skill name for skill_level trigger
   level: 50             # threshold level for skill_level trigger
   npc: Haldor           # NPC prefab name for npc_interacted/npc_conversation/npc_item_submit
-  count: 5              # npc_item_submit OR item_acquired: how many required (>1 = collection goal)
+  count: 5              # npc_item_submit / item_acquired / kill: how many required (>1 = goal)
   consume: true         # for npc_item_submit: remove items from inventory
+  share_progress: true  # for multi-count kill: credit nearby group members too
   goals:                # item_acquired only: require several items at once (see below)
     - { item: FineWood, count: 30 }
     - { item: Resin, count: 25 }
-  interval: "30m"       # for timed: e.g. "5m", "1h", "30s"
+  station: piece_workbench  # crafting_table_used/cooking_used: optional station filter
+  tag: home             # portal_used: optional portal tag filter
+  game_time_fraction: 0.5   # time_of_day: 0.0 midnight, 0.5 noon
+  window: 0.02          # time_of_day: ± tolerance (fraction of a day)
+  day: 7                # day_number (int) OR day_of_week (e.g. Saturday)
+  utc_hour: 20          # real_world_time
+  utc_minute: 0         # real_world_time
+  interval: "1800"      # for timed: seconds as a plain number, or "hourly"/"daily"
   entry: other_id       # for entry_finished: the entry that must complete
   damage_type: Fire     # for damage_type trigger
 ```
@@ -112,10 +120,12 @@ completes only when every goal is currently satisfied. See [Trigger Types](Trigg
 
 ```yaml
 display:
-  mode: raven           # raven | message | chat | rune | intro | conversation
+  mode: raven           # raven | message | chat | rune | intro | conversation | bubble
   topic: "My Topic"     # header text (Hugin popup title, rune/intro heading, conversation title)
   text: "Body text…"    # main message body; supports {playerName} {itemName} {creatureName} {biome}
   position: TopLeft     # for message mode: TopLeft | Center
+  npc_name: Haldor      # bubble mode: NPC to float the text above
+  duration: 6           # bubble mode: seconds visible (default 6)
 ```
 
 ---

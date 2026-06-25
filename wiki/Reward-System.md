@@ -112,6 +112,136 @@ rewards:
 
 ---
 
+## Enhanced Reward Types
+
+Beyond items, skills, and buffs, an entry can grant world- and player-level effects. Several of these (`location_pin`, `set_global_key`, `teleport`, `weather`, …) are resolved **server-side** for authority.
+
+### `map_pin`
+
+Adds a named map pin at explicit world coordinates.
+
+```yaml
+rewards:
+  - type: map_pin
+    name: "Haldor's Camp"
+    x: 512
+    z: -200
+    icon: trader              # optional pin icon
+```
+
+### `location_pin`
+
+Finds the nearest instance of a location prefab (vanilla or mod-added) and pins it.
+
+```yaml
+rewards:
+  - type: location_pin
+    location: StartTemple     # location prefab name
+    pin_name: "The Start"
+    icon: Boss                # optional pin icon
+```
+
+### `unlock_recipe`
+
+Teaches the player a recipe by prefab name.
+
+```yaml
+rewards:
+  - type: unlock_recipe
+    recipe: Recipe_FishingRod
+```
+
+### `spawn_creature`
+
+Spawns a creature near the player, optionally tamed.
+
+```yaml
+rewards:
+  - type: spawn_creature
+    prefab: Neck
+    tamed: true               # default false
+    count: 2                  # default 1
+```
+
+### `set_global_key` / `remove_global_key`
+
+Set or remove a Valheim **world** global key (visible to all players, persists in the world save).
+
+```yaml
+rewards:
+  - type: set_global_key
+    key: defeated_eikthyr
+  - type: remove_global_key
+    key: defeated_eikthyr
+```
+
+### `set_player_key` / `remove_player_key`
+
+Set or remove a **personal** key on the player (`Player.AddUniqueKey`), so other mods that check `Player.HaveUniqueKey()` see it.
+
+```yaml
+rewards:
+  - type: set_player_key
+    key: mymod_quest_complete
+  - type: remove_player_key
+    key: mymod_quest_complete
+```
+
+### `weather`
+
+Forces an environment preset for a number of seconds.
+
+```yaml
+rewards:
+  - type: weather
+    preset: Rain              # environment name, e.g. Rain, ThunderStorm, Clear
+    duration: 30              # seconds (default 60)
+```
+
+### `chat_message`
+
+Posts a chat message (attributed to the entry's NPC). Supports `{player_name}`.
+
+```yaml
+rewards:
+  - type: chat_message
+    message: "{player_name}, the sky darkens overhead."
+```
+
+### `teleport`
+
+Warps the player to coordinates. Server-authoritative — the destination must be on the server's allowlist when `allowlist_only` is set.
+
+```yaml
+rewards:
+  - type: teleport
+    x: 0
+    z: 0
+    allowlist_only: true
+```
+
+### `rename_player`
+
+Assigns a custom title/suffix shown after the player's name.
+
+```yaml
+rewards:
+  - type: rename_player
+    suffix: "the Undaunted"
+```
+
+### `discord`
+
+Posts a per-reward Discord webhook message, separate from any entry-level `announce.discord`. Supports `{player_name}`. The webhook URL stays server-side. See [Discord Integration](Discord-Integration).
+
+```yaml
+rewards:
+  - type: discord
+    message: "{player_name} completed the trial."
+```
+
+---
+
 ## Rewards on Conversation Choices
 
 Conversation choices can also grant rewards when selected:

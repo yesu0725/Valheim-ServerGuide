@@ -149,6 +149,27 @@ display:
 
 ---
 
+## `bubble`
+
+Floats text in world-space above an NPC's head — like a speech bubble — without opening any panel or interrupting the player. Good for ambient flavour as the player walks past an NPC.
+
+```yaml
+display:
+  mode: bubble
+  npc_name: Haldor        # prefab name of the NPC to float the text above
+  duration: 6             # seconds visible before fading (default 6)
+  text: "Mind the trolls out east, friend."
+```
+
+**Best for:** ambient one-liners, reactions, non-blocking flavour text.
+
+**Notes:**
+- `npc_name` is matched against nearby NPCs — both creatures (`Character`) and trader NPCs (Haldor, Hildir, BogWitch), so it works for traders even though they aren't `Character`s.
+- The bubble does not lock input — the player keeps moving and looking normally.
+- Vanilla auto-generated trader bubbles are suppressed while a VSG bubble is showing so they don't overlap.
+
+---
+
 ## Server Display Mode Assignment Rules
 
 When authoring guides for a server modpack, every trigger type should map to a fixed

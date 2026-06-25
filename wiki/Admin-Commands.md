@@ -1,6 +1,6 @@
 # Admin Commands
 
-ValheimServerGuide adds two console commands for testing and moderation. Open the F5 console to use them.
+ValheimServerGuide adds five console commands for testing and moderation: `vsg_list`, `vsg_list_player`, `vsg_reset`, `vsg_reset_player`, and `vsg_debug`. Open the F5 console to use them. All are admin-only.
 
 > **Requirement:** You must have `devcommands` enabled and be an admin. In single-player or as the host, you always qualify. On a dedicated server, you must be listed in `adminlist.txt`.
 
@@ -32,6 +32,18 @@ Each ID is tagged with:
 | `[global]` | This is a global-scope entry |
 | `[discord]` | This entry has an `announce.discord` configured |
 | `[Complete ✓ (vN)]` | Chain entry — all steps done, at version N |
+
+---
+
+## `vsg_list_player`
+
+Shows the full VSG guidance state of any **currently-online** player — the same breakdown as `vsg_list` (fired IDs, `max_fires` counters, chain progress, item-submit progress, goal-started flags) but for another character.
+
+```
+vsg_list_player <playerName>
+```
+
+Works from both listen-server hosts and remote admin clients; the target's client answers over an RPC round-trip, so the result appears asynchronously a moment after you run it.
 
 ---
 
@@ -79,6 +91,34 @@ For a single-id reset, the following are also cleared for that entry:
 ### Tab completion
 
 Tab-complete on `vsg_reset` suggests `all` and all known guidance IDs from the current config.
+
+---
+
+## `vsg_reset_player`
+
+Resets a specific **online** player's guidance state. Mirrors `vsg_reset` exactly (fired IDs, fire counters, chain state, submit/goal/kill progress, conversation nodes, HUD pins, raven flags) but targets another player's character instead of your own.
+
+```
+vsg_reset_player <playerName> [all | <id>]
+```
+
+The admin console receives a confirmation message once the target client executes the reset. Like `vsg_list_player`, it works from both hosts and remote admin clients and is re-verified server-side.
+
+---
+
+## `vsg_debug`
+
+Dumps a diagnostic snapshot for your character to the console:
+
+```
+vsg_debug
+```
+
+- All entries currently **eligible to fire** (gates passing) right now.
+- Every `VSG.*` key in your `m_customData` (fired set, counters, chain/submit/goal/node/pin state).
+- The **last 10 fired** entry IDs this session (a session-only ring buffer — not persisted across relog).
+
+Use it to confirm why an entry is or isn't firing and to verify that state cleared after a `vsg_reset`.
 
 ---
 

@@ -1,19 +1,41 @@
 # Changelog
 ## 0.6.0
 
-### New Features
+This release lands a large batch of features (new triggers, conversation sequencing, enhanced rewards, system polish) plus a reworked progress panel.
 
-- **Player-curated progress panel.** The HUD progress panel (F10) now shows only the quests a player has **pinned** from the Guide Codex, instead of every active quest. Open the Codex (F3), select an in-progress quest, and click **Show on Tracker** to pin it. The panel is hidden by default and unhides automatically when you pin a quest.
-- **`Show on Tracker` toggle in the Codex.** In-progress, trackable quests (guide chains, multi-count `kill`, multi-count `npc_item_submit`, and `item_acquired` count/goal quests) gain a pin toggle in the Codex detail pane. Finished quests and one-off tips have no toggle. A pinned quest that completes automatically drops off the panel.
-- **Drag-to-move panel.** The progress panel can be dragged anywhere on screen while the inventory or ESC menu is open (a free cursor is required). The position is saved per character and restored on the next login.
+### New Triggers
 
-### Changes
+- **Kill count.** The `kill` trigger now takes a `count` field — fire after N kills instead of one. Progress is tracked per character and shown in the HUD/Codex.
+- **Shared party kill progress.** Add `share_progress: true` to a multi-count `kill` so nearby group members' counters advance from each other's kills.
+- **8 interaction triggers:** `crafting_table_used`, `cooking_used`, `portal_used` (optional `tag`), `ward_activated`, `tamed_creature` (optional `creature`), `sign_read`, `tombstone_picked`, and `ship_sailed`. Each takes an optional prefab filter; omit it to match any.
+- **4 time & day triggers:** `time_of_day` (`game_time_fraction` + `window`), `day_number`, `real_world_time` (`utc_hour`/`utc_minute`), and `day_of_week`. Driven by a background poll; combine with `once`/`cooldown` for one-shot vs. per-day firing. (Individual entries only, like `timed`.)
 
-- **No more input lock.** Showing the progress panel no longer freezes player movement/look or forces the cursor on — it now displays over normal gameplay. Press F10 to show/hide; pinned quests stay pinned when the panel is hidden.
-- **Pins persist; panel starts hidden.** Pins survive a relog (stored per character in `VSG.trk`); the panel itself starts hidden each session until shown with F10 or by pinning a quest.
-- **Codex lists in-progress kill quests.** Multi-count `kill` quests now appear in the Codex while in progress (with a `kills / goal` count) so they can be pinned — previously they only appeared once completed.
-- **`auto_hide_delay` / `fade_duration` deprecated.** The panel no longer auto-hides or fades; these `tracker:` fields are now ignored.
-- **`vsg_reset` clears pins.** `vsg_reset all`, `vsg_reset <id>`, and `vsg_reset_player` now also clear HUD progress-panel pins (`VSG.trk`).
+### NPC Conversations
+
+- **Multi-quest picker.** Holding E on an NPC with 2+ eligible `npc_conversation` entries now opens a chooser listing each entry's `title`; selecting one starts that conversation. A single eligible entry still opens directly.
+- **Multi-node dialogue trees.** Conversations can define a `nodes:` tree instead of a flat choice list. Choices can jump between nodes (`goto_node`), gate on prerequisites (`requires` + `hidden_when_locked`/`locked_hint`), or fire other entries (`goto`). `resume_on_return: true` reopens at the last-visited node; node progress persists per character.
+- **NPC hover-text override.** A per-entry `hover_text:` block replaces the default `[Hold E] Quest` hint, keyed by state (`default` / `after_fire`).
+
+### Enhanced Rewards
+
+- **13 new reward types:** `map_pin`, `location_pin`, `unlock_recipe`, `spawn_creature`, `set_global_key`, `remove_global_key`, `set_player_key`, `remove_player_key`, `weather`, `chat_message`, `teleport` (server allowlist), `rename_player`, and `discord` (per-reward webhook). World/server-affecting rewards are resolved server-side.
+
+### Display
+
+- **`bubble` display mode.** Floats text above an NPC's head in world-space without opening a panel or locking input — ideal for ambient flavour. Vanilla trader bubbles are suppressed while a VSG bubble shows.
+
+### Progress Panel (HUD Tracker) rework
+
+- **Player-curated panel.** The F10 progress panel now shows only the quests a player **pins** from the Guide Codex (F3 -> **Show on Tracker**) instead of every active quest. The panel is hidden by default and unhides when you pin a quest.
+- **Codex pin toggle.** In-progress, trackable quests (chains, multi-count `kill`, multi-count `npc_item_submit`, and `item_acquired` goals) get a "Show on Tracker" pill; finished quests and one-off tips do not. Multi-count kill quests now also appear in the Codex while in progress so they can be pinned.
+- **No input lock.** The panel no longer freezes movement/look or shows the cursor — it displays over normal gameplay. Pins persist for the session; the panel starts hidden each login.
+- **Drag-to-move.** The panel can be dragged anywhere while the inventory or ESC menu is open; the position is saved per character.
+- **Deprecated:** `auto_hide_delay` / `fade_duration` are ignored — the panel no longer auto-hides or fades.
+
+### Admin
+
+- **`vsg_debug`.** Dumps your eligible entries, all `VSG.*` state keys, and the last 10 fired IDs to the console.
+- **`vsg_reset` / `vsg_reset_player` clear more state.** Resets now also clear kill counts, conversation-node pointers, and HUD progress-panel pins (`VSG.trk`).
 ## 0.5.2
 
 ### New Features
