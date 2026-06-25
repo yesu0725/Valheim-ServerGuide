@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>ValheimServerGuide</AssemblyName>
     <RootNamespace>ValheimServerGuide</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.6.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the
@@ -43,6 +43,10 @@
     </Reference>
     <Reference Include="assembly_guiutils">
       <HintPath>$(ManagedDir)\assembly_guiutils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Splatform">
+      <HintPath>$(ManagedDir)\Splatform.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine">

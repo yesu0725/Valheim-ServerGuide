@@ -88,7 +88,7 @@ Multi-step quests where each step has its own trigger. Progress is tracked in th
 
 ### HUD Tracker & Codex
 
-An always-visible objective tracker widget (top-right by default) shows active guide chains with live progress bars. Togglable with a hotkey (default `F10`). The Codex panel (default `F3`) shows all guidance entries organised by category with full descriptions.
+A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (default `F3`), select an in-progress quest, and click **Show on Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
 
 ### NPC Conversations
 
@@ -187,8 +187,8 @@ tracker:                        # optional — overrides BepInEx tracker config
   offset_y: 320
   width: 210
   font_size: 15
-  auto_hide_delay: 5
-  fade_duration: 1
+  auto_hide_delay: 5            # deprecated/ignored — the panel no longer auto-hides
+  fade_duration: 1             # deprecated/ignored
   highlight_duration: 3
   completion_vfx_enabled: true
   badge_enabled: true
@@ -288,7 +288,8 @@ src/
 │   ├── SeenTracker.cs               Fire-state storage (player m_customData / world ZoneSystem keys)
 │   ├── ChainState.cs                Multi-step chain progress tracking
 │   ├── PrerequisiteChecker.cs       requires / stop_when evaluation
-│   └── SubmitState.cs               In-progress item collection counters for npc_item_submit
+│   ├── SubmitState.cs               In-progress item collection counters for npc_item_submit
+│   └── TrackedQuestState.cs         HUD tracker pins + saved panel position (per-player)
 ├── Triggers/
 │   ├── GuidanceDispatcher.cs        Match-and-fire logic; player vs global routing
 │   ├── CraftTrigger.cs              InventoryGui.DoCrafting / Player.OnCrafted

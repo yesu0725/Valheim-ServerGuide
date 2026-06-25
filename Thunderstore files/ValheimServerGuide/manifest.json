@@ -1,7 +1,7 @@
 {
   "name": "ValheimServerGuide",
   "description": "Server-authoritative YAML-driven guidance mod for Valheim. Author custom quests, NPC conversations, and triggered popups using only vanilla UI. No custom assets required.",
-  "version_number": "0.5.2",
+  "version_number": "0.6.0",
   "website_url": "https://github.com/yesu0725/Valheim-ServerGuide",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2333",

@@ -35,6 +35,10 @@ namespace ValheimServerGuide.Display
         private RectTransform _bodyContentRect;
         private Transform _upcomingContent;
 
+        // ── Tracker pin toggle (in-progress quests only) ──────────────────────────────────────
+        private GameObject _trackToggleGo;
+        private TMP_Text _trackToggleText;
+
         // ── Font (lazy resolution, same pattern as GuidanceHudTracker) ───────────────────────
         private TMP_FontAsset _font;
 
@@ -306,11 +310,54 @@ namespace ValheimServerGuide.Display
             hDivRect.anchoredPosition = new Vector2(0f, -50f);
             hDivGo.AddComponent<Image>().color = ColDivider;
 
+            // ── Tracker pin toggle (just below the title divider) ─────────────────────────────
+            BuildTrackToggle(rightGo.transform);
+
             // ── Upcoming steps section (bottom 160px) ─────────────────────────────────────────
             BuildUpcomingSection(rightGo.transform);
 
-            // ── Body text (scrollable, between title area and upcoming section) ────────────────
+            // ── Body text (scrollable, between toggle bar and upcoming section) ───────────────
             BuildBodyScroll(rightGo.transform);
+        }
+
+        /// A clickable "Show on Tracker: ON/OFF" pill shown only when the selected quest is in
+        /// progress (finished quests are not pinnable). Toggles TrackedQuestState and tells the
+        /// HUD tracker to repaint / unhide.
+        private void BuildTrackToggle(Transform rightGo)
+        {
+            _trackToggleGo = new GameObject("VSG_CodexTrackToggle");
+            _trackToggleGo.transform.SetParent(rightGo, false);
+            var rect = _trackToggleGo.AddComponent<RectTransform>();
+            rect.anchorMin        = new Vector2(0f, 1f);
+            rect.anchorMax        = new Vector2(1f, 1f);
+            rect.pivot            = new Vector2(0.5f, 1f);
+            rect.sizeDelta        = new Vector2(-16f, 22f);
+            rect.anchoredPosition = new Vector2(0f, -54f);
+
+            var img = _trackToggleGo.AddComponent<Image>();
+            img.color = ColRowSel;
+
+            var btn = _trackToggleGo.AddComponent<Button>();
+            btn.transition    = Selectable.Transition.None;
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleTrackSelected);
+
+            var labelGo = new GameObject("VSG_TrackToggleLabel");
+            labelGo.transform.SetParent(_trackToggleGo.transform, false);
+            var labelRect = labelGo.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(8f, 0f);
+            labelRect.offsetMax = new Vector2(-8f, 0f);
+            _trackToggleText = labelGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(_trackToggleText);
+            _trackToggleText.text               = "";
+            _trackToggleText.fontStyle          = FontStyles.Bold;
+            _trackToggleText.fontSize           = 12f;
+            _trackToggleText.color              = ColText;
+            _trackToggleText.alignment          = TextAlignmentOptions.Center;
+            _trackToggleText.enableWordWrapping = false;
+            _trackToggleText.raycastTarget      = false;
         }
 
         private void BuildBodyScroll(Transform rightGo)
@@ -323,7 +370,8 @@ namespace ValheimServerGuide.Display
             scrollRect.anchorMin = new Vector2(0f, 0f);
             scrollRect.anchorMax = new Vector2(1f, 1f);
             scrollRect.offsetMin = new Vector2(8f, 160f);
-            scrollRect.offsetMax = new Vector2(-8f, -54f);
+            // Leave room for the title divider (54px) plus the tracker-pin toggle bar (~26px).
+            scrollRect.offsetMax = new Vector2(-8f, -80f);
             scrollGo.AddComponent<RectMask2D>();
 
             var sv = scrollGo.AddComponent<ScrollRect>();
@@ -467,18 +515,35 @@ namespace ValheimServerGuide.Display
             foreach (var cat in catOrder)
             {
                 // Category header row.
+                // TMP is on a child GO (not directly on catGo) so the VLG only sees
+                // LayoutElement when computing the row height — avoids TMP.preferredHeight
+                // (which can be 0 during ForceRebuildLayoutImmediate if the font geometry
+                // hasn't been computed yet) collapsing the row to zero height.
                 var catGo = new GameObject("VSG_Cat_" + cat);
                 catGo.transform.SetParent(_leftContent, false);
+                var catImg = catGo.AddComponent<Image>();
+                catImg.color = new Color(0f, 0f, 0f, 0f);
                 var catLe = catGo.AddComponent<LayoutElement>();
+                catLe.minHeight       = 22f;
                 catLe.preferredHeight = 22f;
-                var catTmp = catGo.AddComponent<TextMeshProUGUI>();
+
+                var catLabelGo = new GameObject("VSG_CatLabel");
+                catLabelGo.transform.SetParent(catGo.transform, false);
+                var catLabelRect = catLabelGo.AddComponent<RectTransform>();
+                catLabelRect.anchorMin = Vector2.zero;
+                catLabelRect.anchorMax = Vector2.one;
+                catLabelRect.offsetMin = new Vector2(4f, 0f);
+                catLabelRect.offsetMax = Vector2.zero;
+                var catTmp = catLabelGo.AddComponent<TextMeshProUGUI>();
                 ApplyFont(catTmp);
-                catTmp.text          = cat.ToUpper();
-                catTmp.fontStyle     = FontStyles.Bold;
-                catTmp.fontSize      = 11f;
-                catTmp.color         = ColGold;
-                catTmp.alignment     = TextAlignmentOptions.Left;
-                catTmp.raycastTarget = false;
+                catTmp.text               = cat.ToUpper();
+                catTmp.fontStyle          = FontStyles.Bold;
+                catTmp.fontSize           = 11f;
+                catTmp.color              = ColGold;
+                catTmp.alignment          = TextAlignmentOptions.Left;
+                catTmp.enableWordWrapping = false;
+                catTmp.overflowMode       = TextOverflowModes.Overflow;
+                catTmp.raycastTarget      = false;
 
                 foreach (var entry in byCategory[cat])
                 {
@@ -564,12 +629,15 @@ namespace ValheimServerGuide.Display
                 if (_titleText != null) _titleText.text = "Select a guide";
                 if (_badgeText != null) _badgeText.text = "";
                 if (_bodyText  != null) _bodyText.text  = "";
+                UpdateTrackToggle(null, null, false);
                 ClearUpcoming();
                 return;
             }
 
             var title    = string.IsNullOrEmpty(entry.Title) ? entry.Id : entry.Title;
             var complete = IsEntryComplete(entry, player);
+
+            UpdateTrackToggle(entry, player, complete);
 
             _titleText.text = title;
 
@@ -607,6 +675,11 @@ namespace ValheimServerGuide.Display
                     foreach (var g in itemGoals)
                         if (ItemAcquiredTrigger.CountInInventory(player, g.Item) >= g.Count) done++;
                     _badgeText.text  = done + " / " + itemGoals.Count + " goals";
+                    _badgeText.color = ColText;
+                }
+                else if (KillGoal(entry) > 0 && !complete)
+                {
+                    _badgeText.text  = KillCountState.Get(player, entry.Id) + " / " + KillGoal(entry);
                     _badgeText.color = ColText;
                 }
                 else
@@ -662,6 +735,15 @@ namespace ValheimServerGuide.Display
                         body = progressText + (string.IsNullOrEmpty(body) ? "" : "\n\n" + body);
                 }
 
+                var killGoal = KillGoal(entry);
+                if (killGoal > 0 && !complete)
+                {
+                    var creature = entry.Trigger?.Creature;
+                    var label = string.IsNullOrEmpty(creature) ? "kills" : creature;
+                    body = $"Defeated {KillCountState.Get(player, entry.Id)} / {killGoal} {label}." +
+                           (string.IsNullOrEmpty(body) ? "" : "\n\n" + body);
+                }
+
                 _bodyText.text = body;
             }
 
@@ -669,6 +751,62 @@ namespace ValheimServerGuide.Display
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_bodyContentRect);
 
             PopulateUpcoming(entry, player);
+        }
+
+        // ── Tracker pin toggle ────────────────────────────────────────────────────────────────
+
+        /// Show/refresh the "Show on Tracker" pill for the selected entry. Hidden for finished
+        /// quests and for entries that never appear on the tracker (no title / non-progress type).
+        private void UpdateTrackToggle(GuidanceEntry entry, Player player, bool complete)
+        {
+            if (_trackToggleGo == null) return;
+            if (entry == null || player == null || complete || !IsTrackable(entry, player))
+            {
+                _trackToggleGo.SetActive(false);
+                return;
+            }
+
+            _trackToggleGo.SetActive(true);
+            var on = TrackedQuestState.IsTracked(player, entry.Id);
+            if (_trackToggleText != null)
+            {
+                _trackToggleText.text  = on ? "[x] Pinned to Tracker  (click to unpin)"
+                                            : "[ ] Show on Tracker  (click to pin)";
+                _trackToggleText.color = on ? ColGreen : ColText;
+            }
+        }
+
+        /// Click handler: flip the selected quest's tracker pin. Delegates to the HUD tracker so
+        /// pinning also force-unhides the panel.
+        private void ToggleTrackSelected()
+        {
+            var player = Player.m_localPlayer;
+            if (_selected == null || player == null) return;
+            if (IsEntryComplete(_selected, player) || !IsTrackable(_selected, player)) return;
+
+            var now = !TrackedQuestState.IsTracked(player, _selected.Id);
+            GuidanceHudTracker.Instance?.SetTracked(_selected.Id, now);
+            UpdateTrackToggle(_selected, player, false);
+        }
+
+        /// True when an entry would actually render a row on the HUD tracker: an in-progress quest
+        /// with a title that is a chain, a multi-count kill / item-submit, or an item_acquired goal.
+        private static bool IsTrackable(GuidanceEntry entry, Player player)
+        {
+            if (entry == null || string.IsNullOrEmpty(entry.Title)) return false;
+            if (entry.Steps != null && entry.Steps.Count > 0) return true;
+            if (entry.Trigger == null) return false;
+
+            if (string.Equals(entry.Trigger.Type, "npc_item_submit",
+                    System.StringComparison.OrdinalIgnoreCase))
+                return (entry.Trigger.Count <= 0 ? 1 : entry.Trigger.Count) > 1;
+            if (string.Equals(entry.Trigger.Type, "kill",
+                    System.StringComparison.OrdinalIgnoreCase))
+                return (entry.Trigger.Count <= 0 ? 1 : entry.Trigger.Count) > 1;
+            if (string.Equals(entry.Trigger.Type, "item_acquired",
+                    System.StringComparison.OrdinalIgnoreCase))
+                return ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger) != null;
+            return false;
         }
 
         private void PopulateUpcoming(GuidanceEntry entry, Player player)
@@ -750,6 +888,7 @@ namespace ValheimServerGuide.Display
             // its materials have been consumed (IsEntryComplete would then return false).
             if (HasItemSubmitProgress(entry, player)) return true;
             if (HasItemAcquiredGoalProgress(entry, player)) return true;
+            if (HasKillProgress(entry, player)) return true;
             if (IsEntryComplete(entry, player)) return true;
             return SeenTracker.HasFired(player, entry.Id, entry.Scope ?? "player");
         }
@@ -773,6 +912,27 @@ namespace ValheimServerGuide.Display
             }
 
             return SeenTracker.HasFired(player, entry.Id, entry.Scope ?? "player");
+        }
+
+        /// Effective required count for a multi-count `kill` entry, or 0 if the entry is not a
+        /// multi-count kill entry.
+        private static int KillGoal(GuidanceEntry entry)
+        {
+            if (entry?.Trigger == null) return 0;
+            if (!string.Equals(entry.Trigger.Type, "kill",
+                    System.StringComparison.OrdinalIgnoreCase)) return 0;
+            var goal = entry.Trigger.Count <= 0 ? 1 : entry.Trigger.Count;
+            return goal > 1 ? goal : 0;
+        }
+
+        /// True while a multi-count kill entry is mid-progress (0 < kills < goal). Kills can't be
+        /// recounted from the inventory, so this reads the persistent KillCountState accumulator.
+        private static bool HasKillProgress(GuidanceEntry entry, Player player)
+        {
+            var goal = KillGoal(entry);
+            if (goal == 0) return false;
+            var cur = KillCountState.Get(player, entry.Id);
+            return cur > 0 && cur < goal;
         }
 
         /// Effective required count for a multi-count npc_item_submit entry, or 0 if the entry

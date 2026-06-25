@@ -1,0 +1,60 @@
+# ValheimServerGuide — Hearthbound Server Onboarding
+# server_onboarding.yaml
+# Loaded alongside guidance.yaml — the loader merges all *.yaml files in this directory.
+#
+# Three timed onboarding entries fire in sequence after a player's first login:
+#   1. server_welcome       — first_login raven, fires immediately on first join
+#   2. server_rules_reminder — timed 1 hour (3600 s), fires after welcome is seen
+#   3. server_feedback_reminder — timed 2 hours (7200 s), fires after rules are seen
+#
+# All three are player-scoped and once: true — each fires exactly once per character.
+
+guidances:
+
+  # ═══════════════════════════════════════
+  # CATEGORY: Onboarding
+  # ═══════════════════════════════════════
+
+  - id: server_welcome
+    title: "Welcome to Hearthbound"
+    category: Onboarding
+    version: 1
+    once: true
+    trigger:
+      type: first_login
+    display:
+      mode: raven
+      topic: "Welcome"
+    message: "Welcome to Hearthbound Valheim! This is a public, casual-friendly modded server — no whitelist, no strict schedules. Treat it as a shared hub world where players from any timezone can meet, explore, trade, and build together. The server runs over 30 mods including a player-driven economy, companion NPCs, ship upgrades, skill perks, and 178 new points of interest across every biome. Whether you are here to grind, build, trade, or just hang out — you are welcome here. More tips and mod guides will appear as you explore the world."
+
+  - id: server_rules_reminder
+    title: "Server Rules"
+    category: Onboarding
+    version: 1
+    once: true
+    scope: player
+    requires: [server_welcome]
+    trigger:
+      type: timed
+      id: server_rules_reminder_timer
+      interval: "3600"
+    display:
+      mode: raven
+      topic: "Server Rules"
+    message: "A quick reminder of our server rules. 1) Be respectful — no harassment, hate speech, or toxic behavior in-game or in chat. 2) No griefing or theft — do not destroy, move, or take from other players' builds or chests without permission. If it is not yours, ask first. For the full rules, visit the #in-game-rules channel on our Discord."
+
+  - id: server_feedback_reminder
+    title: "Feedback & Bug Reports"
+    category: Onboarding
+    version: 1
+    once: true
+    scope: player
+    requires: [server_rules_reminder]
+    trigger:
+      type: timed
+      id: server_feedback_reminder_timer
+      interval: "7200"
+    display:
+      mode: raven
+      topic: "Feedback"
+    message: "Enjoying the server? Found a bug or have a suggestion? Head over to the Feedback channels on our Discord to share your thoughts. Bug reports and ideas are always welcome — your input helps make the server better for everyone."

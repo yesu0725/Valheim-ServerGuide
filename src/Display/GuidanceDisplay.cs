@@ -4,6 +4,7 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 using ValheimServerGuide.Config;
+using ValheimServerGuide.Triggers;
 
 namespace ValheimServerGuide.Display
 {
@@ -144,7 +145,62 @@ namespace ValheimServerGuide.Display
                 return;
             }
 
+            if (Eq(mode, "bubble"))
+            {
+                ShowBubble(entry, renderedText);
+                return;
+            }
+
             Plugin.Log.LogWarning($"[show] unknown display mode '{mode}' on '{entry.Id}'.");
+        }
+
+        /// Finds the nearest GameObject matching display.npc_name (same prefab-name matching
+        /// as trigger.npc) and floats the text above its head. No-op with a warning if no
+        /// matching, nearby NPC is found — the entry's other side effects (rewards, state)
+        /// still applied normally since this only governs the visual.
+        ///
+        /// Searches both Character (monsters/Humanoids) and Trader (Haldor/BogWitch/Hildir
+        /// etc. — Trader is a plain MonoBehaviour with no Character/Humanoid component at
+        /// all, so vendor NPCs never show up in Character.GetAllCharacters()).
+        private static void ShowBubble(GuidanceEntry entry, string renderedText)
+        {
+            var npcName = entry.Display?.NpcName;
+            if (string.IsNullOrEmpty(npcName))
+            {
+                Plugin.Log.LogWarning($"[show] bubble '{entry.Id}' missing display.npc_name.");
+                return;
+            }
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+
+            Transform nearest = null;
+            var bestDistSq = 50f * 50f; // only consider NPCs within 50m
+
+            foreach (var c in Character.GetAllCharacters())
+            {
+                if (c == null) continue;
+                if (!string.Equals(TriggerUtils.NormalizePrefabName(c.gameObject.name), npcName,
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                var distSq = (c.transform.position - player.transform.position).sqrMagnitude;
+                if (distSq < bestDistSq) { bestDistSq = distSq; nearest = c.transform; }
+            }
+
+            foreach (var t in Object.FindObjectsOfType<Trader>())
+            {
+                if (t == null) continue;
+                if (!string.Equals(TriggerUtils.NormalizePrefabName(t.gameObject.name), npcName,
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                var distSq = (t.transform.position - player.transform.position).sqrMagnitude;
+                if (distSq < bestDistSq) { bestDistSq = distSq; nearest = t.transform; }
+            }
+
+            if (nearest == null)
+            {
+                Plugin.Log.LogWarning($"[show] bubble '{entry.Id}': no nearby '{npcName}' found.");
+                return;
+            }
+
+            NpcChatBubble.Show(nearest, renderedText, entry.Display?.Duration ?? 6f);
         }
 
         /// Submit one raven entry directly to Tutorial/Raven, bypassing queue/deferral checks.

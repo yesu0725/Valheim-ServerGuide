@@ -19,7 +19,7 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.5.2";
+        public const string PluginVersion = "0.6.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -150,6 +150,7 @@ namespace ValheimServerGuide
             GuidanceSync.Register();
             GuidanceDisplay.Initialize();
             AdminCommands.Register();
+            TimeTrigger.Start();
 
             // YAML generation policy:
             //   - Dedicated server (Application.isBatchMode == true): start loader immediately.

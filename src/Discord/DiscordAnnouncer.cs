@@ -33,6 +33,26 @@ namespace ValheimServerGuide.Discord
             Plugin.Instance.StartCoroutine(Post(url, message, username, entry.Id));
         }
 
+        /// Per-reward (type: discord) webhook post. The message is already fully expanded
+        /// (template tokens resolved client-side) by the time it reaches here — the server
+        /// just posts it verbatim, same as the other Announce* entry points.
+        public static void AnnounceRaw(string message)
+        {
+            var url = Plugin.DiscordWebhookUrl?.Value;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                Plugin.Log.LogInfo("[discord] reward wanted to announce but DiscordWebhookUrl is empty.");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(message)) return;
+
+            var username = Plugin.DiscordBotUsername?.Value;
+            if (string.IsNullOrWhiteSpace(username)) username = "ValheimServerGuide";
+
+            if (Plugin.Instance == null) return;
+            Plugin.Instance.StartCoroutine(Post(url, message, username, "reward"));
+        }
+
         public static void AnnounceChainComplete(string playerName, string chainTitle)
         {
             if (Plugin.DiscordGuideEnabled?.Value == false) return;

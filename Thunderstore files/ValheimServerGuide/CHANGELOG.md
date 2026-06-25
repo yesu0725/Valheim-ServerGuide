@@ -1,4 +1,19 @@
 # Changelog
+## 0.6.0
+
+### New Features
+
+- **Player-curated progress panel.** The HUD progress panel (F10) now shows only the quests a player has **pinned** from the Guide Codex, instead of every active quest. Open the Codex (F3), select an in-progress quest, and click **Show on Tracker** to pin it. The panel is hidden by default and unhides automatically when you pin a quest.
+- **`Show on Tracker` toggle in the Codex.** In-progress, trackable quests (guide chains, multi-count `kill`, multi-count `npc_item_submit`, and `item_acquired` count/goal quests) gain a pin toggle in the Codex detail pane. Finished quests and one-off tips have no toggle. A pinned quest that completes automatically drops off the panel.
+- **Drag-to-move panel.** The progress panel can be dragged anywhere on screen while the inventory or ESC menu is open (a free cursor is required). The position is saved per character and restored on the next login.
+
+### Changes
+
+- **No more input lock.** Showing the progress panel no longer freezes player movement/look or forces the cursor on — it now displays over normal gameplay. Press F10 to show/hide; pinned quests stay pinned when the panel is hidden.
+- **Pins persist; panel starts hidden.** Pins survive a relog (stored per character in `VSG.trk`); the panel itself starts hidden each session until shown with F10 or by pinning a quest.
+- **Codex lists in-progress kill quests.** Multi-count `kill` quests now appear in the Codex while in progress (with a `kills / goal` count) so they can be pinned — previously they only appeared once completed.
+- **`auto_hide_delay` / `fade_duration` deprecated.** The panel no longer auto-hides or fades; these `tracker:` fields are now ignored.
+- **`vsg_reset` clears pins.** `vsg_reset all`, `vsg_reset <id>`, and `vsg_reset_player` now also clear HUD progress-panel pins (`VSG.trk`).
 ## 0.5.2
 
 ### New Features

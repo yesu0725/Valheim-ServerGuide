@@ -39,7 +39,7 @@ The mod works in **single-player and host & play** as well — the host acts as 
 - Opens a chest
 - And many more...
 
-**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Progress shows in the on-screen tracker.
+**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Show on Tracker**) and follow their progress on a draggable on-screen panel (F10).
 
 **NPC conversations** — Hold E near Haldor, Hildir, or BogWitch to open a dialogue panel. Give them choices. Fire quests. Grant rewards.
 

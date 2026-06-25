@@ -125,6 +125,25 @@ Tags shown inline with each configured entry:
 - `fired` — this player/world has already fired the entry (`once: true` entries only)
 - `fired N/max` — `max_fires` entry; shows current count vs cap (these never appear in the "Fired" list above since they don't write `VSG.fired`)
 
+### `vsg_debug` (Phase 6 — see [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md))
+
+Dumps three diagnostic sections for the current character:
+```
+=== VSG Debug (<PlayerName>) ===
+-- Eligible now (gates passing) --
+  - arrow_hint
+-- VSG.* custom-data keys --
+  - VSG.fired = arrow_hint,mine_ore
+  - VSG.kc.boar_hunt = 2
+-- Last fired (this session) --
+  - 14:22:07  arrow_hint
+```
+- **Eligible now** — chain entries via `!ChainState.IsComplete && PrerequisiteChecker.AllSatisfied`;
+  all other entries via `GuidanceDispatcher.CheckGates`.
+- **VSG.\* keys** — every `m_customData` key starting with `VSG.` and its raw value.
+- **Last fired** — up to the last 10 `(id, wall-clock time)` pairs from `DebugFireLog`, an
+  in-memory, per-player, **session-only** ring buffer (not persisted to the save).
+
 ---
 
 ## Admin Verification
@@ -198,3 +217,4 @@ This protects against modded/malicious clients crafting the RPC directly without
 - [x] Server re-verifies admin status for `VSG_APListReq` and `VSG_APResetReq` before forwarding.
 - [x] Admin marker `"server"` distinguishes listen-server responses (output to `Console.instance`) from remote admin responses (RPC relay).
 - [x] Tab completion for `vsg_list_player` includes online peer names; `vsg_reset_player` includes peer names + `"all"` + configured IDs.
+- [x] `vsg_debug` lists currently-eligible entries, all `VSG.*` custom-data keys with values, and the last 10 fired ids (session-only) with timestamps.

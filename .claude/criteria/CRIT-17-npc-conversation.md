@@ -6,6 +6,12 @@ A conversation panel triggered by holding E (≥ 0.5 s) near a trader NPC (Haldo
 BogWitch). Displays a message and a row of choice buttons. Choosing a `goto` entry fires that
 entry automatically via `GuidanceDispatcher.FireById()`.
 
+When 2+ `npc_conversation` entries are eligible for the same NPC, a "what would you like to
+discuss?" picker is shown first -- see [CRIT-21](/.claude/criteria/CRIT-21-phase3-multi-quest-picker.md).
+
+Conversation entries can also define a multi-node dialogue tree instead of a flat
+text+choices block -- see [CRIT-22](/.claude/criteria/CRIT-22-phase4-conversation-sequencing.md).
+
 ---
 
 ## Overview

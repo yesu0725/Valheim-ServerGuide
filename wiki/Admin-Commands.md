@@ -49,7 +49,8 @@ Clears all player-scope state for the **current character**:
 
 - Every `once`-fired ID (`VSG.fired`)
 - Every `max_fires` counter (`VSG.fc.*`) — **required** so capped entries like `player_death` tips can fire again
-- All chain progress, NPC item-submit counts, and item-acquired goal state
+- All chain progress, NPC item-submit counts, kill counts, and item-acquired goal state
+- HUD progress-panel pins (`VSG.trk`) — reset quests are no longer pinned
 - All in-memory cooldowns
 - The raven display queue and dungeon-deferred raven queue
 - Stale vanilla raven temp-texts for all VSG entries (so raven re-show isn't blocked by a leftover `Raven.m_tempTexts` entry)
@@ -70,6 +71,7 @@ Clears the fired state and cooldown for a single entry. The command auto-detects
 
 For a single-id reset, the following are also cleared for that entry:
 - The `max_fires` counter (`VSG.fc.<id>`)
+- Its HUD progress-panel pin (`VSG.trk`)
 - Any pending raven queue entry or dungeon-deferred entry
 - Any stale `RavenText` in the vanilla `Raven.m_tempTexts` list (so the raven can re-show without being blocked by a leftover from before the reset)
 - The vanilla `Player.m_shownTutorials` seen-flag (for raven entries)

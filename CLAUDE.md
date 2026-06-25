@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.1.0` |
+| Version | `0.6.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -22,26 +22,37 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 src/
 ├── Plugin.cs                        BepInEx entry, config, loader lifecycle
 ├── Config/
-│   ├── GuidanceConfig.cs            YAML data model (GuidanceEntry, TriggerSpec, DisplaySpec, …)
+│   ├── GuidanceConfig.cs            YAML data model (GuidanceEntry, TriggerSpec, DisplaySpec, RewardSpec, HoverTextSpec, …)
 │   └── GuidanceConfigLoader.cs      FileSystemWatcher + debounce + starter YAML
-├── State/
-│   ├── SeenTracker.cs               Fire-state storage (player m_customData / world ZoneSystem keys)
-│   └── SubmitState.cs               In-progress item collection counters for npc_item_submit (VSG.is.*)
-├── Triggers/
-│   ├── GuidanceDispatcher.cs        Match-and-fire logic; player vs global routing; FireEntry() single-entry path
-│   ├── CraftTrigger.cs              Harmony patch: InventoryGui.DoCrafting
-│   ├── KillTrigger.cs               Harmony patch: Character.OnDeath
-│   └── NpcItemSubmitTrigger.cs      Harmony patch: Trader.UseItem + GetHoverText; count/consume/progress
+├── State/                           m_customData buckets (one class per VSG.* prefix)
+│   ├── SeenTracker.cs               Fire state + cooldown + max_fires (VSG.fired / VSG.fc.*)
+│   ├── SubmitState.cs               npc_item_submit in-progress counters (VSG.is.*)
+│   ├── ChainState.cs                Chain step/counter/complete/version (VSG.cp./cd./cc./cv.)
+│   ├── KillCountState.cs            kill-count accumulator (VSG.kc.*)
+│   ├── GoalStartedState.cs          item_acquired "started" latch (VSG.ig.*)
+│   ├── ConversationNodeState.cs     Multi-node dialogue current node (VSG.cn.*)
+│   ├── TrackedQuestState.cs         HUD tracker pins + custom panel position (VSG.trk / VSG.tpos)
+│   ├── PrerequisiteChecker.cs       requires/stop_when satisfaction logic
+│   └── DebugFireLog.cs              Session-only last-10-fired ring buffer (vsg_debug; not persisted)
+├── Triggers/                        One Harmony-patch file per trigger type; see CRIT-02
+│   ├── GuidanceDispatcher.cs        Match-and-fire core; Raise / FireEntry / FireById / CheckGates
+│   ├── TriggerUtils.cs              NormalizePrefabName + shared helpers
+│   ├── CraftTrigger.cs · KillTrigger.cs · ItemAcquiredTrigger.cs · BiomeTrigger.cs · …
+│   ├── TimeTrigger.cs               Poll coroutine: time_of_day / day_number / real_world_time / day_of_week
+│   └── NpcConversationTrigger.cs    Hold-E detect, multi-quest picker, hover_text override
 ├── Display/
-│   ├── GuidanceDisplay.cs           All five display modes + Harmony patches for raven/intro/music
-│   └── NpcConversationPanel.cs      Hold-E conversation panel with choice navigation (CRIT-17)
+│   ├── GuidanceDisplay.cs           Mode dispatch (raven/message/chat/rune/intro/conversation/bubble) + patches
+│   ├── GuidanceHudTracker.cs        Progress panel (F10): Codex-pinned quests only, drag-to-move, no input lock
+│   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); per-quest "Show on Tracker" pin toggle
+│   ├── NpcConversationPanel.cs      Hold-E conversation panel; multi-node trees (CRIT-17/22)
+│   └── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)
 ├── Rewards/
-│   ├── RewardDispatcher.cs          Grant items / skill exp / buffs on entry completion (CRIT-18)
-│   └── RewardNotification.cs        MessageHud summary after rewards are granted (CRIT-18)
+│   ├── RewardDispatcher.cs          17 reward types (CRIT-18 base + CRIT-23 enhanced)
+│   └── RewardNotification.cs        MessageHud "Received: …" summary
 ├── Net/
-│   └── GuidanceSync.cs              ZRoutedRpc RPCs; server↔client config & global-event sync
+│   └── GuidanceSync.cs              ZRoutedRpc RPCs; config sync, global events, admin, reward-discord, kill-share
 ├── Commands/
-│   └── AdminCommands.cs             vsg_reset / vsg_list Terminal.ConsoleCommand
+│   └── AdminCommands.cs             vsg_reset / vsg_list / vsg_list_player / vsg_reset_player / vsg_debug
 └── Discord/
     └── DiscordAnnouncer.cs          Server-side webhook POST via UnityWebRequest
 ```
@@ -76,6 +87,14 @@ Each feature area has its own detailed spec in `.claude/criteria/`.
 | [CRIT-16](/.claude/criteria/CRIT-16-entry-finished-trigger.md) | `entry_finished` Trigger |
 | [CRIT-17](/.claude/criteria/CRIT-17-npc-conversation.md) | NPC Conversation System |
 | [CRIT-18](/.claude/criteria/CRIT-18-reward-system.md) | Reward System |
+| [CRIT-19](/.claude/criteria/CRIT-19-phase1-triggers.md) | Phase 1 — Kill-count + 8 interaction triggers |
+| [CRIT-20](/.claude/criteria/CRIT-20-phase2-time-day-triggers.md) | Phase 2 — Time & day triggers |
+| [CRIT-21](/.claude/criteria/CRIT-21-phase3-multi-quest-picker.md) | Phase 3 — Multi-quest NPC picker |
+| [CRIT-22](/.claude/criteria/CRIT-22-phase4-conversation-sequencing.md) | Phase 4 — Multi-node dialogue trees |
+| [CRIT-23](/.claude/criteria/CRIT-23-phase5-enhanced-rewards.md) | Phase 5 — Enhanced reward types |
+| [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md) | Phase 6 — System polish (bubble, vsg_debug, hover_text, kill-share) |
+
+The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATURE_ROADMAP.md) (Phases 1–6 all `done`).
 
 ## Key Invariants (never violate these)
 

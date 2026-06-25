@@ -1,6 +1,6 @@
 # CRIT-18 — Reward System
 
-**Status:** Phase 4 `done` · Phase 5 `done`
+**Status:** Phase 4 `done` · Phase 5 `done` · Roadmap Phase 5 (13 new types) `done` — see [CRIT-23](/.claude/criteria/CRIT-23-phase5-enhanced-rewards.md)
 
 Grant players rewards when a guidance entry fires or when a chain completes.
 Rewards can be items, skill experience/level bumps, or temporary status-effect buffs.
@@ -125,18 +125,12 @@ to a target level. Instead set the level directly: `var skill = player.GetSkills
 
 ---
 
-## Suggested / Additional Reward Types (future)
+## Additional Reward Types (Roadmap Phase 5)
 
-The following types are **not implemented in this phase** but are noted for future extension:
-
-| Type | Description |
-|---|---|
-| `global_key` | Sets a Valheim world global key (e.g. for unlocking boss altars or lore entries) |
-| `unlock_recipe` | Adds a recipe to the player's known list via `Player.AddKnownRecipe` |
-| `spawn_npc` | Spawns a friendly NPC/companion prefab near the player |
-| `currency` | Grants in-game coins (Coins prefab, integer amount) |
-
-Extend `RewardSpec.Type` with additional strings when these are needed.
+The 13 types sketched here as future extensions (`global_key`, `unlock_recipe`, `spawn_npc`,
+`currency`, plus `map_pin`, `location_pin`, `set_player_key`/`remove_player_key`, `weather`,
+`chat_message`, `teleport`, `rename_player`, `discord`) are now implemented — see
+[CRIT-23](/.claude/criteria/CRIT-23-phase5-enhanced-rewards.md).
 
 ---
 

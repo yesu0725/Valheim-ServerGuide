@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 using ValheimServerGuide.Config;
 
 namespace ValheimServerGuide.Rewards
@@ -29,10 +30,23 @@ namespace ValheimServerGuide.Rewards
         {
             switch (reward.Type?.ToLowerInvariant())
             {
-                case "item":        return DescribeItem(reward);
-                case "skill_exp":   return DescribeSkillExp(reward);
-                case "skill_level": return DescribeSkillLevel(reward);
-                case "buff":        return DescribeBuff(reward);
+                case "item":             return DescribeItem(reward);
+                case "skill_exp":        return DescribeSkillExp(reward);
+                case "skill_level":      return DescribeSkillLevel(reward);
+                case "buff":             return DescribeBuff(reward);
+                case "map_pin":          return string.IsNullOrEmpty(reward.Name) ? null : $"Map pin: {reward.Name}";
+                case "location_pin":     return string.IsNullOrEmpty(reward.PinName ?? reward.Location) ? null : $"Map pin: {reward.PinName ?? reward.Location}";
+                case "unlock_recipe":    return string.IsNullOrEmpty(reward.Recipe) ? null : $"Recipe: {reward.Recipe}";
+                case "spawn_creature":   return string.IsNullOrEmpty(reward.Prefab) ? null : $"{reward.Prefab} x{Mathf.Max(1, reward.Count)}";
+                case "set_global_key":
+                case "remove_global_key":
+                case "set_player_key":
+                case "remove_player_key": return null; // silent bookkeeping, no player-facing summary
+                case "weather":          return string.IsNullOrEmpty(reward.Preset) ? null : $"Weather: {reward.Preset}";
+                case "teleport":         return "Teleported";
+                case "rename_player":    return string.IsNullOrEmpty(reward.Suffix) ? null : $"Title: {reward.Suffix}";
+                case "chat_message":
+                case "discord":          return null; // delivered via chat/webhook directly, not the summary line
                 default:            return null;
             }
         }

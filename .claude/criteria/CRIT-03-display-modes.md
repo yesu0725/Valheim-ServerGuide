@@ -2,7 +2,8 @@
 
 **File:** `src/Display/GuidanceDisplay.cs`
 
-Five modes, all using vanilla Unity/Valheim components. No custom assets.
+Seven modes — `raven`, `message`, `chat`, `rune`, `intro`, `conversation`, `bubble` — all using
+vanilla Unity/Valheim components. No custom assets.
 
 ---
 
@@ -175,6 +176,31 @@ display:
       - text: "Tell me about your wares."
         goto: haldor_wares_entry
       - text: "Nothing, thanks."
+```
+
+---
+
+## Mode: `bubble` (Phase 6 — see [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md))
+
+- World-space floating text above an NPC's head — no panel, no input lock. For ambient/flavor
+  lines as the player passes an NPC.
+- Rendered by `NpcChatBubble.Show(transform, text, duration)`: a `MonoBehaviour` that creates a
+  3D `TextMeshPro` (not UGUI) 2.2m above the anchor, billboards to `Camera.main` each frame,
+  fades out over the final second, then self-destroys.
+- NPC located by `display.npc_name` (prefab name via `TriggerUtils.NormalizePrefabName`), searching
+  **both** `Character.GetAllCharacters()` and `Object.FindObjectsOfType<Trader>()` within 50m —
+  Trader NPCs (Haldor/BogWitch/Hildir) have no `Character` component so the Trader list is required.
+- While the bubble is active, the NPC's vanilla speech bubble is suppressed (Harmony prefix on
+  `Chat.SetNpcText` + immediate `ClearNpcText`); it resumes when the bubble is destroyed.
+- No matching nearby NPC → warning logged, no crash; the entry's state/reward side effects still apply.
+
+**Config example:**
+```yaml
+display:
+  mode: bubble
+  npc_name: Haldor
+  duration: 6        # seconds visible (default 6)
+  text: "Wares from across the world..."
 ```
 
 ---

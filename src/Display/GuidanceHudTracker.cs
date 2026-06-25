@@ -27,11 +27,6 @@ namespace ValheimServerGuide.Display
     {
         public static GuidanceHudTracker Instance { get; internal set; }
 
-        /// True while the tracker is manually open. The Player.TakeInput patch reads this to
-        /// freeze player look/move/attack — the same way vanilla menus (inventory, map) do —
-        /// so opening the tracker stops the camera rotating with the mouse.
-        internal static bool InputCaptured => Instance != null && Instance._manuallyOpened;
-
         // ASCII-only markers — Valheim's font lacks the ▸/▌ geometric glyphs (they render as □).
         private const string RowPrefix = "> ";
 
@@ -44,17 +39,25 @@ namespace ValheimServerGuide.Display
         private TMP_FontAsset _font;
         private int _builtMaxVisible;
 
-        // ── Phase 04b: hotkey toggle, badge, cursor unlock, click-outside ─────────────────────
-        private bool _manuallyOpened;
+        // ── Hotkey toggle + badge ─────────────────────────────────────────────────────────────
+        // The panel shows the set of quests the player has pinned from the Guide Codex
+        // (TrackedQuestState). It starts hidden each session; F10 toggles _userHidden, and pinning
+        // a quest in the Codex force-unhides it. The panel no longer captures input or the cursor.
+        private bool _userHidden = true;   // true = player has hidden the panel (default: hidden)
         private GameObject _badgePanel;
         private TMP_Text _badgeText;
-        private GameObject _clickOverlay;
 
-        // ── Phase 04c: auto-fade and row highlights ───────────────────────────────────────────
+        // ── Drag-to-move ──────────────────────────────────────────────────────────────────────
+        // The panel can be dragged anywhere, but only while the cursor is free (inventory or the
+        // ESC menu open). Once moved, the custom position is persisted and overrides the config anchor.
+        private bool _dragging;
+        private Vector2 _dragMouseStart;
+        private Vector2 _dragPanelStart;
+        private bool _hasCustomPos;
+        private Vector2 _customPos;
+
+        // ── Row highlights ────────────────────────────────────────────────────────────────────
         private CanvasGroup _panelGroup;
-        // float.MaxValue = no auto-fade scheduled (AutoShow() not yet called).
-        private float _fadeTimer = float.MaxValue;
-        private float _fadeElapsed;
         private float[] _rowHighlightTimers;
 
         // ── Phase 04d: hover tooltips ─────────────────────────────────────────────────────────
@@ -141,9 +144,9 @@ namespace ValheimServerGuide.Display
             _panelGroup = _panel.AddComponent<CanvasGroup>();
 
             // No nested Canvas here: the panel renders directly on VSG_TrackerRoot (sortingOrder
-            // 1000), which already sits above the inventory/crafting UI. Panel-above-overlay is kept
-            // via hierarchy/sibling order in EnsureClickOverlay. A nested canvas with overrideSorting
-            // would sort globally by its own (lower) order and hide the panel behind other HUD layers.
+            // 1000), which already sits above the inventory/crafting UI. A nested canvas with
+            // overrideSorting would sort globally by its own (lower) order and hide the panel
+            // behind other HUD layers.
 
             // Deactivate BEFORE creating text children — while the panel is inactive,
             // child TextMeshProUGUI components never run OnEnable, so TMP does not attempt
@@ -287,6 +290,19 @@ namespace ValheimServerGuide.Display
             if (_tooltipText != null) _tooltipText.font = font;
         }
 
+        /// Fixed-width "ghost bar" progress indicator using TMP rich-text color tags so the
+        /// bracket width never changes as the counter advances (plain space-padding looks
+        /// uneven in a proportional font). Bright filled segments, dark-gray ghost segments.
+        private static string ProgressBar(int cur, int goal)
+        {
+            if (goal <= 0) return cur + "/" + goal;
+            var width = Mathf.Clamp(goal, 1, 12);
+            var filled = Mathf.Clamp(Mathf.RoundToInt((float)cur / goal * width), 0, width);
+            return "[<color=#FFE6A8>" + new string('=', filled) +
+                   "</color><color=#555555>" + new string('=', width - filled) +
+                   "</color>] " + cur + "/" + goal;
+        }
+
         private TMP_Text MakeText(string content, FontStyles style, Color color, float rowHeight)
         {
             var go = new GameObject("VSG_T");
@@ -322,7 +338,10 @@ namespace ValheimServerGuide.Display
             var spec = EffectiveSpec();
 
             _panelRect.sizeDelta = new Vector2(Mathf.Max(60f, spec.Width), 0f);
-            ApplyAnchor(_panelRect, spec.Anchor, spec.OffsetX, spec.OffsetY);
+            if (_hasCustomPos)
+                ApplyCustomPos();
+            else
+                ApplyAnchor(_panelRect, spec.Anchor, spec.OffsetX, spec.OffsetY);
 
             var fs = Mathf.Max(6f, spec.FontSize);
             // Font size AND row height scale together. The LayoutElement.preferredHeight set in
@@ -405,26 +424,42 @@ namespace ValheimServerGuide.Display
             }
         }
 
-        // ── Refresh ───────────────────────────────────────────────────────────────────────────
-
-        /// Shows the panel immediately, snaps alpha to 1, and resets the auto-fade timer.
-        /// Called only from progress events (chain advance or counter increment) so that
-        /// YAML reloads and login Refresh calls do not start the fade clock.
-        public void AutoShow()
+        /// Pin the panel to a player-chosen position. Uses a centre anchor/pivot so the stored
+        /// anchoredPosition is canvas-centre-relative (resolution-independent) and survives the
+        /// CanvasScaler the same way the drag math computes it.
+        private void ApplyCustomPos()
         {
-            if (_panel == null) return;
-            _panel.SetActive(true);
-            if (_panelGroup != null) _panelGroup.alpha = 1f;
-            _fadeElapsed = 0f;
-            var spec = EffectiveSpec();
-            // auto_hide_delay <= 0 disables the fade entirely — the panel stays opaque until
-            // the next manual close or progress event. MaxValue is the "no fade scheduled" sentinel.
-            _fadeTimer = spec.AutoHideDelay > 0f ? spec.AutoHideDelay : float.MaxValue;
+            if (_panelRect == null) return;
+            _panelRect.anchorMin = _panelRect.anchorMax = _panelRect.pivot = new Vector2(0.5f, 0.5f);
+            _panelRect.anchoredPosition = _customPos;
         }
 
+        // ── Tracked-quest pins (Guide Codex toggle) ───────────────────────────────────────────
+
+        /// Pin (tracked) or unpin a quest from the progress panel. Called by the Guide Codex
+        /// toggle. Pinning force-unhides the panel (per spec); unpinning leaves the hidden state
+        /// as-is. Persists via TrackedQuestState and repaints immediately.
+        public void SetTracked(string entryId, bool tracked)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null || string.IsNullOrEmpty(entryId)) return;
+            TrackedQuestState.SetTracked(player, entryId, tracked);
+            if (tracked) _userHidden = false; // turning a switch on unhides the panel
+            Refresh();
+        }
+
+        /// True when the given quest is currently pinned to the progress panel.
+        public static bool IsTracked(string entryId)
+        {
+            var player = Player.m_localPlayer;
+            return player != null && TrackedQuestState.IsTracked(player, entryId);
+        }
+
+        // ── Refresh ───────────────────────────────────────────────────────────────────────────
+
         /// Rebuild the visible rows from the current config and player chain state.
-        /// Pass fromProgress = true when called from a chain-advance or counter-increment event
-        /// so the panel auto-shows and changed rows are highlighted gold.
+        /// Only quests the player has pinned from the Guide Codex appear. Visibility is controlled
+        /// by the player (F10 toggles _userHidden); fromProgress only highlights changed rows.
         /// Safe to call at any time; exits early when the HUD is not ready.
         public void Refresh(bool fromProgress = false)
         {
@@ -479,7 +514,10 @@ namespace ValheimServerGuide.Display
                 return;
             }
 
+            LoadCustomPos(player);
+
             // Build the row list: active (not complete) chains that have a title.
+            // Only quests the player has pinned from the Guide Codex are shown.
             var rows = new List<string>();
             var descs = new List<string>();
             var rowChainIds = new List<string>();
@@ -487,6 +525,7 @@ namespace ValheimServerGuide.Display
             {
                 if (entry.Steps == null || entry.Steps.Count == 0) continue;
                 if (string.IsNullOrEmpty(entry.Title)) continue;
+                if (!TrackedQuestState.IsTracked(player, entry.Id)) continue;
                 if (ChainState.IsComplete(player, entry.Id)) continue;
 
                 var stepIdx = ChainState.GetStep(player, entry.Id);
@@ -511,14 +550,14 @@ namespace ValheimServerGuide.Display
                 {
                     var raw = ChainState.GetCounter(player, entry.Id, stepIdx);
                     var cnt = raw < 0 ? 0 : raw;
-                    progress = cnt + "/" + step.ProgressGoal;
+                    progress = ProgressBar(cnt, step.ProgressGoal);
                 }
                 else
                 {
                     // stepIdx is the count of completed steps (chains only appear after their
                     // first step fires, so this is >= 1 when visible). Shows "1/3" after the
                     // first step, matching the "Step 1/3" message wording.
-                    progress = stepIdx + "/" + entry.Steps.Count;
+                    progress = ProgressBar(stepIdx, entry.Steps.Count);
                 }
 
                 rows.Add(RowPrefix + entry.Title + "   " + progress);
@@ -534,6 +573,7 @@ namespace ValheimServerGuide.Display
                 if (!string.Equals(entry.Trigger.Type, "npc_item_submit",
                         System.StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.IsNullOrEmpty(entry.Title)) continue;
+                if (!TrackedQuestState.IsTracked(player, entry.Id)) continue;
 
                 var goal = entry.Trigger.Count <= 0 ? 1 : entry.Trigger.Count;
                 if (goal <= 1) continue;
@@ -541,7 +581,29 @@ namespace ValheimServerGuide.Display
                 var cur = SubmitState.Get(player, entry.Id);
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
-                rows.Add(RowPrefix + entry.Title + "   " + cur + "/" + goal);
+                rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
+                descs.Add(null);
+                rowChainIds.Add(entry.Id);
+            }
+
+            // Multi-count kill entries: show X/Y progress while the player is still accumulating
+            // kills (counted > 0 and < goal). Single-kill entries have no bar.
+            foreach (var entry in config.Guidances)
+            {
+                if (entry.Trigger == null) continue;
+                if (!string.Equals(entry.Trigger.Type, "kill",
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrEmpty(entry.Title)) continue;
+                if (!TrackedQuestState.IsTracked(player, entry.Id)) continue;
+
+                var goal = entry.Trigger.Count <= 0 ? 1 : entry.Trigger.Count;
+                if (goal <= 1) continue;
+                if (SeenTracker.HasFired(player, entry.Id, entry.Scope)) continue;
+
+                var cur = KillCountState.Get(player, entry.Id);
+                if (cur <= 0 || cur >= goal) continue; // only while actively in progress
+
+                rows.Add(RowPrefix + entry.Title + "   " + ProgressBar(cur, goal));
                 descs.Add(null);
                 rowChainIds.Add(entry.Id);
             }
@@ -553,6 +615,7 @@ namespace ValheimServerGuide.Display
                 if (!string.Equals(entry.Trigger.Type, "item_acquired",
                         System.StringComparison.OrdinalIgnoreCase)) continue;
                 if (string.IsNullOrEmpty(entry.Title)) continue;
+                if (!TrackedQuestState.IsTracked(player, entry.Id)) continue;
                 if (SeenTracker.HasFired(player, entry.Id, entry.Scope)) continue;
 
                 var goals = ItemAcquiredTrigger.GetEffectiveGoals(entry.Trigger);
@@ -568,7 +631,7 @@ namespace ValheimServerGuide.Display
                     var cur = ItemAcquiredTrigger.CountInInventory(player, goals[0].Item);
                     if (cur >= goals[0].Count) continue;   // complete — should have fired
                     if (cur <= 0 && !started) continue;     // not started yet
-                    progress = cur + "/" + goals[0].Count;
+                    progress = ProgressBar(cur, goals[0].Count);
                 }
                 else
                 {
@@ -582,7 +645,7 @@ namespace ValheimServerGuide.Display
                     }
                     if (completedGoals >= goals.Count) continue; // all done, should have fired
                     if (completedGoals == 0 && totalProgress == 0 && !started) continue; // not started
-                    progress = completedGoals + "/" + goals.Count + " goals";
+                    progress = ProgressBar(completedGoals, goals.Count) + " goals";
                 }
 
                 rows.Add(RowPrefix + entry.Title + "   " + progress);
@@ -601,24 +664,27 @@ namespace ValheimServerGuide.Display
                 _rowChainIds.Add(rowChainIds[i]);
             }
 
-            // When manually opened with no active chains, show the empty state rather than
-            // hiding. Auto-hide still applies when the panel was not manually opened.
-            if (rows.Count == 0 && !_manuallyOpened)
+            // Visibility is the player's call: F10 toggles _userHidden. While hidden, the panel
+            // stays down even though its pinned quests are still "in" it (the badge keeps showing
+            // the count so the player knows there's something to re-open).
+            if (_userHidden)
             {
                 _panel.SetActive(false);
-                RefreshBadge(0);
+                HideTooltip();
+                RefreshBadge(rows.Count);
                 return;
             }
 
             _panel.SetActive(true);
-            if (fromProgress) AutoShow();
+            if (_panelGroup != null) _panelGroup.alpha = 1f;
 
             if (rows.Count == 0)
             {
-                // Empty state — tracker manually opened but no chains are active.
+                // Empty state — panel shown (F10) but no pinned quests are active.
                 if (_rowTexts.Count > 0)
                 {
-                    _rowTexts[0].text = "  No active quests";
+                    var codexKey = Plugin.CodexKey?.Value ?? "F3";
+                    _rowTexts[0].text = "  No pinned quests — pin from [" + codexKey + "] Codex";
                     _rowTexts[0].gameObject.SetActive(true);
                 }
                 for (var i = 1; i < _rowTexts.Count; i++)
@@ -733,43 +799,16 @@ namespace ValheimServerGuide.Display
             _badgePanel.SetActive(true);
         }
 
-        // ── Hotkey toggle, cursor & click-outside ─────────────────────────────────────────────
+        // ── Hotkey toggle ─────────────────────────────────────────────────────────────────────
 
-        private void OpenManual()
+        /// F10 handler: flip the player's hidden/shown preference. The panel no longer captures
+        /// the cursor or freezes the player — it just shows or hides over normal gameplay.
+        private void ToggleManual()
         {
-            _manuallyOpened = true;
-            // Freeing the OS cursor: GameCamera.m_mouseCapture=false makes UpdateMouseCapture take
-            // its "no capture" branch (Cursor.lockState=None, visible). The Player.TakeInput patch
-            // (which reads InputCaptured) stops the player turning with the mouse, so the camera
-            // no longer rotates while the panel is open.
-            if (GameCamera.instance != null)
-                GameCamera.instance.m_mouseCapture = false;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible   = true;
-            // Cancel any in-progress auto-fade and snap to full opacity. Without this, a panel
-            // that had previously faded to alpha 0 would re-activate but stay invisible.
-            _fadeTimer = float.MaxValue;
-            _fadeElapsed = 0f;
-            if (_panelGroup != null) _panelGroup.alpha = 1f;
-            EnsureClickOverlay();
+            _userHidden = !_userHidden;
+            if (_userHidden)
+                HideTooltip();
             Refresh();
-        }
-
-        private void CloseManual()
-        {
-            _manuallyOpened = false;
-            // Restore cursor capture so the game resumes normal mouse-look on the next frame.
-            if (GameCamera.instance != null)
-                GameCamera.instance.m_mouseCapture = true;
-            DestroyClickOverlay();
-            HideTooltip();
-            // Manual close hides immediately — no fade. Reset the fade state and restore alpha
-            // to 1 so the next show (manual hotkey or auto-show on progress) is fully visible.
-            // We hide directly rather than via Refresh(), which would re-show active chains.
-            _fadeTimer = float.MaxValue;
-            _fadeElapsed = 0f;
-            if (_panelGroup != null) _panelGroup.alpha = 1f;
-            if (_panel != null) _panel.SetActive(false);
         }
 
         private KeyCode ResolveHotkey()
@@ -783,41 +822,85 @@ namespace ValheimServerGuide.Display
                 ? kc : KeyCode.None;
         }
 
-        private void EnsureClickOverlay()
+        // ── Drag-to-move ──────────────────────────────────────────────────────────────────────
+
+        /// Load the player's saved panel position once it is available. Marks _hasCustomPos so
+        /// ApplyLayout pins the panel there instead of at the configured corner.
+        private void LoadCustomPos(Player player)
         {
-            if (_clickOverlay == null)
+            if (_hasCustomPos || player == null) return;
+            var saved = TrackedQuestState.GetPosition(player);
+            if (saved.HasValue)
             {
-                _clickOverlay = new GameObject("VSG_ClickOverlay");
-                _clickOverlay.transform.SetParent(UiRoot(), worldPositionStays: false);
-
-                var rect = _clickOverlay.AddComponent<RectTransform>();
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.one;
-                rect.offsetMin = Vector2.zero;
-                rect.offsetMax = Vector2.zero;
-
-                // Fully transparent but raycast-enabled: captures clicks outside the tracker panel.
-                var img = _clickOverlay.AddComponent<Image>();
-                img.color         = new Color(0f, 0f, 0f, 0f);
-                img.raycastTarget = true;
-
-                var btn = _clickOverlay.AddComponent<Button>();
-                btn.onClick.AddListener(CloseManual);
-                btn.transition = Selectable.Transition.None;
-                btn.navigation = new Navigation { mode = Navigation.Mode.None };
+                _customPos    = saved.Value;
+                _hasCustomPos = true;
+                ApplyCustomPos();
             }
-
-            _clickOverlay.SetActive(true);
-            // Keep panel above overlay in sibling order so panel clicks are not intercepted.
-            _panel.transform.SetAsLastSibling();
-            _clickOverlay.transform.SetSiblingIndex(
-                System.Math.Max(0, _panel.transform.GetSiblingIndex() - 1));
         }
 
-        private void DestroyClickOverlay()
+        /// True when the cursor is free for UI interaction — i.e. the inventory or the ESC menu is
+        /// open. The panel can only be dragged in these states (otherwise the cursor is captured
+        /// for mouse-look). Guarded so a missing/!ready InventoryGui never throws.
+        private static bool CursorFreeForDrag()
         {
-            if (_clickOverlay != null)
-                _clickOverlay.SetActive(false);
+            bool inv  = InventoryGui.instance != null && InventoryGui.IsVisible();
+            bool menu = Menu.IsVisible();
+            return inv || menu;
+        }
+
+        /// Per-frame drag handling. Press-and-hold left mouse over the panel (while the cursor is
+        /// free) to move it; the position is persisted on release.
+        private void UpdateDrag()
+        {
+            if (_panel == null || !_panel.activeSelf) { _dragging = false; return; }
+
+            if (!_dragging)
+            {
+                if (!CursorFreeForDrag()) return;
+                if (Input.GetMouseButtonDown(0) && _panelRect != null &&
+                    RectTransformUtility.RectangleContainsScreenPoint(_panelRect, Input.mousePosition, null))
+                {
+                    _dragging       = true;
+                    _dragMouseStart = Input.mousePosition;
+                    // Snap to a centre anchor so the live drag math is in canvas-centre space.
+                    if (!_hasCustomPos)
+                    {
+                        _customPos    = CornerPosToCenter();
+                        _hasCustomPos = true;
+                        ApplyCustomPos();
+                    }
+                    _dragPanelStart = _panelRect.anchoredPosition;
+                }
+                return;
+            }
+
+            // Dragging in progress.
+            if (Input.GetMouseButton(0))
+            {
+                var scale = _uiRoot != null
+                    ? Mathf.Max(0.0001f, _uiRoot.GetComponent<Canvas>().scaleFactor) : 1f;
+                var deltaScreen = (Vector2)Input.mousePosition - _dragMouseStart;
+                _customPos = _dragPanelStart + deltaScreen / scale;
+                ApplyCustomPos();
+            }
+            else // button released
+            {
+                _dragging = false;
+                var player = Player.m_localPlayer;
+                if (player != null) TrackedQuestState.SetPosition(player, _customPos);
+            }
+        }
+
+        /// Convert the panel's current corner-anchored rect into a centre-anchored anchoredPosition
+        /// so dragging starts exactly where the panel is currently drawn (no visual jump).
+        private Vector2 CornerPosToCenter()
+        {
+            if (_panelRect == null || _uiRoot == null) return Vector2.zero;
+            var rootRect = (RectTransform)_uiRoot.transform;
+            var center   = _panelRect.TransformPoint(_panelRect.rect.center);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                rootRect, RectTransformUtility.WorldToScreenPoint(null, center), null, out var local);
+            return local;
         }
 
         /// The root canvas is a scene-root object (no parent), so it is not destroyed automatically
@@ -928,26 +1011,10 @@ namespace ValheimServerGuide.Display
             // Hotkey toggle — fires only on the initial KeyDown frame, no repeat.
             var hotkey = ResolveHotkey();
             if (hotkey != KeyCode.None && Input.GetKeyDown(hotkey))
-            {
-                if (_manuallyOpened) CloseManual();
-                else OpenManual();
-            }
+                ToggleManual();
 
-            // Auto-fade: only runs when AutoShow() has been called (fadeTimer < float.MaxValue)
-            // and the panel is not manually pinned open.
-            if (!_manuallyOpened && _panel != null && _panel.activeSelf
-                && _panelGroup != null && _fadeTimer < float.MaxValue)
-            {
-                _fadeTimer -= Time.deltaTime;
-                if (_fadeTimer <= 0f)
-                {
-                    _fadeElapsed += Time.deltaTime;
-                    var spec = EffectiveSpec();
-                    var t = Mathf.Clamp01(_fadeElapsed / Mathf.Max(0.1f, spec.FadeDuration));
-                    _panelGroup.alpha = 1f - t;
-                    if (t >= 1f) _panel.SetActive(false);
-                }
-            }
+            // Drag-to-move (only while the cursor is free — inventory or ESC menu open).
+            UpdateDrag();
 
             // Per-row highlight countdown — decrement non-zero timers and reset to white on expiry.
             if (_rowHighlightTimers != null)
@@ -1041,28 +1108,25 @@ namespace ValheimServerGuide.Display
         }
     }
 
-    /// While the tracker is manually open, suppress player attack/use/interact input the same way
-    /// an open inventory or map does. Player.TakeInput() gates the action block in Player.Update.
+    /// Suppress player attack/use/interact input while the Codex is open (it's a modal panel).
+    /// The progress tracker no longer captures input — it shows over normal gameplay.
     [HarmonyPatch(typeof(Player), nameof(Player.TakeInput))]
     internal static class PlayerTakeInputTrackerPatch
     {
         private static void Postfix(ref bool __result)
         {
-            if (GuidanceHudTracker.InputCaptured) __result = false;
             if (GuidanceCodex.Instance != null && GuidanceCodex.Instance.IsOpen) __result = false;
         }
     }
 
     /// The actual mouse-LOOK and movement are gated by PlayerController's own private TakeInput
-    /// (not Player.TakeInput). PlayerController.LateUpdate calls SetMouseLook only when this
-    /// returns true, and FixedUpdate gates movement on it. Forcing it false while the tracker is
-    /// open freezes look + movement — which is what stops the camera rotating with the mouse.
+    /// (not Player.TakeInput). Freezing it while the Codex is open stops the camera rotating with
+    /// the mouse — the tracker no longer participates here.
     [HarmonyPatch(typeof(PlayerController), "TakeInput", new[] { typeof(bool) })]
     internal static class PlayerControllerTakeInputTrackerPatch
     {
         private static void Postfix(ref bool __result)
         {
-            if (GuidanceHudTracker.InputCaptured) __result = false;
             if (GuidanceCodex.Instance != null && GuidanceCodex.Instance.IsOpen) __result = false;
         }
     }

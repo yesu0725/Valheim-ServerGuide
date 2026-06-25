@@ -59,6 +59,15 @@ namespace ValheimServerGuide.Triggers
                     continue;
                 }
 
+                // kill entries with a count goal (count > 1) accumulate via KillCountTracker and
+                // must not fire on each individual kill.
+                if (string.Equals(evt.Type, "kill", System.StringComparison.OrdinalIgnoreCase)
+                    && entry.Trigger != null && entry.Trigger.Count > 1)
+                {
+                    Plugin.Log.LogDebug($"[dispatch] '{entry.Id}' kill count-goal — delegated to count path.");
+                    continue;
+                }
+
                 if (!RequirementsMet(entry, player)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: requires not met."); continue; }
                 if (StopConditionMet(entry, player)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: stop_when met."); continue; }
                 if (entry.Once && SeenTracker.HasFired(player, entry.Id, entry.Scope)) { Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' skipped: already fired (once)."); continue; }
@@ -91,6 +100,7 @@ namespace ValheimServerGuide.Triggers
                 if (entry.Once) SeenTracker.MarkFired(player, entry.Id, entry.Scope);
                 if (maxFires > 0) SeenTracker.IncrementFireCount(player, entry.Id);
                 SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
+                DebugFireLog.Record(player.GetPlayerName(), entry.Id);
 
                 if (entry.Announce?.Discord != null)
                     GuidanceSync.SendAnnounceRequest(entry.Id, player.GetPlayerName());
@@ -261,6 +271,7 @@ namespace ValheimServerGuide.Triggers
                 Plugin.Log.LogInfo($"[chain] '{entry.Id}' complete (all {entry.Steps.Count} steps done).");
                 GuidanceSync.SendChainStepUpdate(player.GetPlayerName(), entry.Id, "done");
                 GuidanceHudTracker.Instance?.FlashCompletion(entry.Id);
+                DebugFireLog.Record(player.GetPlayerName(), entry.Id);
                 if (entry.DiscordOnComplete)
                     GuidanceSync.SendCompleteAnnounce(entry.Id, player.GetPlayerName());
                 if (entry.Rewards != null && entry.Rewards.Count > 0)
@@ -287,6 +298,8 @@ namespace ValheimServerGuide.Triggers
             var rawText = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
             var rendered = TemplateText(rawText, evt: null, playerName: sourcePlayerName);
             GuidanceDisplay.Show(entry, rendered);
+            if (Player.m_localPlayer != null)
+                DebugFireLog.Record(Player.m_localPlayer.GetPlayerName(), entry.Id);
 
             // Global entries complete on each receiving client — raise entry_finished here.
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entryId });
@@ -334,6 +347,7 @@ namespace ValheimServerGuide.Triggers
             var maxFiresB = entry.Trigger?.MaxFires ?? 0;
             if (maxFiresB > 0) SeenTracker.IncrementFireCount(player, entry.Id);
             SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
+            DebugFireLog.Record(player.GetPlayerName(), entry.Id);
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entryId });
         }
@@ -365,6 +379,7 @@ namespace ValheimServerGuide.Triggers
             var maxFires = entry.Trigger?.MaxFires ?? 0;
             if (maxFires > 0) SeenTracker.IncrementFireCount(player, entry.Id);
             SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
+            DebugFireLog.Record(player.GetPlayerName(), entry.Id);
 
             if (entry.Announce?.Discord != null)
                 GuidanceSync.SendAnnounceRequest(entry.Id, player.GetPlayerName());
@@ -393,6 +408,14 @@ namespace ValheimServerGuide.Triggers
                 case "craft":            return Eq(t.Item, evt.Subject);
                 case "pickup":           return Eq(t.Item, evt.Subject);
                 case "kill":             return Eq(t.Creature, evt.Subject);
+                case "tamed_creature":   return string.IsNullOrEmpty(t.Creature) ? true : Eq(t.Creature, evt.Subject);
+                case "crafting_table_used": return string.IsNullOrEmpty(t.Station) ? true : Eq(t.Station, evt.Subject);
+                case "cooking_used":     return string.IsNullOrEmpty(t.Station) ? true : Eq(t.Station, evt.Subject);
+                case "portal_used":      return string.IsNullOrEmpty(t.Tag) ? true : Eq(t.Tag, evt.Subject);
+                case "ward_activated":
+                case "sign_read":
+                case "tombstone_picked":
+                case "ship_sailed":      return true;
                 case "build":            return Eq(t.Piece, evt.Subject);
                 case "biome":            return Eq(t.Biome, evt.Subject);
                 case "equip":            return Eq(t.Item, evt.Subject);

@@ -87,6 +87,20 @@ namespace ValheimServerGuide.Config
         /// Short recap shown in the Codex body when the entry is complete.
         /// Reminds the player what the quest was about without re-reading every step.
         public string Summary { get; set; }
+        /// Overrides the vanilla NPC interact hover tooltip ("Hold E to interact") for
+        /// the entry's trigger.npc, keyed by whether the entry has fired yet. Trader-bound
+        /// NPCs only (Phase 6).
+        public HoverTextSpec HoverText { get; set; }
+    }
+
+    /// Per-entry NPC hover tooltip override (Phase 6). Null/absent = vanilla behavior
+    /// (plus the existing "[Hold E] Quest" hint when a conversation is available).
+    public class HoverTextSpec
+    {
+        /// Shown while the entry is still eligible to fire (gates passing, not yet fired).
+        public string Default { get; set; }
+        /// Shown once the entry has fired (only meaningful when `once: true`).
+        public string AfterFire { get; set; }
     }
 
     /// One step in a multi-step chain. Step N fires only after Step N-1 has fired.
@@ -138,6 +152,20 @@ namespace ValheimServerGuide.Config
         public string DamageType { get; set; }
         public string Npc { get; set; }
         public string Interval { get; set; }
+        /// crafting_table_used / cooking_used: optional station prefab filter. Empty = any station.
+        public string Station { get; set; }
+        /// portal_used: optional portal tag filter. Empty = any portal.
+        public string Tag { get; set; }
+        /// time_of_day: target EnvMan.GetDayFraction() (0.0 = midnight, 0.5 = noon).
+        public float GameTimeFraction { get; set; }
+        /// time_of_day: +/- tolerance around GameTimeFraction, as a fraction of a full day.
+        public float Window { get; set; } = 0.02f;
+        /// day_number: target EnvMan.GetDay() value (parsed as int).
+        /// day_of_week: target weekday name, e.g. "Saturday" (matched as string).
+        public string Day { get; set; }
+        /// real_world_time: target UTC hour (0-23) / minute (0-59).
+        public int UtcHour { get; set; }
+        public int UtcMinute { get; set; }
         public string Id { get; set; }
         public int MaxFires { get; set; }
         /// entry_finished: the ID of the entry whose completion triggers this one.
@@ -152,11 +180,22 @@ namespace ValheimServerGuide.Config
         /// Default true (the NPC "takes" the item, like Hildir's quest turn-ins). When a stack
         /// is submitted, only the number still required is consumed — never the whole stack.
         public bool Consume { get; set; } = true;
+        /// kill (with count > 1): when true, each kill broadcasts the increment to nearby
+        /// players (see ShareProgressRadius in KillTrigger.cs) so the whole party's counter
+        /// for this entry advances together, not just the player who landed the kill.
+        public bool ShareProgress { get; set; }
     }
 
     public class ConversationSpec
     {
         public List<ChoiceSpec> Choices { get; set; } = new List<ChoiceSpec>();
+        /// Multi-node dialogue tree (Phase 4). When present (non-empty), the panel renders
+        /// the current node's text/choices instead of the flat Choices list above.
+        public List<ConversationNodeSpec> Nodes { get; set; }
+        /// When true, reopening this conversation resumes at the last-visited node instead
+        /// of restarting at Nodes[0]. Progress is always persisted regardless of this flag —
+        /// it only controls whether a fresh Open() reads that saved position back.
+        public bool ResumeOnReturn { get; set; }
     }
 
     public class ChoiceSpec
@@ -169,9 +208,39 @@ namespace ValheimServerGuide.Config
         public List<RewardSpec> Rewards { get; set; } = new List<RewardSpec>();
     }
 
+    /// One node in a multi-node conversation tree (Phase 4).
+    public class ConversationNodeSpec
+    {
+        public string Id { get; set; }
+        public string Text { get; set; }
+        public List<NodeChoiceSpec> Choices { get; set; } = new List<NodeChoiceSpec>();
+    }
+
+    /// One choice within a conversation node. A choice with neither GotoNode nor Goto set
+    /// ends the conversation when selected (same "no goto = dismiss" rule as ChoiceSpec).
+    public class NodeChoiceSpec
+    {
+        public string Label { get; set; }
+        /// Jump to another node in the same conversation; the panel stays open.
+        public string GotoNode { get; set; }
+        /// Cross-entry goto — closes this conversation and fires another entry by ID,
+        /// identical to ChoiceSpec.Goto.
+        public string Goto { get; set; }
+        /// Per-choice gate — entry IDs that must already be satisfied (same semantics as
+        /// GuidanceEntry.Requires, checked via PrerequisiteChecker).
+        public List<string> Requires { get; set; } = new List<string>();
+        /// true = omit the button entirely while locked; false (default) = show it
+        /// disabled/greyed out.
+        public bool HiddenWhenLocked { get; set; }
+        /// Optional hint appended to a locked, visible button's label.
+        public string LockedHint { get; set; }
+    }
+
     public class RewardSpec
     {
-        /// item | skill_exp | skill_level | buff
+        /// item | skill_exp | skill_level | buff | map_pin | location_pin | unlock_recipe |
+        /// spawn_creature | set_global_key | remove_global_key | set_player_key |
+        /// remove_player_key | weather | chat_message | teleport | rename_player | discord
         public string Type { get; set; }
 
         // item fields
@@ -187,13 +256,48 @@ namespace ValheimServerGuide.Config
         // buff fields
         public string Effect { get; set; }
         public float? DurationOverride { get; set; }
+
+        // map_pin / location_pin / teleport fields
+        public string Name { get; set; }
+        public float X { get; set; }
+        public float Z { get; set; }
+        public string Icon { get; set; }
+        public string Location { get; set; }
+        public string PinName { get; set; }
+        public bool AllowlistOnly { get; set; }
+
+        // unlock_recipe field
+        public string Recipe { get; set; }
+
+        // spawn_creature fields
+        public string Prefab { get; set; }
+        public bool Tamed { get; set; }
+        public int Count { get; set; } = 1;
+
+        // set_global_key / remove_global_key / set_player_key / remove_player_key field
+        public string Key { get; set; }
+
+        // weather fields
+        public string Preset { get; set; }
+        public float Duration { get; set; } = 60f;
+
+        // chat_message / discord fields. Supports {player_name}.
+        public string Message { get; set; }
+
+        // rename_player field
+        public string Suffix { get; set; }
     }
 
     public class DisplaySpec
     {
-        public string Mode { get; set; } = "raven";   // raven | message | chat
+        public string Mode { get; set; } = "raven";   // raven | message | chat | rune | intro | conversation | bubble
         public string Topic { get; set; }
         public string Text { get; set; }
         public string Position { get; set; } = "TopLeft"; // for message mode
+        /// bubble mode: prefab name of the NPC to float the text above (matched the same way
+        /// trigger.npc is — TriggerUtils.NormalizePrefabName against nearby Characters).
+        public string NpcName { get; set; }
+        /// bubble mode: seconds the bubble stays visible before fading out. Default 6.
+        public float Duration { get; set; } = 6f;
     }
 }

@@ -19,6 +19,76 @@
 - **Subject:** prefab name with `"(Clone)"` suffix stripped via `NormalizePrefabName()`
 - **Guard:** only fires when `__instance.m_lastHit.GetAttacker() == Player.m_localPlayer`
 - **YAML field matched:** `trigger.creature`
+- **`trigger.count`** (int, default `1`): when `> 1`, the entry does **not** fire on each kill.
+  `KillCountTracker.CheckKillCount` (in `KillTrigger.cs`) accumulates a persistent per-character
+  counter (`KillCountState`, key `VSG.kc.<id>`) for each matching, gate-passing entry, shows a
+  `current/goal` Center message + HUD row while collecting, and fires the entry via
+  `FireEntry` + `FlashCompletion` at `count/count`. Unlike `item_acquired` (which re-sums the
+  inventory), kills are a true accumulator — they cannot be recounted, so the count persists in
+  `m_customData`. The `Raise()` path skips `kill` entries with `count > 1`.
+- **Reset:** `vsg_reset <id>` clears `VSG.kc.<id>`; `vsg_reset all` / `vsg_reset_player` call
+  `KillCountState.ResetAll` / `.Clear`.
+- **`trigger.share_progress`** (bool, default `false`, Phase 6 — see
+  [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md)): when `true` and `count > 1`,
+  each kill also broadcasts a `VSG_ShareKillProgress` RPC; any other connected player within 50m
+  of the kill credits their own counter for the same entry too.
+
+### `ward_activated`
+- **Source:** `WardActivatedTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(PrivateArea), nameof(PrivateArea.Interact))]` — Postfix
+- **Guard:** `Player.m_localPlayer != null`; skips the hold-continuation frame; fires only when `__result == true` (ward toggled / permitted)
+- **Subject:** `""` (type match only)
+- **YAML field matched:** none
+
+### `tamed_creature`
+- **Source:** `TamedCreatureTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(Tameable), nameof(Tameable.Tame))]` — Postfix
+- **Guard:** `Player.m_localPlayer != null`. `Tame()` is the taming-completion call; it runs on the creature's ZDO owner (local player in single-player/host, the nearby client-owned creature on a client).
+- **Subject:** creature prefab name (`"(Clone)"` stripped); display name from `m_character.m_name`
+- **YAML field matched:** `trigger.creature` (omit to match any tame)
+
+### `sign_read`
+- **Source:** `SignReadTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(Sign), nameof(Sign.Interact))]` — Postfix
+- **Guard:** `Player.m_localPlayer != null`; skips hold-continuation; `__result == true`
+- **Subject:** `""` (type match only)
+- **YAML field matched:** none
+
+### `crafting_table_used`
+- **Source:** `CraftingTableUsedTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(CraftingStation), nameof(CraftingStation.Interact))]` — Postfix
+- **Guard:** interacting `user == Player.m_localPlayer`; skips the `repeat` continuation frame. Does **not** gate on `__result` — `CraftingStation.Interact` ends its success path with `return false` (after `InventoryGui.Show`).
+- **Subject:** station prefab name (`"(Clone)"` stripped, e.g. `"piece_workbench"`, `"forge"`)
+- **YAML field matched:** `trigger.station` (omit to match any station)
+
+### `cooking_used`
+- **Source:** `CookingUsedTrigger.cs` — two patch classes:
+  - `[HarmonyPatch(typeof(CookingStation), nameof(CookingStation.Interact))]` — Postfix
+  - `[HarmonyPatch(typeof(Fireplace), nameof(Fireplace.Interact))]` — Postfix
+- **Guard:** interacting `user == Player.m_localPlayer`; skips hold-continuation. Does **not** gate on `__result` — both methods return `false` on common paths (CookingStation add-food / m_addFoodSwitch early-out; Fireplace fuel-limit).
+- **Subject:** station prefab name (`"(Clone)"` stripped, e.g. `"piece_cookingstation"`, `"fire_pit"`)
+- **YAML field matched:** `trigger.station` (omit to match any cooking station / fire)
+
+### `portal_used`
+- **Source:** `PortalUsedTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(TeleportWorld), nameof(TeleportWorld.Teleport))]` — Postfix
+- **Guard:** fires only when the teleported `Player` argument equals `Player.m_localPlayer`. Uses `Teleport` (actual travel), **not** `Interact` (which only opens the tag-rename dialog).
+- **Subject:** portal tag from `TeleportWorld.GetText()` (may be empty)
+- **YAML field matched:** `trigger.tag` (omit to match any portal)
+
+### `tombstone_picked`
+- **Source:** `TombstonePickedTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(TombStone), nameof(TombStone.Interact))]` — Postfix
+- **Guard:** `Player.m_localPlayer != null`; skips hold-continuation; `__result == true` (loot permitted)
+- **Subject:** `""` (type match only)
+- **YAML field matched:** none
+
+### `ship_sailed`
+- **Source:** `ShipSailedTrigger.cs`
+- **Harmony patch:** `[HarmonyPatch(typeof(ShipControlls), nameof(ShipControlls.Interact))]` — Postfix
+- **Guard:** interacting `character == Player.m_localPlayer` AND `player.GetStandingOnShip() == m_ship`; skips the `repeat` continuation frame. Does **not** gate on `__result` — `ShipControlls.Interact` always `return false` after firing the RequestControl RPC. `Ship` exposes no per-frame interact hook, so taking the rudder is the "sailing" signal.
+- **Subject:** `""` (type match only)
+- **YAML field matched:** none
 
 ### `first_login`
 - **Source:** `FirstLoginTrigger.cs`
@@ -206,6 +276,32 @@
 - **YAML fields matched:** `trigger.location` (trailing `*` wildcard supported), `trigger.radius` (metres; default 50 when absent or zero).
 - **Note:** `trigger.radius` is checked inside the trigger before the event is raised. The dispatcher matches only on location name.
 
+### `time_of_day`
+- **Source:** `TimeTrigger.cs`
+- **Implementation:** `TimeTrigger.Start()` runs one 30-second poll coroutine (started once from `Plugin.Awake()`, not config-driven). Each tick evaluates every entry's own condition directly and calls `GuidanceDispatcher.CheckGates` + `FireEntry` — it does **not** route through `Raise()`/`MatchesTrigger` because each entry has its own target, not a single "now" subject to match.
+- **Condition:** `|EnvMan.instance.GetDayFraction() - trigger.game_time_fraction| <= trigger.window` (difference wraps across midnight, so `0.0`/`1.0` are adjacent).
+- **YAML fields matched:** `trigger.game_time_fraction` (0.0 = midnight, 0.5 = noon), `trigger.window` (± tolerance, fraction of a day; default `0.02`)
+
+### `day_number`
+- **Source:** `TimeTrigger.cs` (same poll coroutine as `time_of_day`)
+- **Condition:** `EnvMan.instance.GetDay() == int.Parse(trigger.day) && EnvMan.instance.GetDayFraction() >= 0.25f`
+- **YAML field matched:** `trigger.day` (in-game day counter; e.g. `"7"`)
+- **Note:** `GetDay()` alone ticks over at midnight (fraction 0.0), but vanilla's "Day N" message
+  (`EnvMan.OnMorning`) doesn't fire until the fraction crosses 0.25 (morning). The `>= 0.25f`
+  check aligns this trigger with that announcement instead of firing at night, hours early.
+
+### `real_world_time`
+- **Source:** `TimeTrigger.cs` (same poll coroutine)
+- **Condition:** `DateTime.UtcNow.Hour == trigger.utc_hour && DateTime.UtcNow.Minute == trigger.utc_minute`
+- **YAML fields matched:** `trigger.utc_hour` (0-23), `trigger.utc_minute` (0-59)
+- **Note:** the 30s poll means the matching minute is checked at most twice; a long-running entry should use `once: true` (fires once ever) or a `cooldown` of ~23h (fires once per day) to avoid the minute being hit by 1-2 consecutive ticks counting as separate matches once gates are otherwise satisfied.
+
+### `day_of_week`
+- **Source:** `TimeTrigger.cs` (same poll coroutine)
+- **Condition:** `DateTime.UtcNow.DayOfWeek.ToString()` equals `trigger.day` (case-insensitive)
+- **YAML field matched:** `trigger.day` (real-world UTC weekday name, e.g. `"Saturday"`)
+- **Note:** `day_number` and `day_of_week` share the YAML key `day`; `TriggerSpec.Day` is a `string` — `day_number` parses it as an int, `day_of_week` matches it as a weekday name.
+
 ---
 
 ## Placeholder Types (not yet implemented)
@@ -231,6 +327,11 @@
 2. switch on evt.Type:
      craft/pickup/equip  -> trigger.item must match evt.Subject (case-insensitive, exact)
      kill / boss_defeated-> trigger.creature must match evt.Subject
+     tamed_creature      -> trigger.creature matches evt.Subject (empty = any)
+     crafting_table_used -> trigger.station matches evt.Subject (empty = any)
+     cooking_used        -> trigger.station matches evt.Subject (empty = any)
+     portal_used         -> trigger.tag matches evt.Subject (empty = any)
+     ward_activated / sign_read / tombstone_picked / ship_sailed -> type match only
      build               -> trigger.piece must match evt.Subject
      biome               -> trigger.biome must match evt.Subject
      item_acquired       -> trigger.item matches evt.Subject (trailing * wildcard supported)
@@ -244,6 +345,10 @@
      entry_finished      -> trigger.entry matches evt.Subject (the completed entry's ID)
      first_login / chest_opened / player_death -> type match only (no subject filter)
      (anything else)     -> match succeeds
+
+   time_of_day / day_number / real_world_time / day_of_week are NOT scanned by Raise()/
+   MatchesTrigger at all — TimeTrigger.cs's 30s poll evaluates each entry's own condition
+   directly and calls CheckGates()/FireEntry() itself (see the "time_of_day" section above).
 ```
 
 ---
@@ -275,13 +380,20 @@ public string Skill;       // skill_level
 public int    Level;       // skill_level threshold
 public string Npc;         // npc_interacted | npc_conversation | npc_item_submit
 public string Interval;    // timed: "daily" | "hourly" | raw float seconds ONLY — "30m"/"1h" etc. are NOT parsed
+public string Station;     // crafting_table_used | cooking_used (prefab filter; empty = any)
+public string Tag;         // portal_used (portal tag filter; empty = any)
 public string Id;          // timed: REQUIRED — stable identifier matching evt.Subject; null = entry never fires
 public int    MaxFires;    // optional: cap total fires per player (player_death, others)
 public string Entry;       // entry_finished: the completed entry's ID
-public int    Count = 1;   // npc_item_submit: items required before firing (>1 = progress bar)
+public int    Count = 1;   // npc_item_submit / kill / item_acquired: count required before firing (>1 = progress)
 public bool   Consume = true; // npc_item_submit: remove submitted items (partial-stack aware)
 public float  Radius;      // reserved
 public string DamageType;  // reserved
+public float  GameTimeFraction; // time_of_day: target EnvMan.GetDayFraction() (0.0 = midnight, 0.5 = noon)
+public float  Window = 0.02f;   // time_of_day: +/- tolerance around GameTimeFraction
+public string Day;         // day_number (parsed as int) | day_of_week (matched as weekday name)
+public int    UtcHour;     // real_world_time
+public int    UtcMinute;   // real_world_time
 ```
 
 ---
@@ -316,6 +428,10 @@ public string DamageType;  // reserved
 - [x] `location_entered` fires at most once per location per character (SeenTracker key).
 - [x] `timed` events originate server/host-side only; pure clients receive via RPC.
 - [x] `player_death` respects `trigger.max_fires` if set.
+- [x] `time_of_day` fires within `window` of `game_time_fraction`, wrapping correctly across midnight.
+- [x] `day_number` fires once `EnvMan.GetDay()` reaches the configured `day` and morning has started (`GetDayFraction() >= 0.25`).
+- [x] `real_world_time` fires at the configured UTC hour/minute.
+- [x] `day_of_week` fires on the configured real-world weekday (UTC).
 - [x] `skill_level` fires at each configured threshold exactly once per character.
 - [x] `entry_finished` raises after a player-scope single entry fires.
 - [x] `entry_finished` raises after a global-scope entry is displayed on each receiving client.
@@ -347,3 +463,14 @@ public string DamageType;  // reserved
 - [x] `npc_item_submit` multi-count progress shows a bar in the HUD tracker and the codex.
 - [x] `npc_item_submit` multi-count progress persists across sessions (`SubmitState` in m_customData).
 - [x] `npc_item_submit` `vsg_reset <id>` / `vsg_reset all` clear in-progress submission counters.
+- [x] `kill` `trigger.count > 1` accumulates a persistent counter and fires only at count/count.
+- [x] `kill` count progress persists across sessions (`KillCountState`, `VSG.kc.<id>`) and shows an `X/Y` HUD row + Center message.
+- [x] `kill` count `vsg_reset <id>` / `all` / `vsg_reset_player` clear the accumulator.
+- [x] `ward_activated` fires when the local player toggles a ward.
+- [x] `tamed_creature` fires on taming completion; `trigger.creature` filters, omitted = any.
+- [x] `sign_read` fires when the local player interacts with a sign.
+- [x] `crafting_table_used` fires on station use; `trigger.station` filters, omitted = any.
+- [x] `cooking_used` fires for both `CookingStation` and `Fireplace`; `trigger.station` filters.
+- [x] `portal_used` fires only on actual travel for the local player; `trigger.tag` filters.
+- [x] `tombstone_picked` fires when the local player loots a tombstone.
+- [x] `ship_sailed` fires when the local player takes a ship's helm (once per press, not per hold frame).

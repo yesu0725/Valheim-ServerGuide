@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using HarmonyLib;
+using UnityEngine;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.Discord;
 using ValheimServerGuide.Display;
@@ -26,6 +27,8 @@ namespace ValheimServerGuide.Net
         private const string RpcChainStateRequest = "VSG_ChainStateRequest";
         private const string RpcChainStatePush = "VSG_ChainStatePush";
         private const string RpcCompleteAnnounce = "VSG_CompleteAnnounce";
+        private const string RpcRewardDiscord = "VSG_RewardDiscord";
+        private const string RpcShareKillProgress = "VSG_ShareKillProgress";
         // Admin per-player state commands (list / reset another player's guidance state)
         private const string RpcAdminPlayerListReq  = "VSG_APListReq";
         private const string RpcAdminPlayerListFwd  = "VSG_APListFwd";
@@ -66,6 +69,8 @@ namespace ValheimServerGuide.Net
             ZRoutedRpc.instance.Register<string>(RpcChainStateRequest, OnChainStateRequest);
             ZRoutedRpc.instance.Register<string, string>(RpcChainStatePush, OnChainStatePush);
             ZRoutedRpc.instance.Register<string, string>(RpcCompleteAnnounce, OnCompleteAnnounce);
+            ZRoutedRpc.instance.Register<string>(RpcRewardDiscord, OnRewardDiscord);
+            ZRoutedRpc.instance.Register<string, string, Vector3>(RpcShareKillProgress, OnShareKillProgress);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListReq,  OnAdminPlayerListReq);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListFwd,  OnAdminPlayerListFwd);
             ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerListResp, OnAdminPlayerListResp);
@@ -194,6 +199,45 @@ namespace ValheimServerGuide.Net
             var entry = Plugin.CurrentConfig?.Guidances?.Find(g => g.Id == entryId);
             if (entry == null || !entry.DiscordOnComplete) return;
             DiscordAnnouncer.AnnounceChainComplete(playerName, entry.Title ?? entryId);
+        }
+
+        // ---- Per-reward Discord announce (Phase 5: type: discord) ----
+
+        /// Client → server. The webhook URL is a server-side secret (CRIT-08), so a
+        /// `type: discord` reward can't post directly from the client — it sends the
+        /// already-expanded message text and the server does the actual POST.
+        public static void SendRewardDiscord(string message)
+        {
+            if (ZRoutedRpc.instance == null) return;
+            var serverPeer = ZRoutedRpc.instance.GetServerPeerID();
+            ZRoutedRpc.instance.InvokeRoutedRPC(serverPeer, RpcRewardDiscord, message ?? "");
+        }
+
+        private static void OnRewardDiscord(long sender, string message)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            DiscordAnnouncer.AnnounceRaw(message);
+        }
+
+        // ---- Group/party kill-progress sharing (Phase 6: trigger.share_progress) ----
+
+        /// Broadcast (no server round-trip needed — purely a convenience UX nudge, not
+        /// security-sensitive) so every connected client can decide locally whether the
+        /// killer was close enough to count as "in the party" for this entry.
+        public static void SendShareKillProgress(string entryId, string playerName, Vector3 position)
+        {
+            if (ZRoutedRpc.instance == null) return;
+            ZRoutedRpc.instance.InvokeRoutedRPC(0L, RpcShareKillProgress, entryId ?? "", playerName ?? "", position);
+        }
+
+        private static void OnShareKillProgress(long sender, string entryId, string playerName, Vector3 position)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+            // Don't re-apply to the player who actually landed the kill — their own
+            // KillCountTracker.CheckKillCount call already incremented it locally.
+            if (string.Equals(playerName, player.GetPlayerName(), System.StringComparison.Ordinal)) return;
+            KillCountTracker.ApplySharedIncrement(entryId, player, position);
         }
 
         // ---- Timed guidance broadcast (server → all clients) ----
@@ -501,6 +545,9 @@ namespace ValheimServerGuide.Net
                 ChainState.ResetAll(player);
                 SubmitState.ResetAll(player);
                 GoalStartedState.ResetAll(player);
+                KillCountState.ResetAll(player);
+                ConversationNodeState.ResetAll(player);
+                TrackedQuestState.ResetAll(player);
                 GuidanceDisplay.ClearAllVsgTutorialSeen();
                 GuidanceDisplay.ClearRavenState();
                 GuidanceHudTracker.Instance?.Refresh();
@@ -518,14 +565,20 @@ namespace ValheimServerGuide.Net
                 if (hadSubmit) SubmitState.Clear(player, resetArg);
                 var hadGoal = GoalStartedState.IsStarted(player, resetArg);
                 if (hadGoal) GoalStartedState.Clear(player, resetArg);
+                var hadKill = KillCountState.Get(player, resetArg) > 0;
+                if (hadKill) KillCountState.Clear(player, resetArg);
+                var hadNode = ConversationNodeState.GetCurrentNode(player, resetArg) != null;
+                if (hadNode) ConversationNodeState.Clear(player, resetArg);
 
-                if (singleCleared || isChain || hadSubmit || hadGoal)
+                if (singleCleared || isChain || hadSubmit || hadGoal || hadKill || hadNode)
                 {
                     GuidanceHudTracker.Instance?.Refresh();
                     resultMsg = $"vsg_reset_player: cleared '{resetArg}'"
                         + (isChain   ? " (chain)"  : "")
                         + (hadSubmit ? " (submit)"  : "")
                         + (hadGoal   ? " (goal)"    : "")
+                        + (hadKill   ? " (kill)"    : "")
+                        + (hadNode   ? " (node)"    : "")
                         + $" for {player.GetPlayerName()}.";
                 }
                 else

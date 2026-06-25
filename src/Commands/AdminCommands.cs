@@ -79,7 +79,21 @@ namespace ValheimServerGuide.Commands
                 remoteCommand: false,
                 onlyAdmin: true);
 
-            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list, vsg_list_player, vsg_reset_player");
+            new Terminal.ConsoleCommand(
+                "vsg_debug",
+                "Dump eligible entries, all VSG.* custom-data keys, and the last 10 fired ids for this character.",
+                Debug,
+                isCheat: false,
+                isNetwork: false,
+                onlyServer: false,
+                isSecret: false,
+                allowInDevBuild: false,
+                optionsFetcher: null,
+                alwaysRefreshTabOptions: false,
+                remoteCommand: false,
+                onlyAdmin: true);
+
+            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list, vsg_list_player, vsg_reset_player, vsg_debug");
         }
 
         private static void Reset(Terminal.ConsoleEventArgs args)
@@ -95,6 +109,9 @@ namespace ValheimServerGuide.Commands
                 ChainState.ResetAll(player);
                 SubmitState.ResetAll(player);
                 GoalStartedState.ResetAll(player);
+                KillCountState.ResetAll(player);
+                ConversationNodeState.ResetAll(player);
+                TrackedQuestState.ResetAll(player);
                 // Raven entries also carry vanilla's per-character "seen tutorial" flag
                 // (Player.m_shownTutorials), which gates the raven independently of VSG
                 // state. Clear it for our ids or reset raven entries would never re-show.
@@ -161,11 +178,24 @@ namespace ValheimServerGuide.Commands
             var hadGoalStarted = GoalStartedState.IsStarted(player, target);
             if (hadGoalStarted) GoalStartedState.Clear(player, target);
 
-            if (singleCleared || isChain || hadSubmitProgress || hadGoalStarted)
+            // kill count entries keep a persistent accumulator (VSG.kc.<id>).
+            var hadKillProgress = KillCountState.Get(player, target) > 0;
+            if (hadKillProgress) KillCountState.Clear(player, target);
+
+            // multi-node conversations keep a current-node pointer (VSG.cn.<id>).
+            var hadNodeProgress = ConversationNodeState.GetCurrentNode(player, target) != null;
+            if (hadNodeProgress) ConversationNodeState.Clear(player, target);
+
+            // A reset quest is no longer in progress — drop its tracker pin so it doesn't linger.
+            TrackedQuestState.Clear(player, target);
+
+            if (singleCleared || isChain || hadSubmitProgress || hadGoalStarted || hadKillProgress || hadNodeProgress)
             {
                 args.Context.AddString($"vsg_reset: cleared '{target}'" + (isChain ? " (chain state)" : "") +
                     (hadSubmitProgress ? " (item-submit progress)" : "") +
-                    (hadGoalStarted ? " (goal progress)" : "") + ".");
+                    (hadGoalStarted ? " (goal progress)" : "") +
+                    (hadKillProgress ? " (kill progress)" : "") +
+                    (hadNodeProgress ? " (conversation node)" : "") + ".");
                 Plugin.Log.LogInfo($"[cmd] {player.GetPlayerName()} reset '{target}' (chain={isChain}).");
                 GuidanceHudTracker.Instance?.Refresh();
             }
@@ -173,6 +203,48 @@ namespace ValheimServerGuide.Commands
             {
                 args.Context.AddString($"vsg_reset: '{target}' was not set (nothing to clear).");
             }
+        }
+
+        private static void Debug(Terminal.ConsoleEventArgs args)
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) { args.Context.AddString("vsg_debug: no local player."); return; }
+
+            var config = Plugin.CurrentConfig;
+            args.Context.AddString($"=== VSG Debug ({player.GetPlayerName()}) ===");
+
+            // 1. Entries currently eligible to fire (gates passing). Chains use their own
+            // prerequisite + completion check since CheckGates' once/cooldown logic doesn't
+            // apply to them the same way.
+            args.Context.AddString("-- Eligible now (gates passing) --");
+            var eligible = new List<string>();
+            foreach (var g in config?.Guidances ?? new List<GuidanceEntry>())
+            {
+                if (string.IsNullOrEmpty(g.Id)) continue;
+                bool isEligible;
+                if (g.Steps != null && g.Steps.Count > 0)
+                    isEligible = !ChainState.IsComplete(player, g.Id)
+                        && PrerequisiteChecker.AllSatisfied(g.Requires, player, config);
+                else
+                    isEligible = ValheimServerGuide.Triggers.GuidanceDispatcher.CheckGates(g, player);
+                if (isEligible) eligible.Add(g.Id);
+            }
+            if (eligible.Count == 0) args.Context.AddString("  (none)");
+            else foreach (var id in eligible) args.Context.AddString($"  - {id}");
+
+            // 2. All VSG.* keys in m_customData.
+            args.Context.AddString("-- VSG.* custom-data keys --");
+            var vsgKeys = player.m_customData.Keys
+                .Where(k => k.StartsWith("VSG.", System.StringComparison.Ordinal))
+                .OrderBy(k => k).ToList();
+            if (vsgKeys.Count == 0) args.Context.AddString("  (none)");
+            else foreach (var k in vsgKeys) args.Context.AddString($"  - {k} = {player.m_customData[k]}");
+
+            // 3. Last 10 fired entry ids with timestamps (session-only log).
+            args.Context.AddString("-- Last fired (this session) --");
+            var history = DebugFireLog.Get(player.GetPlayerName());
+            if (history.Count == 0) args.Context.AddString("  (none yet this session)");
+            else foreach (var h in history) args.Context.AddString($"  - {h.When:HH:mm:ss}  {h.Id}");
         }
 
         private static void List(Terminal.ConsoleEventArgs args)

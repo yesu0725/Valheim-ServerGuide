@@ -1,41 +1,51 @@
 # HUD Tracker & Codex
 
-## HUD Tracker
+## Progress Panel (HUD Tracker)
 
-The HUD tracker is an on-screen widget that shows active guide chains and their current progress. It appears in the corner of the screen while the player has active quests, so they always know what to do next.
+The progress panel is an on-screen widget that shows the quests a player has chosen to track, with their current progress. Unlike earlier versions, **it no longer shows every active quest automatically** — the player picks which quests to follow by pinning them from the Codex.
 
-### Default Behaviour
+### Pin model — how quests get on the panel
 
-- Appears in the **top-right corner** by default (below the minimap).
-- Shows up to **3 active chains** by default. Additional chains collapse into a `+N more` label.
-- Each row shows the chain's current step message.
-- Counter steps show a `current/goal` count: `Trophies   2/5`. Hovering the row reveals a tooltip; for multi-goal `item_acquired` entries the tooltip lists each item's progress (e.g. `FineWood: 18/30`).
-- When a chain completes, the row flashes gold and a level-up VFX plays on the player, then the row fades out.
-- The tracker **auto-hides** after 5 seconds of no new progress (configurable). It reappears when progress is made.
+- The panel is **hidden by default**, even when the player has quests in progress.
+- To show a quest, open the **Codex (F3)**, select an in-progress quest, and click the **`Show on Tracker`** pill. This pins the quest and **unhides the panel**.
+- Only **in-progress, trackable** quests have the pill: guide chains, multi-count `kill` quests, multi-count `npc_item_submit` quests, and `item_acquired` count/goal quests. Finished quests and one-off tip entries have **no pill**.
+- Pins are **persistent** per character — a pinned quest stays pinned across the play session and survives a relog (though the panel itself starts hidden each login until shown).
+- When a pinned quest **completes**, it loses its pill in the Codex and automatically drops off the panel.
 
-### Toggle Hotkey
+### Showing / hiding — F10
 
-Press **F10** (default) to show or hide the tracker panel. The hotkey is configurable in the BepInEx config (`TrackerHotkey`) or in `guidance.yaml` under the `tracker:` section.
+- Press **F10** (default) to show or hide the panel.
+- Hiding with F10 does **not** unpin anything — the pinned quests are still "in" the panel. Press F10 again (or pin another quest in the Codex) and they reappear.
+- The hotkey is configurable in the BepInEx config (`TrackerHotkey`) or in `guidance.yaml` under the `tracker:` section.
 
-### Badge
+### No input lock — moving and dragging
 
-A small corner hint badge (`[F10] Quests (2)`) stays visible even when the tracker panel is hidden, showing how many active chains there are. Disable it with `badge_enabled: false`.
+- While the panel is showing during normal play, it **does not freeze the player or show the cursor**. You can move, look, and attack as usual.
+- The panel can be **dragged anywhere on screen**. Because dragging needs a free cursor, you can only move it while the **inventory** or the **ESC menu** is open: open a menu, then click-drag the panel to a new spot.
+- The dragged position is **saved per character** and reused on the next login.
+
+### Rows, badge, and tooltips
+
+- Shows up to **3 pinned quests** by default (`TrackerMaxVisible`). Additional pinned quests collapse into a `+N more — press [F3] for Codex` label.
+- Counter / multi-count quests show a `current/goal` progress indicator. Hovering a row (while the cursor is free) reveals the step's `description` tooltip; for multi-goal `item_acquired` entries the tooltip lists each item's progress (e.g. `FineWood: 18/30`).
+- When a quest completes, the row flashes gold and a level-up VFX plays on the player.
+- A small corner hint badge (`[F10] Quests (2)`) stays visible — even when the panel is hidden — showing how many pinned quests are active so the player knows there's something to re-open. Disable it with `badge_enabled: false`.
 
 ---
 
-### Configuring the Tracker
+### Configuring the Panel
 
-The tracker can be configured in two places:
+The panel can be configured in two places:
 
 **1. BepInEx config** (`com.valheimserverguide.cfg`) — applies at startup:
 
 | Config Key | Default | Description |
 |---|---|---|
-| `TrackerEnabled` | `true` | Show or hide the tracker entirely |
-| `TrackerPosition` | `TopRight` | Corner anchor |
-| `TrackerMaxVisible` | `3` | Max chains shown before "+N more" |
-| `TrackerHotkey` | `F10` | Toggle hotkey |
-| `TrackerBadgeEnabled` | `true` | Show corner badge when panel is hidden |
+| `TrackerEnabled` | `true` | Show or hide the panel entirely |
+| `TrackerPosition` | `TopRight` | Corner anchor (used until the player drags the panel) |
+| `TrackerMaxVisible` | `3` | Max pinned quests shown before "+N more" |
+| `TrackerHotkey` | `F10` | Show/hide hotkey |
+| `TrackerBadgeEnabled` | `true` | Show corner badge |
 
 **2. YAML `tracker:` section** — applies live on YAML reload (wins over BepInEx config):
 
@@ -45,15 +55,15 @@ tracker:
   anchor: TopRight              # TopRight | TopLeft | BottomRight | BottomLeft
   hotkey: F10
   badge_enabled: true
-  offset_x: 46                  # pixels from corner, horizontal
+  offset_x: 46                  # pixels from corner, horizontal (until the player drags the panel)
   offset_y: 320                 # pixels from corner, vertical
   width: 210                    # panel width in pixels
   font_size: 15
-  auto_hide_delay: 5            # 0 = never auto-hide
-  fade_duration: 1
   highlight_duration: 3         # seconds a newly updated row stays gold
   completion_vfx_enabled: true
 ```
+
+> **Note:** `auto_hide_delay` and `fade_duration` are deprecated and ignored as of v0.6.0 — the panel no longer auto-hides or fades. It stays visible until the player hides it (F10) or unpins every quest. Once a player drags the panel, their saved position overrides `anchor`/`offset_x`/`offset_y`.
 
 Changes to the YAML `tracker:` section take effect immediately on save — no server restart or reconnect needed.
 
@@ -91,6 +101,16 @@ The Codex panel has two sections:
 - **Right panel** — Entry list for the selected category. Each entry shows its title, description, and a completion indicator.
 
 Entries marked `category: "Crafting"` in YAML are grouped under "Crafting" in the Codex. Entries without a category appear in a default group.
+
+### Pinning quests to the Progress Panel
+
+When you select an **in-progress, trackable** quest, a **`Show on Tracker`** pill appears in the right pane:
+
+- Click it to **pin** the quest to the [Progress Panel](#progress-panel-hud-tracker) (F10). Pinning also unhides the panel.
+- Click again to **unpin** it.
+- The pill only appears for quest types that can show progress on the panel: guide chains, multi-count `kill` quests, multi-count `npc_item_submit` quests, and `item_acquired` count/goal quests — and only while they are in progress. **Finished quests and one-off tips show no pill.**
+
+This lets each player curate their own objective list instead of seeing every active quest at once.
 
 ### Disabling the Codex
 

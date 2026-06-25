@@ -39,11 +39,13 @@ tracker:
   offset_y: 320                 # pixels from the anchored corner (vertical)
   width: 210                    # panel width in pixels
   font_size: 15                 # base row font size
-  auto_hide_delay: 5            # seconds of no progress before auto-fade; 0 = disabled
-  fade_duration: 1              # fade-out duration in seconds
+  auto_hide_delay: 5            # DEPRECATED/IGNORED (v0.6.0+) — panel no longer auto-hides
+  fade_duration: 1              # DEPRECATED/IGNORED (v0.6.0+)
   highlight_duration: 3         # seconds an updated row stays gold
   completion_vfx_enabled: true  # spawn level-up VFX on the player when a chain completes
 ```
+
+> The progress panel is **hidden by default** and only shows quests the player pins from the Codex (F3 → *Show on Tracker*). Once a player drags the panel (while the inventory or ESC menu is open), their saved position overrides `anchor`/`offset_x`/`offset_y`. See [HUD Tracker & Codex](HUD-Tracker-and-Codex) for the full behaviour.
 
 ---
 

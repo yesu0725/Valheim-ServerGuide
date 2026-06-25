@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 using ValheimServerGuide.Config;
 using ValheimServerGuide.Display;
+using ValheimServerGuide.State;
 
 namespace ValheimServerGuide.Triggers
 {
@@ -74,6 +76,29 @@ namespace ValheimServerGuide.Triggers
             }
             return null;
         }
+
+        /// Finds every gate-passing npc_conversation entry for the given NPC prefab name.
+        /// Used to decide between opening a single conversation directly (count == 1) and
+        /// showing the multi-quest picker (count >= 2).
+        internal static List<GuidanceEntry> FindAllEntries(string npcSubject, Player player)
+        {
+            var result = new List<GuidanceEntry>();
+            if (string.IsNullOrEmpty(npcSubject) || player == null) return result;
+            var config = Plugin.CurrentConfig;
+            if (config?.Guidances == null) return result;
+
+            foreach (var entry in config.Guidances)
+            {
+                if (entry.Trigger == null) continue;
+                if (!string.Equals(entry.Trigger.Type, "npc_conversation",
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(entry.Trigger.Npc, npcSubject,
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (!GuidanceDispatcher.CheckGates(entry, player)) continue;
+                result.Add(entry);
+            }
+            return result;
+        }
     }
 
     /// Appends a hold-E hint to the vanilla trader hover tooltip when a conversation
@@ -87,8 +112,51 @@ namespace ValheimServerGuide.Triggers
             var player = Player.m_localPlayer;
             if (player == null) return;
             var subject = TriggerUtils.NormalizePrefabName(__instance.gameObject?.name);
-            if (NpcConversationTrigger.FindEntry(subject, player) != null)
+
+            // hover_text override (Phase 6) takes priority over the generic "[Hold E] Quest"
+            // hint, but is appended below the vanilla hover text (e.g. "[E] Talk") rather than
+            // replacing it — the player still sees the normal interact hint plus the quest-
+            // specific line. "default" applies to an eligible-but-unfired entry; "after_fire"
+            // applies to an already-fired once:true entry that still wants its own hover line
+            // (e.g. "[Completed] ...").
+            var eligible = NpcConversationTrigger.FindEntry(subject, player);
+            if (eligible?.HoverText?.Default != null)
+            {
+                __result += "\n" + eligible.HoverText.Default;
+                return;
+            }
+
+            var firedWithHover = FindFiredEntryWithAfterFireHover(subject, player);
+            if (firedWithHover != null)
+            {
+                __result += "\n" + firedWithHover.HoverText.AfterFire;
+                return;
+            }
+
+            if (eligible != null)
                 __result += "\n[Hold E] Quest";
+        }
+
+        /// Finds a fired npc_conversation entry for this NPC whose hover_text.after_fire
+        /// is set, so the hover tooltip can change once the quest is done.
+        private static GuidanceEntry FindFiredEntryWithAfterFireHover(string npcSubject, Player player)
+        {
+            if (string.IsNullOrEmpty(npcSubject) || player == null) return null;
+            var config = Plugin.CurrentConfig;
+            if (config?.Guidances == null) return null;
+
+            foreach (var entry in config.Guidances)
+            {
+                if (entry.Trigger == null) continue;
+                if (!string.Equals(entry.Trigger.Type, "npc_conversation",
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(entry.Trigger.Npc, npcSubject,
+                        System.StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrEmpty(entry.HoverText?.AfterFire)) continue;
+                if (!entry.Once || !SeenTracker.HasFired(player, entry.Id, entry.Scope)) continue;
+                return entry;
+            }
+            return null;
         }
     }
 
@@ -132,17 +200,28 @@ namespace ValheimServerGuide.Triggers
                 Reset();
 
                 var subject = TriggerUtils.NormalizePrefabName(trader.gameObject?.name);
-                var entry   = NpcConversationTrigger.FindEntry(subject, player);
-                if (entry == null)
+                var entries = NpcConversationTrigger.FindAllEntries(subject, player);
+                if (entries.Count == 0)
                 {
-                    // Entry became unavailable (e.g., YAML reload, gate changed) — fall back to store.
+                    // No entry available (e.g., YAML reload, gate changed) — fall back to store.
                     if (StoreGui.instance != null) StoreGui.instance.Show(trader);
                     return;
                 }
 
-                var rawText  = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-                var rendered = GuidanceDispatcher.TemplateText(rawText, null, player.GetPlayerName());
-                GuidanceDisplay.Show(entry, rendered);
+                if (entries.Count == 1)
+                {
+                    var entry    = entries[0];
+                    var rawText  = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
+                    var rendered = GuidanceDispatcher.TemplateText(rawText, null, player.GetPlayerName());
+                    GuidanceDisplay.Show(entry, rendered);
+                }
+                else
+                {
+                    // 2+ eligible conversations — show the "what would you like to discuss?"
+                    // picker. Selecting an entry there calls GuidanceDispatcher.FireEntry,
+                    // which opens that entry's own conversation normally.
+                    NpcConversationPanel.Get().OpenSelection(trader.m_name, entries, subject);
+                }
             }
         }
 
