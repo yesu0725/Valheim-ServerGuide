@@ -1,4 +1,17 @@
 # Changelog
+## 0.7.1
+
+### Intro Cinematic Fixes
+
+- **Player is now fully frozen and invulnerable for the entire intro.** Previously a stray key press (Use/Escape) released the freeze and ghost mode while the intro was still on screen, letting the player move, attack, and take damage mid-cinematic. Input is now blocked and all damage to the local player is suppressed for the whole display.
+- **Fixed input staying dead after an un-skipped intro.** An intro that played to the end without being dismissed (common right after login) could leave the input lock stuck, disabling keys like E/C/X afterward. Release is now driven by the intro''s own timer, so it always lifts.
+- **Configurable on-screen duration.** The intro now stays up for `IntroDisplaySeconds` (default 15) instead of ending early, then auto-fades out. Skippable with Use/Escape after a short grace.
+- **Fade-out on exit.** Skipping (or the timer elapsing) now fades the intro text out (`IntroFadeOutDuration`, default 1.0s) instead of cutting instantly.
+
+### New Config (BepInEx `Display` section)
+
+- `IntroDisplaySeconds` (default `15`) — seconds the intro stays on screen before auto-fading out.
+- `IntroFadeOutDuration` (default `1.0`) — intro fade-out duration on skip/timeout.
 ## 0.7.0
 
 ### DvergrExpanded Integration

@@ -128,7 +128,7 @@ guidances:
       type: distance
       location: "GDKing"
     display:
-      mode: intro
+      mode: rune
       topic: "Older Than His Name"
     message: "An old thing, rooted and blind to what made it. Men loved darkness rather than light — and the shadow Damon served, older than his name, settled where iron sleeps and embers cool, and waited to be wanted. Go now into the mire, where the world rots and will not die."
 
@@ -186,7 +186,7 @@ guidances:
       type: distance
       location: "Dragonqueen"
     display:
-      mode: intro
+      mode: rune
       topic: "Every One to His Own Way"
     message: "High and alone she waits, guarding a spring that will not come. All we like sheep have gone astray; we have turned every one to his own way. Descend, when you are ready, into the tall grass where a dead king still reaches."
 
@@ -215,7 +215,7 @@ guidances:
       type: distance
       location: "GoblinKing"
     display:
-      mode: intro
+      mode: rune
       topic: "The End of the Road"
     message: "A hand of the fallen still reaches, crowned and kingless — and the end thereof are the ways of death. The road felt right to every one who walked it. Beyond the sea lies the fog, where the small folk toil still. Go, and look closely at them."
 
@@ -231,7 +231,7 @@ guidances:
       type: distance
       location: "Mistlands_DvergrTownEntrance*"
     display:
-      mode: intro
+      mode: rune
       topic: "So Are You"
     message: "See them toil, the small folk, bound to a purpose they no longer remember. Whosoever committeth sin is the servant of sin. So are you. Free one — the rite is offered, not forced — then seek their diggings, deeper in the fog."
 

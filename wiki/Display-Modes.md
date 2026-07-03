@@ -120,10 +120,11 @@ display:
 **Notes:**
 - The screen fades to black (configurable fade duration, default 3 seconds) before text appears.
 - Music is pinned to the vanilla Valkyrie intro track for the display duration (configurable in BepInEx config via `IntroMusicName`). Music returns to normal after the duration elapses.
-- The player is in ghost mode for the duration — nothing can target or damage them.
+- **The player is fully frozen and invulnerable for the whole intro.** All input (movement, camera, attacks, item use, interactions, ESC menu) is blocked, and the player takes **no damage** — not just ghost-mode "untargetable", but true damage immunity so combat can't interrupt the cinematic.
+- The intro stays on screen for `IntroDisplaySeconds` (default 15), then **fades out** and control returns. The player can skip early by pressing **Use (E) or Escape** after a ~1 second grace; skipping also fades the text out.
 - `display.topic` is used as the heading above the text.
 - Text tokens are supported.
-- Fade and music duration are controlled by `IntroFadeInDuration`, `IntroMusicDuration`, and `IntroPreDelay` in the BepInEx config.
+- Timing/behaviour is controlled by `IntroFadeInDuration`, `IntroPreDelay`, `IntroDisplaySeconds`, `IntroFadeOutDuration`, `IntroMusicName`, and `IntroMusicDuration` in the BepInEx config.
 
 ---
 
@@ -242,4 +243,6 @@ These settings in `com.valheimserverguide.cfg` affect display behaviour:
 | `IntroMusicDuration` | `60` | Seconds intro music stays pinned |
 | `IntroFadeInDuration` | `3.0` | Screen fade duration before intro text appears |
 | `IntroPreDelay` | `1.0` | Pause on black screen after fade, before text appears |
+| `IntroDisplaySeconds` | `15` | Seconds the intro text stays on screen (frozen + invulnerable) before auto-fading out; skippable with Use/Escape (1–300) |
+| `IntroFadeOutDuration` | `1.0` | Seconds to fade the intro text out on skip / timeout (0 = instant) |
 | `ChatColor` | `#E0C078` | Hex color for chat-mode guidance messages |

@@ -19,7 +19,7 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.7.0";
+        public const string PluginVersion = "0.7.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -31,6 +31,8 @@ namespace ValheimServerGuide
         public static ConfigEntry<float> IntroMusicDuration { get; private set; }
         public static ConfigEntry<float> IntroFadeInDuration { get; private set; }
         public static ConfigEntry<float> IntroPreDelay { get; private set; }
+        public static ConfigEntry<float> IntroDisplaySeconds { get; private set; }
+        public static ConfigEntry<float> IntroFadeOutDuration { get; private set; }
         public static ConfigEntry<string> ChatColor { get; private set; }
 
         // Codex (Phase 05)
@@ -82,6 +84,15 @@ namespace ValheimServerGuide
                 "Display", "IntroPreDelay", 1.0f,
                 "Seconds to hold on a black screen after the fade-in, before the intro text " +
                 "appears. Adds dramatic weight to the transition.");
+            IntroDisplaySeconds = Config.Bind(
+                "Display", "IntroDisplaySeconds", 15f,
+                "How long the intro text stays on screen (seconds) before it auto-fades out. " +
+                "The player stays frozen and invulnerable for this whole time, or until they " +
+                "press Use/Escape to skip early. Range 1-300.");
+            IntroFadeOutDuration = Config.Bind(
+                "Display", "IntroFadeOutDuration", 1.0f,
+                "Seconds to fade the intro text out when it ends (on skip via Use/Escape or " +
+                "when IntroDisplaySeconds elapses). Set 0 for an instant cut.");
             ChatColor = Config.Bind(
                 "Display", "ChatColor", "#E0C078",
                 "Hex color (with or without leading '#') applied to chat-mode guidance messages, " +

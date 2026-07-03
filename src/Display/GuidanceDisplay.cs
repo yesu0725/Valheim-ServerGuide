@@ -374,73 +374,130 @@ namespace ValheimServerGuide.Display
             TextViewer.instance.ShowText(style, topic, text, autoHide);
         }
 
-        /// Intro mode with optional fade-to-black + pre-text delay. Ghost mode is
-        /// engaged immediately so the player can't be killed during the dark transition.
-        /// Music is started at the same moment the text appears, not during the fade.
+        /// Intro mode with optional fade-to-black + pre-text delay.
+        ///
+        /// The player is FROZEN (input) and truly INVULNERABLE (ghost mode +
+        /// CharacterDamageIntroPatch) from the very first frame through the end of the
+        /// cinematic. Release is owned by IntroRoutine's watchdog — it ends when the
+        /// intro animation finishes, the player deliberately skips (Use/Escape), or a
+        /// hard safety cap elapses. Release is deliberately NOT tied to TextViewer.Hide:
+        /// vanilla's TextViewer.LateUpdate calls Hide() on any stray Use/Escape (read
+        /// straight from ZInput, bypassing TakeInput) WITHOUT actually closing the intro
+        /// animation, so releasing there let the player act + take damage while the intro
+        /// was still on screen.
         private static void ShowIntroWithFade(string topic, string text)
         {
             if (TextViewer.instance == null) { Plugin.Log.LogWarning("[show] intro: TextViewer.instance null."); return; }
+            if (Plugin.Instance == null) return;
+
+            // Engage the freeze + protection before anything renders so there is no
+            // window in which the player can move or be hit.
+            IntroLockActive = true;
             EngageGhostMode();
 
             var fadeIn = Mathf.Max(0f, Plugin.IntroFadeInDuration?.Value ?? 0f);
             var preDelay = Mathf.Max(0f, Plugin.IntroPreDelay?.Value ?? 0f);
-
-            if (fadeIn <= 0f && preDelay <= 0f)
-            {
-                // No transition configured -- preserve old behavior.
-                EngageIntroMusic();
-                TextViewer.instance.ShowText(TextViewer.Style.Intro, topic, text, autoHide: true);
-                return;
-            }
-
-            if (Plugin.Instance == null) return;
-            Plugin.Instance.StartCoroutine(IntroFadeRoutine(topic, text, fadeIn, preDelay));
+            Plugin.Instance.StartCoroutine(IntroRoutine(topic, text, fadeIn, preDelay));
         }
 
-        private static IEnumerator IntroFadeRoutine(string topic, string text, float fadeIn, float preDelay)
+        private static IEnumerator IntroRoutine(string topic, string text, float fadeIn, float preDelay)
         {
-            // Lock player input + menu for the whole intro span. Released by the
-            // TextViewer hide patch (or the safety release at the end of this
-            // coroutine if the text never shows).
-            IntroLockActive = true;
-            EnsureOverlay();
-            _overlayObj.SetActive(true);
-            _overlayGroup.alpha = 0f;
-
-            // Fade in (transparent -> black).
-            if (fadeIn > 0f)
+            // Optional fade-to-black transition (skipped entirely when both are 0).
+            if (fadeIn > 0f || preDelay > 0f)
             {
-                var t = 0f;
-                while (t < fadeIn)
-                {
-                    t += Time.unscaledDeltaTime;
-                    _overlayGroup.alpha = Mathf.Clamp01(t / fadeIn);
-                    yield return null;
-                }
-            }
-            _overlayGroup.alpha = 1f;
+                EnsureOverlay();
+                _overlayObj.SetActive(true);
+                _overlayGroup.alpha = 0f;
 
-            if (preDelay > 0f)
-                yield return new WaitForSecondsRealtime(preDelay);
+                if (fadeIn > 0f)
+                {
+                    var t = 0f;
+                    while (t < fadeIn)
+                    {
+                        t += Time.unscaledDeltaTime;
+                        _overlayGroup.alpha = Mathf.Clamp01(t / fadeIn);
+                        yield return null;
+                    }
+                }
+                _overlayGroup.alpha = 1f;
+
+                if (preDelay > 0f)
+                    yield return new WaitForSecondsRealtime(preDelay);
+            }
 
             EngageIntroMusic();
             TextViewer.instance.ShowText(TextViewer.Style.Intro, topic, text, autoHide: true);
 
-            // Fade overlay back out as the text begins scrolling, so the world
-            // reveals beneath the cinematic. Fade-out is shorter than fade-in --
-            // we want the text legible quickly.
-            const float fadeOut = 1.5f;
-            var tt = 0f;
-            while (tt < fadeOut)
+            // Fade the overlay back out as the text begins scrolling, so the world
+            // reveals beneath the cinematic.
+            if (_overlayObj != null && _overlayObj.activeSelf)
             {
-                tt += Time.unscaledDeltaTime;
-                _overlayGroup.alpha = 1f - Mathf.Clamp01(tt / fadeOut);
+                const float fadeOut = 1.5f;
+                var tt = 0f;
+                while (tt < fadeOut)
+                {
+                    tt += Time.unscaledDeltaTime;
+                    _overlayGroup.alpha = 1f - Mathf.Clamp01(tt / fadeOut);
+                    yield return null;
+                }
+                _overlayGroup.alpha = 0f;
+                _overlayObj.SetActive(false);
+            }
+
+            // --- Hold the freeze while the intro is on screen, then release. ---
+            // The intro text holds visible until we explicitly close it (vanilla only
+            // ends its own intro via Game.SkipIntro -> HideIntro), so we drive the
+            // duration ourselves: a fixed display time, or an earlier deliberate skip.
+            var hold = Mathf.Clamp(Plugin.IntroDisplaySeconds?.Value ?? 15f, 1f, 300f);
+            const float minSkip = 1.0f; // ignore skip input for the first second
+            var shown = 0f;
+            while (shown < hold)
+            {
+                shown += Time.unscaledDeltaTime;
+                // Deliberate skip (matches vanilla: Use / Escape), after a short beat so
+                // a key the player was already mashing doesn't skip instantly.
+                if (shown >= minSkip &&
+                    (ZInput.GetButtonDown("Use") || ZInput.GetButtonDown("JoyUse")
+                     || Input.GetKeyDown(KeyCode.Escape)))
+                    break;
                 yield return null;
             }
-            _overlayGroup.alpha = 0f;
-            _overlayObj.SetActive(false);
-            // IntroLockActive stays true until TextViewer.Hide/HideIntro postfix
-            // releases it -- the player should remain frozen for the whole reading.
+
+            // Fade the intro text out (skip or timeout), then lift the freeze — the
+            // player is never free while the intro is still shown, nor frozen after.
+            yield return FadeOutIntro();
+            ReleaseGhostMode();
+            ReleaseIntroLock();
+        }
+
+        /// Smoothly fade the intro text away, then deactivate it. Fades a CanvasGroup on
+        /// TextViewer's intro root (added once, reused) so only the text fades — the world
+        /// stays visible. Alpha is reset to 1 afterward so the next intro shows fully.
+        private static IEnumerator FadeOutIntro()
+        {
+            var tv = TextViewer.instance;
+            var root = tv != null ? tv.m_introRoot : null;
+            if (root == null)
+            {
+                if (tv != null) tv.HideIntro();
+                yield break;
+            }
+
+            var cg = root.GetComponent<CanvasGroup>() ?? root.AddComponent<CanvasGroup>();
+            var dur = Mathf.Max(0f, Plugin.IntroFadeOutDuration?.Value ?? 1.0f);
+            if (dur > 0f)
+            {
+                var t = 0f;
+                while (t < dur)
+                {
+                    t += Time.unscaledDeltaTime;
+                    cg.alpha = 1f - Mathf.Clamp01(t / dur);
+                    yield return null;
+                }
+            }
+            cg.alpha = 0f;
+            tv.HideIntro();   // SetActive(false) under cover of alpha 0
+            cg.alpha = 1f;    // reset for the next intro
         }
 
         /// Build a screen-space-overlay Canvas with a single full-screen black Image.
@@ -619,15 +676,20 @@ namespace ValheimServerGuide.Display
             => Eq(position, "Center") ? MessageHud.MessageType.Center : MessageHud.MessageType.TopLeft;
     }
 
-    /// Restore ghost mode + release the intro input/menu lock when the rune/intro
-    /// viewer closes by any path (user click-through, ESC, animator auto-hide).
+    /// Restore ghost mode when the RUNE viewer closes. Rune mode has no input lock and
+    /// its Hide() genuinely closes the viewer, so releasing ghost mode here is correct.
+    ///
+    /// During an INTRO we deliberately do nothing: vanilla's TextViewer.LateUpdate fires
+    /// Hide() on any stray Use/Escape without actually closing the intro animation, so
+    /// releasing here would unfreeze + expose the player while the intro is still on
+    /// screen. The intro's own watchdog (IntroRoutine) owns release for that case.
     [HarmonyPatch(typeof(TextViewer), nameof(TextViewer.Hide))]
     internal static class TextViewerHidePatch
     {
         private static void Postfix()
         {
+            if (GuidanceDisplay.IntroLockActive) return; // intro owns its own release
             GuidanceDisplay.ReleaseGhostMode();
-            GuidanceDisplay.ReleaseIntroLock();
         }
     }
 
@@ -717,12 +779,34 @@ namespace ValheimServerGuide.Display
         private static bool Prefix() => !GuidanceDisplay.IntroLockActive;
     }
 
+    /// True invulnerability for the local player during the intro cinematic.
+    /// Ghost mode alone is NOT enough: Character.RPC_Damage has no InGhostMode guard, so
+    /// a ghost still takes every hit (ghost mode only clamps otherwise-lethal damage to
+    /// 1 HP). Suppressing RPC_Damage entirely while the intro lock is active means the
+    /// player cannot be harmed — matching vanilla's own cutscene damage-immunity path.
+    [HarmonyPatch(typeof(Character), "RPC_Damage")]
+    internal static class CharacterDamageIntroPatch
+    {
+        private static bool Prefix(Character __instance)
+        {
+            if (!GuidanceDisplay.IntroLockActive) return true;       // run vanilla
+            return __instance != Player.m_localPlayer;               // skip damage to the local player only
+        }
+    }
+
     /// Clear raven queue/deferral state when the session ends (player disconnects or
     /// returns to main menu) so stale entries do not carry over to the next session.
     [HarmonyPatch(typeof(ZNet), nameof(ZNet.OnDestroy))]
     internal static class ZNetDestroyRavenPatch
     {
-        private static void Postfix() => GuidanceDisplay.ClearRavenState();
+        private static void Postfix()
+        {
+            GuidanceDisplay.ClearRavenState();
+            // Safety: if the session ends mid-intro (disconnect / logout), make sure the
+            // static freeze flag can't carry into the next session and lock input there.
+            GuidanceDisplay.ReleaseIntroLock();
+            GuidanceDisplay.ReleaseGhostMode();
+        }
     }
 
     /// Pin the music to the configured "intro" track for IntroMusicDuration
