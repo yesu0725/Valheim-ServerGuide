@@ -485,9 +485,9 @@ Use this to chain reward entries, post-quest messages, or unlock follow-up quest
 
 ---
 
-## DvergrExpanded Integration Triggers
+## Lost Scrolls II Integration Triggers
 
-These triggers require the companion mod **[DvergrExpanded](https://github.com/yesu0725/Dvergr-Expanded)** to also be installed. ServerGuide does not raise them itself — DvergrExpanded raises them through ServerGuide's public trigger API when its companion (Dvergr recruitment) events occur. Without DvergrExpanded, entries using these types simply never fire.
+These triggers require the companion mod **Lost Scrolls II** to also be installed. ServerGuide does not raise them itself — Lost Scrolls II raises them through ServerGuide's public trigger API when its companion (Dvergr recruitment) events occur. Without Lost Scrolls II, entries using these types simply never fire.
 
 The optional `caste:` filter accepts one of: `Rogue`, `FireMage`, `IceMage`, `SupportMage`. Omit `caste:` to match **any** caste.
 

@@ -304,25 +304,25 @@
 
 ---
 
-## External-Integration Triggers (DvergrExpanded)
+## External-Integration Triggers (Lost Scrolls II)
 
 These three trigger types have **no in-repo source file** — they are not raised by any
-ServerGuide Harmony patch. Instead the companion mod **DvergrExpanded** raises them by calling
+ServerGuide Harmony patch. Instead the companion mod **Lost Scrolls II** raises them by calling
 ServerGuide's public `GuidanceDispatcher.Raise(new TriggerEvent { Type = "...", Subject = "..." })`.
 ServerGuide only supplies the *matching* side here. Both mods must be installed for these to fire.
 
 ### `dvergr_recruited`
-- **Raised by:** DvergrExpanded when a player frees (communes with) a corrupted Dvergr.
+- **Raised by:** Lost Scrolls II when a player frees (communes with) a corrupted Dvergr.
 - **Subject:** the freed Dvergr's caste name (`Rogue` | `FireMage` | `IceMage` | `SupportMage`).
 - **YAML field matched:** `trigger.caste` (empty = match any caste).
 
 ### `dvergr_duel_won`
-- **Raised by:** DvergrExpanded when a player wins a Dvergr duel.
+- **Raised by:** Lost Scrolls II when a player wins a Dvergr duel.
 - **Subject:** the **winner's** caste name.
 - **YAML field matched:** `trigger.caste` (empty = match any caste).
 
 ### `dvergr_level_up`
-- **Raised by:** DvergrExpanded when a recruited Dvergr gains a level.
+- **Raised by:** Lost Scrolls II when a recruited Dvergr gains a level.
 - **Subject:** `"Caste:level"` (e.g. `"Rogue:3"`), mirroring `skill_level`.
 - **YAML fields matched:** `trigger.caste` (empty = any caste) and `trigger.level`
   (`0` or omitted = any level — fires on every level-up). Both filters are optional and ANDed.

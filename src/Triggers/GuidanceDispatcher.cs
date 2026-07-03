@@ -437,7 +437,7 @@ namespace ValheimServerGuide.Triggers
                 case "skill_level":      return MatchSkillLevel(t, evt.Subject);
                 case "timed":            return Eq(t.Id, evt.Subject);
                 case "entry_finished":   return Eq(t.Entry, evt.Subject);
-                // DvergrExpanded integration (see docs in that project's ServerGuide-Integration.md).
+                // Lost Scrolls II integration (see docs in that project's ServerGuide-Integration.md).
                 // Subject = caste name for recruited/duel_won; "Caste:Level" for level_up.
                 case "dvergr_recruited":
                 case "dvergr_duel_won":  return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);

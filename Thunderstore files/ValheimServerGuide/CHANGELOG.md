@@ -14,9 +14,9 @@
 - `IntroFadeOutDuration` (default `1.0`) — intro fade-out duration on skip/timeout.
 ## 0.7.0
 
-### DvergrExpanded Integration
+### Lost Scrolls II Integration
 
-Adds three new trigger types so guidance can react to DvergrExpanded's companion system. The events are raised by DvergrExpanded through ServerGuide's public `GuidanceDispatcher.Raise` API — install both mods to use them.
+Adds three new trigger types so guidance can react to Lost Scrolls II's companion system. The events are raised by Lost Scrolls II through ServerGuide's public `GuidanceDispatcher.Raise` API — install both mods to use them.
 
 - **`dvergr_recruited`** — fires when a player frees (communes with) a corrupted Dvergr. Optional `caste:` filter (`Rogue` / `FireMage` / `IceMage` / `SupportMage`); omit it to match any caste.
 - **`dvergr_duel_won`** — fires when a player wins a Dvergr duel. Optional `caste:` filter matches on the **winner''s** caste.

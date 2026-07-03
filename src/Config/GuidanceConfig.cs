@@ -184,7 +184,7 @@ namespace ValheimServerGuide.Config
         /// players (see ShareProgressRadius in KillTrigger.cs) so the whole party's counter
         /// for this entry advances together, not just the player who landed the kill.
         public bool ShareProgress { get; set; }
-        /// dvergr_recruited / dvergr_duel_won / dvergr_level_up (DvergrExpanded integration):
+        /// dvergr_recruited / dvergr_duel_won / dvergr_level_up (Lost Scrolls II integration):
         /// optional caste name filter (Rogue | FireMage | IceMage | SupportMage).
         /// Empty = match any caste. For dvergr_duel_won this filters on the winner's caste.
         public string Caste { get; set; }
