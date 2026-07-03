@@ -482,3 +482,44 @@ trigger:
 ```
 
 Use this to chain reward entries, post-quest messages, or unlock follow-up quests automatically.
+
+---
+
+## DvergrExpanded Integration Triggers
+
+These triggers require the companion mod **[DvergrExpanded](https://github.com/yesu0725/Dvergr-Expanded)** to also be installed. ServerGuide does not raise them itself — DvergrExpanded raises them through ServerGuide's public trigger API when its companion (Dvergr recruitment) events occur. Without DvergrExpanded, entries using these types simply never fire.
+
+The optional `caste:` filter accepts one of: `Rogue`, `FireMage`, `IceMage`, `SupportMage`. Omit `caste:` to match **any** caste.
+
+### `dvergr_recruited`
+
+Fires when a player frees (communes with) a corrupted Dvergr.
+
+```yaml
+trigger:
+  type: dvergr_recruited
+  caste: Rogue     # optional — omit to fire for any caste
+```
+
+### `dvergr_duel_won`
+
+Fires when a player wins a Dvergr duel. The `caste:` filter matches the **winner's** caste.
+
+```yaml
+trigger:
+  type: dvergr_duel_won
+  caste: FireMage  # optional
+```
+
+### `dvergr_level_up`
+
+Fires when a recruited Dvergr gains a level.
+
+```yaml
+trigger:
+  type: dvergr_level_up
+  caste: IceMage   # optional — omit to fire for any caste
+  level: 5         # optional — omit (or 0) to fire on every level-up
+```
+
+Both filters are optional and combined with AND: with neither, the entry fires on every Dvergr level-up; with `caste` only, on every level-up of that caste; with `level` only, whenever any Dvergr reaches exactly that level.

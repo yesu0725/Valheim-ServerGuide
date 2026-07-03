@@ -105,6 +105,7 @@ trigger:
   utc_minute: 0         # real_world_time
   interval: "1800"      # for timed: seconds as a plain number, or "hourly"/"daily"
   entry: other_id       # for entry_finished: the entry that must complete
+  caste: Rogue          # dvergr_recruited/dvergr_duel_won/dvergr_level_up: optional caste filter
   damage_type: Fire     # for damage_type trigger
 ```
 

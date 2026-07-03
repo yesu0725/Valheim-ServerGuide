@@ -5,3 +5,6 @@ obj/
 .vs/
 .idea/
 *.swp
+
+# Wiki repo clone — pushed separately, not part of the main repo
+Github/

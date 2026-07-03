@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.6.0` |
+| Version | `0.7.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |

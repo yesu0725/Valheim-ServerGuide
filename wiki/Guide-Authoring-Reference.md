@@ -58,6 +58,9 @@ or whichever mode best fits the context.
 | `npc_item_submit` | `rune` | Player submits an item to an NPC altar |
 | `location_entered` | `message` | Player steps into a named location |
 | `entry_finished` | *(inherits)* | Use the mode of the entry being chained to |
+| `dvergr_recruited` | `raven` | Player frees a Dvergr (requires DvergrExpanded); optional `caste` filter |
+| `dvergr_duel_won` | `message` | Player wins a Dvergr duel (requires DvergrExpanded); `caste` = winner |
+| `dvergr_level_up` | `message` | A recruited Dvergr levels up (requires DvergrExpanded); optional `caste` + `level` |
 
 ---
 

@@ -437,6 +437,11 @@ namespace ValheimServerGuide.Triggers
                 case "skill_level":      return MatchSkillLevel(t, evt.Subject);
                 case "timed":            return Eq(t.Id, evt.Subject);
                 case "entry_finished":   return Eq(t.Entry, evt.Subject);
+                // DvergrExpanded integration (see docs in that project's ServerGuide-Integration.md).
+                // Subject = caste name for recruited/duel_won; "Caste:Level" for level_up.
+                case "dvergr_recruited":
+                case "dvergr_duel_won":  return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
+                case "dvergr_level_up":  return MatchDvergrLevelUp(t, evt.Subject);
                 // Type-only matches — no subject filter.
                 case "first_login":
                 case "chest_opened":
@@ -472,6 +477,21 @@ namespace ValheimServerGuide.Triggers
             if (!int.TryParse(levelStr, out var level)) return false;
             return string.Equals(t.Skill, skillPart, System.StringComparison.OrdinalIgnoreCase)
                    && t.Level == level;
+        }
+
+        /// Subject format: `"Caste:level"` (e.g. `"Rogue:3"`), mirroring MatchSkillLevel.
+        /// Caste filter is optional; Level filter is optional (0 = any level — fires on every level-up).
+        private static bool MatchDvergrLevelUp(Config.TriggerSpec t, string subject)
+        {
+            if (string.IsNullOrEmpty(subject)) return false;
+            var sep = subject.IndexOf(':');
+            if (sep < 0) return false;
+            var castePart = subject.Substring(0, sep);
+            var levelStr = subject.Substring(sep + 1);
+            if (!int.TryParse(levelStr, out var level)) return false;
+            if (!string.IsNullOrEmpty(t.Caste) && !Eq(t.Caste, castePart)) return false;
+            if (t.Level > 0 && t.Level != level) return false;
+            return true;
         }
 
         private static bool RequirementsMet(GuidanceEntry entry, Player player)

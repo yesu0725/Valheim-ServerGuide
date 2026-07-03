@@ -1,4 +1,17 @@
 # Changelog
+## 0.7.0
+
+### DvergrExpanded Integration
+
+Adds three new trigger types so guidance can react to DvergrExpanded's companion system. The events are raised by DvergrExpanded through ServerGuide's public `GuidanceDispatcher.Raise` API — install both mods to use them.
+
+- **`dvergr_recruited`** — fires when a player frees (communes with) a corrupted Dvergr. Optional `caste:` filter (`Rogue` / `FireMage` / `IceMage` / `SupportMage`); omit it to match any caste.
+- **`dvergr_duel_won`** — fires when a player wins a Dvergr duel. Optional `caste:` filter matches on the **winner''s** caste.
+- **`dvergr_level_up`** — fires when a recruited Dvergr levels up. Optional `caste:` filter and optional `level:` (`level: 0` or omitted = any level, fires on every level-up).
+
+### Schema
+
+- New `trigger.caste` field on `TriggerSpec` for the three triggers above.
 ## 0.6.0
 
 This release lands a large batch of features (new triggers, conversation sequencing, enhanced rewards, system polish) plus a reworked progress panel.

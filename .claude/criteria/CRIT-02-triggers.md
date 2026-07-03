@@ -304,6 +304,32 @@
 
 ---
 
+## External-Integration Triggers (DvergrExpanded)
+
+These three trigger types have **no in-repo source file** — they are not raised by any
+ServerGuide Harmony patch. Instead the companion mod **DvergrExpanded** raises them by calling
+ServerGuide's public `GuidanceDispatcher.Raise(new TriggerEvent { Type = "...", Subject = "..." })`.
+ServerGuide only supplies the *matching* side here. Both mods must be installed for these to fire.
+
+### `dvergr_recruited`
+- **Raised by:** DvergrExpanded when a player frees (communes with) a corrupted Dvergr.
+- **Subject:** the freed Dvergr's caste name (`Rogue` | `FireMage` | `IceMage` | `SupportMage`).
+- **YAML field matched:** `trigger.caste` (empty = match any caste).
+
+### `dvergr_duel_won`
+- **Raised by:** DvergrExpanded when a player wins a Dvergr duel.
+- **Subject:** the **winner's** caste name.
+- **YAML field matched:** `trigger.caste` (empty = match any caste).
+
+### `dvergr_level_up`
+- **Raised by:** DvergrExpanded when a recruited Dvergr gains a level.
+- **Subject:** `"Caste:level"` (e.g. `"Rogue:3"`), mirroring `skill_level`.
+- **YAML fields matched:** `trigger.caste` (empty = any caste) and `trigger.level`
+  (`0` or omitted = any level — fires on every level-up). Both filters are optional and ANDed.
+- **Helper:** `MatchDvergrLevelUp` in `GuidanceDispatcher.cs`.
+
+---
+
 ## Placeholder Types (not yet implemented)
 
 ### `pickup`
@@ -343,6 +369,10 @@
      skill_level         -> trigger.skill matches skill part of "Skill:level"; trigger.level == level part
      timed               -> trigger.id matches evt.Subject
      entry_finished      -> trigger.entry matches evt.Subject (the completed entry's ID)
+     dvergr_recruited /
+     dvergr_duel_won     -> trigger.caste matches evt.Subject (empty = any caste)
+     dvergr_level_up     -> trigger.caste matches caste part of "Caste:level" (empty = any);
+                            trigger.level matches level part (0 = any level)
      first_login / chest_opened / player_death -> type match only (no subject filter)
      (anything else)     -> match succeeds
 
@@ -394,6 +424,7 @@ public float  Window = 0.02f;   // time_of_day: +/- tolerance around GameTimeFra
 public string Day;         // day_number (parsed as int) | day_of_week (matched as weekday name)
 public int    UtcHour;     // real_world_time
 public int    UtcMinute;   // real_world_time
+public string Caste;       // dvergr_recruited | dvergr_duel_won | dvergr_level_up (empty = any caste)
 ```
 
 ---

@@ -1,0 +1,435 @@
+# Lost Scrolls II — the lore of the lost (biome descent).
+#
+# Source material: E:\Valheim Modding\Dvergr Expanded\docs\Quest-Script.md and
+# docs\Lore.md. This file was reworked (2026-07-03) from the old 6-"Act" chain
+# into a biome-by-biome DESCENT: as the player travels the world in its natural
+# progression (Meadows -> Ashlands), reflective beats fire at distinct in-game
+# locations. The through-line is a mirror held up to the player — the corrupted,
+# toiling Dvergr are humanity: slaves of a path they think they chose, in
+# rebellion against the Creator without knowing it, following a purpose that
+# leads nowhere. Damon did not conquer the world; he showed it the road it
+# already wanted and let it walk. The freed companions doing your chores are
+# meant to look like us.
+#
+# Scripture is woven in VERBATIM but is NEVER cited in-game (no book / chapter /
+# verse) — only the sentence or phrase itself, so it reads as the world's own
+# ancient voice.
+#
+# ── WHY `distance`, NOT `location_entered` (important) ────────────────────────
+# The beats use trigger type `distance` (proximity to a named world location),
+# not `location_entered`. Reason: `location_entered` marks its per-location
+# dedup key ("loc_<name>") the FIRST time a player is ever near that location,
+# for EVERY location, regardless of whether any guidance was waiting — and that
+# state persists on the character. So any player who has already explored with
+# ServerGuide installed has those keys burned, and `location_entered` beats
+# would never fire for them. `distance` only burns its key ("dist_<name>") when
+# a MATCHING guidance is in range, so a brand-new config like this fires cleanly
+# for veterans and new characters alike. (This is exactly the "players already
+# on the server" case.) `distance` still fires at most once per location per
+# character, supports a trailing "*" wildcard, and defaults to a 50 m radius.
+# It logs `[distance] entered range of '<name>'` at Info level, so the exact
+# ZoneLocation prefab names below can be confirmed from the BepInEx log.
+#
+# ── STARTING THE LORE ─────────────────────────────────────────────────────────
+# Everything begins at `StartTemple` (the sacrificial stones where a character
+# first wakes). New characters trigger the opening the moment they spawn.
+# Players who were ALREADY on the server (and are off elsewhere) are nudged back
+# by `ls_call_to_start` — a raven message on a timer that keeps pointing them to
+# the stones until they've actually read the opening beat (stop_when).
+#
+# ── ORDER / "where to go next" ────────────────────────────────────────────────
+# Because location dedup is one-shot, these are INDEPENDENT entries (not a
+# chain — a chain step waiting on an already-passed location would stall). The
+# intended reading order is carried in the text: every beat ends by pointing the
+# player toward the next landmark / biome, so following the words walks the arc
+# in order. Each beat is also a `title`+`summary` Codex entry, a readable log of
+# what they've pieced together.
+#
+# ── LOCATION NAME CONFIDENCE ──────────────────────────────────────────────────
+# Meadows/Black Forest/Swamp/Mountain/Plains/Mistlands names are high-confidence
+# vanilla ZoneLocations. ASHLANDS names (Charred*) are newer content and are
+# wildcarded — confirm them against the `[distance]` log and adjust if needed.
+
+guidances:
+  # ===================================================================
+  # Call to the beginning — nudge returning players back to StartTemple.
+  # ===================================================================
+  # Fires ~1 min after login for anyone who has NOT yet read the opening beat,
+  # then again on a long cooldown, until they reach the sacrificial stones
+  # (stop_when: ls_beat_meadows_start). New characters spawn AT StartTemple, so
+  # ls_beat_meadows_start fires within seconds and this nudge is suppressed for
+  # them before it ever shows.
+  - id: ls_call_to_start
+    category: LostScrolls
+    title: "The Tale Begins at the Stones"
+    version: 1
+    once: false
+    cooldown: 1800
+    stop_when: [ls_beat_meadows_start]
+    trigger:
+      type: timed
+      interval: "60"
+    display:
+      mode: raven
+      topic: "Return to the Stones"
+    message: "A tale was begun where you first drew breath — at the sacrificial stones. Return to them, and read what the world has forgotten."
+
+  # ===================================================================
+  # MEADOWS — innocence, and the curse of toil
+  # ===================================================================
+  - id: ls_beat_meadows_start
+    category: LostScrolls
+    title: "No New Thing"
+    version: 1
+    summary: "You wake among the sacrificial stones. The peace is a surface; the road beneath it is old."
+    trigger:
+      type: distance
+      location: "StartTemple"
+    display:
+      mode: intro
+      topic: "No New Thing"
+    message: "You wake where the dead were once offered, and call it a beginning. But there is no new thing under the sun — only the old road, dressed as a choice. Walk it, then. Seek the antlered altar of these meadows."
+
+  - id: ls_beat_meadows_altar
+    category: LostScrolls
+    title: "A God in Antler and Bone"
+    version: 1
+    summary: "The first altar. A god was bound and named master — the creature served, the Creator forgotten."
+    trigger:
+      type: distance
+      location: "Eikthyrnir"
+    display:
+      mode: rune
+      topic: "A God in Antler and Bone"
+    message: "They bound a god in antler and bone and named it master. So it has always been — the creature worshipped and served more than the Creator. And still the ground is cursed to labor: in the sweat of thy face shalt thou eat bread. When you have looked long enough, go down beneath the black pines, where the dead were laid in stone."
+
+  # ===================================================================
+  # BLACK FOREST — the dark that waits; Damon named
+  # ===================================================================
+  - id: ls_beat_bf_crypt
+    category: LostScrolls
+    title: "The Dark That Waits"
+    version: 1
+    summary: "Beneath the black pines, in the burial chambers, a light still shines that the dark cannot take — but chooses not to see."
+    trigger:
+      type: distance
+      location: "Crypt*"
+    display:
+      mode: rune
+      topic: "The Dark That Waits"
+    message: "Down where the dark waits in stone and root, a light still shines — and the darkness comprehended it not. Damon learned to love the dark instead. Now seek the old one, rooted and raging, at the heart of this forest."
+
+  - id: ls_beat_bf_elder
+    category: LostScrolls
+    title: "The Shadow, Older Than His Name"
+    version: 1
+    summary: "At the Elder's altar the shadow Damon served is named: older than Damon, it settled where iron sleeps and waited to be wanted."
+    trigger:
+      type: distance
+      location: "GDKing"
+    display:
+      mode: intro
+      topic: "Older Than His Name"
+    message: "An old thing, rooted and blind to what made it. Men loved darkness rather than light — and the shadow Damon served, older than his name, settled where iron sleeps and embers cool, and waited to be wanted. Go now into the mire, where the world rots and will not die."
+
+  # ===================================================================
+  # SWAMP — decay, groaning, the wages of the path
+  # ===================================================================
+  - id: ls_beat_swamp_crypt
+    category: LostScrolls
+    title: "A Rite of Waking"
+    version: 1
+    summary: "In the sunken crypts: the small folk once knew a rite — not of binding, but of waking. The whole creation groans, unheard."
+    trigger:
+      type: distance
+      location: "SunkenCrypt4"
+    display:
+      mode: rune
+      topic: "A Rite of Waking"
+    message: "The small folk knew a rite here once — not of binding, but of waking. The whole creation groaneth and travaileth in pain together, and none stoop to listen. Find the drowned hill that calls itself a king."
+
+  - id: ls_beat_swamp_bonemass
+    category: LostScrolls
+    title: "The Wages of the Path"
+    version: 1
+    summary: "A hill of the drowned, ruling nothing — the end of every path left unturned."
+    trigger:
+      type: distance
+      location: "Bonemass"
+    display:
+      mode: rune
+      topic: "The Wages of the Path"
+    message: "A hill of the drowned, ruling nothing. This is the end of every path left unturned: the wages of sin is death. Climb now to the frozen peaks, where the wind forgets your name."
+
+  # ===================================================================
+  # MOUNTAIN — cold isolation; each gone his own way
+  # ===================================================================
+  - id: ls_beat_mtn_cave
+    category: LostScrolls
+    title: "A Ward Taught to Kill"
+    version: 1
+    summary: "In the frost caves, a warmth kept prisoner. What was made to shelter was taught to kill and forgot it was ever a ward."
+    trigger:
+      type: distance
+      location: "MountainCave*"
+    display:
+      mode: rune
+      topic: "A Ward Taught to Kill"
+    message: "Here a warmth was kept prisoner in the cold. What was made to shelter was taught to kill, and forgot it was ever a ward. There is a way which seemeth right unto a man. Seek the lone queen above, guarding eggs no spring will warm."
+
+  - id: ls_beat_mtn_moder
+    category: LostScrolls
+    title: "Every One to His Own Way"
+    version: 1
+    summary: "The queen of the peak, high and alone. All have gone astray, each turned to his own way."
+    trigger:
+      type: distance
+      location: "Dragonqueen"
+    display:
+      mode: intro
+      topic: "Every One to His Own Way"
+    message: "High and alone she waits, guarding a spring that will not come. All we like sheep have gone astray; we have turned every one to his own way. Descend, when you are ready, into the tall grass where a dead king still reaches."
+
+  # ===================================================================
+  # PLAINS — pride, false worship, the way that ends in death
+  # ===================================================================
+  - id: ls_beat_plains_camp
+    category: LostScrolls
+    title: "They Made a God of a Totem"
+    version: 1
+    summary: "In the fuling camps: they dance around a totem and call it a god — wise in their own eyes, and fools."
+    trigger:
+      type: distance
+      location: "GoblinCamp2"
+    display:
+      mode: rune
+      topic: "A God of a Totem"
+    message: "They dance around a totem and call it a god — and worshipped and served the creature, and were glad of it. Professing themselves to be wise, they became fools. Find the hand of the fallen king in the grass."
+
+  - id: ls_beat_plains_yagluth
+    category: LostScrolls
+    title: "The End of the Road"
+    version: 1
+    summary: "The fallen king's hand still reaches, crowned and kingless. The road that felt right to all who walked it ended here."
+    trigger:
+      type: distance
+      location: "GoblinKing"
+    display:
+      mode: intro
+      topic: "The End of the Road"
+    message: "A hand of the fallen still reaches, crowned and kingless — and the end thereof are the ways of death. The road felt right to every one who walked it. Beyond the sea lies the fog, where the small folk toil still. Go, and look closely at them."
+
+  # ===================================================================
+  # MISTLANDS — the mirror: servants of their own path; the rite of truth
+  # ===================================================================
+  - id: ls_beat_mist_camp
+    category: LostScrolls
+    title: "So Are You"
+    version: 1
+    summary: "The corrupted Dvergr toil, bound to a purpose they no longer remember. Whoever serves sin is its slave. So are you."
+    trigger:
+      type: distance
+      location: "Mistlands_DvergrTownEntrance*"
+    display:
+      mode: intro
+      topic: "So Are You"
+    message: "See them toil, the small folk, bound to a purpose they no longer remember. Whosoever committeth sin is the servant of sin. So are you. Free one — the rite is offered, not forced — then seek their diggings, deeper in the fog."
+
+  - id: ls_beat_mist_excavation
+    category: LostScrolls
+    title: "Look at It Again"
+    version: 1
+    summary: "They dig for masters turned to dust. Set a freed one to your chores — and see yourself in it."
+    trigger:
+      type: distance
+      location: "Mistlands_Excavation*"
+    display:
+      mode: rune
+      topic: "Look at It Again"
+    message: "They dig for masters long turned to dust, in the sweat of a brow that is not their own. Set a freed one to your chores, and look at it again. Then find the great gate, where the rite once had keepers."
+
+  - id: ls_beat_mist_queen
+    category: LostScrolls
+    title: "If Any Remain to Ask"
+    version: 1
+    summary: "At the Queen's gate: the rite had keepers once. The captive creation may yet be freed — if any remain to ask it."
+    trigger:
+      type: distance
+      location: "Mistlands_DvergrBossEntrance1"
+    display:
+      mode: rune
+      topic: "If Any Remain to Ask"
+    message: "Here the rite had keepers once. The creature itself also shall be delivered from the bondage of corruption — if any remain to ask it. One road is left to walk: the world's burning edge."
+
+  # ===================================================================
+  # ASHLANDS — judgment, hopelessness — and one held-back light
+  # ===================================================================
+  - id: ls_beat_ash_ruins
+    category: LostScrolls
+    title: "Where the Road Leads"
+    version: 1
+    summary: "The world's end is on fire, and always was coming. No hope, and without God in the world — this is where the road leads."
+    trigger:
+      type: distance
+      location: "CharredRuins*"
+    display:
+      mode: rune
+      topic: "Where the Road Leads"
+    message: "The end of the world is on fire, and it was always coming. Having no hope, and without God in the world — this is where the road leads. Seek the black fortress in the ash."
+
+  - id: ls_beat_ash_fortress
+    category: LostScrolls
+    title: "A Light in the Shadow of Death"
+    version: 1
+    summary: "Damon only showed the world the road it wanted. The god of this age has blinded it. And yet a light has shined on those in the shadow of death — the shadow thins, but does not end."
+    trigger:
+      type: distance
+      location: "CharredFortress"
+    display:
+      mode: intro
+      topic: "A Light in the Shadow of Death"
+    message: "Damon never conquered the world. He showed it the road it wanted, and let it walk. The god of this world hath blinded the minds. And yet — the people that walked in darkness have seen a great light; they that dwell in the land of the shadow of death, upon them hath the light shined. The shadow thins, but does not end. Something still stirs where the fog used to be the only thing watching."
+
+  # =====================================================================
+  # Per-caste recruit "voices" — the freed Dvergr's own character.
+  # =====================================================================
+  # Always-on flavor: one identity line per caste, fired on dvergr_recruited
+  # regardless of progress (no `requires`), grounded in docs/Lore.md "The Four
+  # Dvergr Castes". Spoken in the RAVEN's voice to stay visually distinct from
+  # the world-narration beats above (intro/rune). Each carries the note that
+  # truth, not force, is what freed it — the rite's whole point.
+  - id: ls_voice_rogue
+    category: LostScrolls
+    title: "A Scout Freed"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: Rogue
+    display:
+      mode: raven
+      topic: "A Scout Freed"
+    message: "The truth shall make you free — and a freed thing guards by choice, not fear. Its wariness outlives the shadow; now it watches at your side."
+
+  - id: ls_voice_firemage
+    category: LostScrolls
+    title: "A Forge-Keeper Freed"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: FireMage
+    display:
+      mode: raven
+      topic: "A Forge-Keeper Freed"
+    message: "The fire answers gently now — a forge remembered, not a pyre. What the shadow made wild, the offered truth made warm again."
+
+  - id: ls_voice_icemage
+    category: LostScrolls
+    title: "A Warden Freed"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: IceMage
+    display:
+      mode: raven
+      topic: "A Warden Freed"
+    message: "The cold is a ward again, not a weapon — it keeps now what it would once have killed. Set free indeed, it shelters instead of slays."
+
+  - id: ls_voice_supportmage
+    category: LostScrolls
+    title: "A Rite-Keeper Freed"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: SupportMage
+    display:
+      mode: raven
+      topic: "A Rite-Keeper Freed"
+    message: "A thousand winters it gave the rite away and kept none. Strange mercy, to receive it back — to be taught its own rite, and freed by it."
+
+  # =====================================================================
+  # Player guide — the Order of Communion (plain recruit-order walkthrough)
+  # =====================================================================
+  # Distinct from the mythic beats above: a PLAINLY worded, TRACKED quest that
+  # walks the player through freeing the four castes in the intended order —
+  # Rogue -> Fire Mage -> Ice Mage -> Support Mage.
+  #
+  # HOW IT GUIDES THE ORDER:
+  #   - It's a chain, so step N fires only after step N-1. The HUD tracker
+  #     (F10; pin the quest from the F3 Codex) shows the chain title +
+  #     "n/5" progress, and the NEXT pending step's `description` as its
+  #     hover tooltip — that description is the "what to do next" objective.
+  #   - Step 1 fires on entering the Mistlands, so the guide activates and
+  #     immediately points at the first recruit. From then on each step's
+  #     description names the exact caste to free next and how to tell it
+  #     apart in-game.
+  #   - Recruiting out of order is NOT blocked by the mod (recruitment
+  #     isn't order-gated); the guide simply won't advance until you free
+  #     the caste it's currently asking for. That's what teaches the order.
+  - id: ls_guide_recruit_order
+    category: LostScrolls
+    title: "The Order of Communion"
+    version: 1
+    summary: "Free the four Dvergr castes in order: Rogue, then Fire Mage, Ice Mage, and Support Mage. Subdue each below a fifth of its health without killing it, then commune (G)."
+    steps:
+      # Step 1 — activates the guide on entering the Mistlands and explains
+      # the recruit mechanic + the order. (Its own description isn't shown:
+      # a chain stays hidden from the tracker until its first step fires.)
+      - trigger:
+          type: biome
+          biome: "Mistlands"
+        display:
+          mode: raven
+          topic: "The Order of Communion"
+        message: "Four castes wait in the fog, each twisted from what it was. Free them in order, for the rite is learned, not forced. Wear a Dvergr down below a fifth of its life — do NOT kill it — then commune (G). Begin with the scouts."
+        description: "Enter the Mistlands, where the corrupted Dvergr dwell."
+
+      # Step 2 — Rogue first. Description is the live objective shown while
+      # this step is pending (i.e. right after step 1 fired).
+      - trigger:
+          type: dvergr_recruited
+          caste: Rogue
+        display:
+          mode: chat
+          topic: "First — the Scout"
+        message: "[guide] The scout is freed (1/4). Next, seek the fire-tenders of the camps — a Dvergr with a fire staff."
+        description: |
+          ① Free a ROGUE first — the melee Dvergr that carries NO staff
+          (the common camp scout). Subdue it below 20% health, then press
+          G to commune.
+
+      # Step 3 — Fire Mage.
+      - trigger:
+          type: dvergr_recruited
+          caste: FireMage
+        display:
+          mode: chat
+          topic: "Second — the Forge-Keeper"
+        message: "[guide] The fire remembers the forge (2/4). Now find the one who holds back the cold — a frost staff."
+        description: |
+          ② Free a FIRE MAGE — the Dvergr wielding a FIRE staff (glowing
+          embers), found in Dvergr camps. Subdue below 20% HP, then G.
+
+      # Step 4 — Ice Mage.
+      - trigger:
+          type: dvergr_recruited
+          caste: IceMage
+        display:
+          mode: chat
+          topic: "Third — the Warden"
+        message: "[guide] The cold is a ward again (3/4). One rite-keeper remains, deep in the strongholds — a healing staff."
+        description: |
+          ③ Free an ICE MAGE — the Dvergr wielding a FROST staff. Subdue
+          below 20% HP, then G.
+
+      # Step 5 — Support Mage completes the guide.
+      - trigger:
+          type: dvergr_recruited
+          caste: SupportMage
+        display:
+          mode: raven
+          topic: "Last — the Rite-Keeper"
+        message: "All four castes freed, and not one freed itself. The order is complete — the rite is yours to keep."
+        description: |
+          ④ Free a SUPPORT MAGE — the rite-keeper, wielding a healing /
+          support staff, found in the great Dvergr strongholds. Subdue
+          below 20% HP, then G.

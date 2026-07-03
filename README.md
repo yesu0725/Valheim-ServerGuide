@@ -60,6 +60,9 @@ The **server** loads `BepInEx/config/ValheimServerGuide/guidance.yaml`, watches 
 | `chest_opened` | Player opens a specific chest type |
 | `timed` | Fires on a repeating interval (e.g. every 30 min) |
 | `entry_finished` | Another guidance entry completes |
+| `dvergr_recruited` | Player frees a Dvergr — optional `caste` filter *(requires DvergrExpanded)* |
+| `dvergr_duel_won` | Player wins a Dvergr duel *(requires DvergrExpanded)* |
+| `dvergr_level_up` | A recruited Dvergr levels up *(requires DvergrExpanded)* |
 
 ### Display Modes
 
