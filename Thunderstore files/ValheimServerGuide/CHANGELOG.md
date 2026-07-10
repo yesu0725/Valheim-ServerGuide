@@ -4,7 +4,7 @@
 ### Intro Cinematic Fixes
 
 - **Player is now fully frozen and invulnerable for the entire intro.** Previously a stray key press (Use/Escape) released the freeze and ghost mode while the intro was still on screen, letting the player move, attack, and take damage mid-cinematic. Input is now blocked and all damage to the local player is suppressed for the whole display.
-- **Fixed input staying dead after an un-skipped intro.** An intro that played to the end without being dismissed (common right after login) could leave the input lock stuck, disabling keys like E/C/X afterward. Release is now driven by the intro''s own timer, so it always lifts.
+- **Fixed input staying dead after an un-skipped intro.** An intro that played to the end without being dismissed (common right after login) could leave the input lock stuck, disabling keys like E/C/X afterward. Release is now driven by the intro's own timer, so it always lifts.
 - **Configurable on-screen duration.** The intro now stays up for `IntroDisplaySeconds` (default 15) instead of ending early, then auto-fades out. Skippable with Use/Escape after a short grace.
 - **Fade-out on exit.** Skipping (or the timer elapsing) now fades the intro text out (`IntroFadeOutDuration`, default 1.0s) instead of cutting instantly.
 
@@ -12,6 +12,10 @@
 
 - `IntroDisplaySeconds` (default `15`) — seconds the intro stays on screen before auto-fading out.
 - `IntroFadeOutDuration` (default `1.0`) — intro fade-out duration on skip/timeout.
+
+### Dependencies
+
+- Bumped the Jötunn dependency to ValheimModding-Jotunn-2.29.1.
 ## 0.7.0
 
 ### Lost Scrolls II Integration
@@ -19,7 +23,7 @@
 Adds three new trigger types so guidance can react to Lost Scrolls II's companion system. The events are raised by Lost Scrolls II through ServerGuide's public `GuidanceDispatcher.Raise` API — install both mods to use them.
 
 - **`dvergr_recruited`** — fires when a player frees (communes with) a corrupted Dvergr. Optional `caste:` filter (`Rogue` / `FireMage` / `IceMage` / `SupportMage`); omit it to match any caste.
-- **`dvergr_duel_won`** — fires when a player wins a Dvergr duel. Optional `caste:` filter matches on the **winner''s** caste.
+- **`dvergr_duel_won`** — fires when a player wins a Dvergr duel. Optional `caste:` filter matches on the **winner's** caste.
 - **`dvergr_level_up`** — fires when a recruited Dvergr levels up. Optional `caste:` filter and optional `level:` (`level: 0` or omitted = any level, fires on every level-up).
 
 ### Schema
