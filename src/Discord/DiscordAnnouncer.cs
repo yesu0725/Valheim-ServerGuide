@@ -108,6 +108,73 @@ namespace ValheimServerGuide.Discord
             }
         }
 
+        /// Quest-start debug log — posts to the SEPARATE quest-start webhook (not the main
+        /// WebhookUrl) so monitoring logs stay isolated from player-facing announcements.
+        /// Fired the first time a player begins a quest (chain's first step, or the first
+        /// fire of any single entry). `entry` is the server-side config lookup (may be null
+        /// if the id is unknown); the raw player/location/timestamp come from the client.
+        public static void AnnounceQuestStart(GuidanceEntry entry, string entryId, string playerName,
+            string biome, Vector3 position)
+        {
+            if (Plugin.DiscordQuestStartEnabled?.Value == false) return;
+
+            var url = Plugin.DiscordQuestStartWebhookUrl?.Value;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                Plugin.Log.LogInfo($"[discord] quest-start '{entryId}' skipped: QuestStartWebhookUrl is empty.");
+                return;
+            }
+
+            var username = Plugin.DiscordBotUsername?.Value;
+            if (string.IsNullOrWhiteSpace(username)) username = "ValheimServerGuide";
+
+            var title    = string.IsNullOrEmpty(entry?.Title) ? (entryId ?? "?") : entry.Title;
+            var category = entry?.Category ?? "";
+            var trigger  = entry?.Steps != null && entry.Steps.Count > 0
+                ? $"chain ({entry.Steps.Count} steps)"
+                : entry?.Trigger?.Type ?? "";
+            var timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+
+            if (Plugin.Instance == null) return;
+            Plugin.Instance.StartCoroutine(PostQuestStart(url, username, entryId ?? "", title, category,
+                trigger, playerName ?? "", biome ?? "", position, timestamp));
+        }
+
+        private static IEnumerator PostQuestStart(string url, string username, string entryId, string title,
+            string category, string trigger, string playerName, string biome, Vector3 position, string timestamp)
+        {
+            var loc = $"{biome} @ ({position.x:F0}, {position.y:F0}, {position.z:F0})";
+
+            var fields = new StringBuilder();
+            fields.Append("{\"name\":\"Quest\",\"value\":\"").Append(JsonEscape(title))
+                  .Append(" (`").Append(JsonEscape(entryId)).Append("`)\"},");
+            if (!string.IsNullOrEmpty(category))
+                fields.Append("{\"name\":\"Category\",\"value\":\"").Append(JsonEscape(category)).Append("\",\"inline\":true},");
+            if (!string.IsNullOrEmpty(trigger))
+                fields.Append("{\"name\":\"Trigger\",\"value\":\"").Append(JsonEscape(trigger)).Append("\",\"inline\":true},");
+            fields.Append("{\"name\":\"Player\",\"value\":\"").Append(JsonEscape(playerName)).Append("\",\"inline\":true},");
+            fields.Append("{\"name\":\"Location\",\"value\":\"").Append(JsonEscape(loc)).Append("\"}");
+
+            var payload = "{\"username\":\"" + JsonEscape(username) +
+                          "\",\"embeds\":[{\"title\":\"🧭 Quest Started\",\"color\":3447003,\"fields\":[" +
+                          fields + "],\"timestamp\":\"" + JsonEscape(timestamp) +
+                          "\",\"footer\":{\"text\":\"VSG quest-start log\"}}]," +
+                          "\"allowed_mentions\":{\"parse\":[]}}";
+
+            using (var req = new UnityWebRequest(url, "POST"))
+            {
+                req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(payload));
+                req.downloadHandler = new DownloadHandlerBuffer();
+                req.SetRequestHeader("Content-Type", "application/json");
+                yield return req.SendWebRequest();
+
+                if (req.result != UnityWebRequest.Result.Success)
+                    Plugin.Log.LogWarning($"[discord] quest-start '{entryId}' webhook failed: {req.responseCode} {req.error}");
+                else
+                    Plugin.Log.LogInfo($"[discord] quest-start '{entryId}' logged for {playerName}.");
+            }
+        }
+
         private static IEnumerator Post(string url, string content, string username, string id)
         {
             // Discord limits content to 2000 chars. Truncate defensively.

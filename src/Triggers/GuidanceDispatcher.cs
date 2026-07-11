@@ -84,6 +84,7 @@ namespace ValheimServerGuide.Triggers
                 {
                     Plugin.Log.LogInfo($"[dispatch] '{entry.Id}' (global) -> server.");
                     GuidanceSync.SendTriggerGlobal(entry.Id, player.GetPlayerName());
+                    MaybeLogQuestStart(player, entry);
                     SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
                     // Global entries complete on the receiving client (PlayGlobalReceived),
                     // so we do not add to completedIds here.
@@ -101,6 +102,7 @@ namespace ValheimServerGuide.Triggers
                 if (maxFires > 0) SeenTracker.IncrementFireCount(player, entry.Id);
                 SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
                 DebugFireLog.Record(player.GetPlayerName(), entry.Id);
+                MaybeLogQuestStart(player, entry);
 
                 if (entry.Announce?.Discord != null)
                     GuidanceSync.SendAnnounceRequest(entry.Id, player.GetPlayerName());
@@ -157,6 +159,7 @@ namespace ValheimServerGuide.Triggers
             TriggerEvent evt, Player player, List<string> completedIds)
         {
             if (!MatchesTrigger(step.Trigger, evt)) return false;
+            if (stepIndex == 0) MaybeLogQuestStart(player, entry);
             FireStepDisplay(entry, step, stepIndex, evt, player);
             AdvanceChain(entry, stepIndex, player, completedIds);
             return true;
@@ -181,6 +184,7 @@ namespace ValheimServerGuide.Triggers
             {
                 // Not yet activated. Wait for the primary trigger.
                 if (!MatchesTrigger(step.Trigger, evt)) return false;
+                if (stepIndex == 0) MaybeLogQuestStart(player, entry);
 
                 // Seed from existing inventory when progress is counted by item_acquired.
                 var seed = 0;
@@ -348,6 +352,7 @@ namespace ValheimServerGuide.Triggers
             if (maxFiresB > 0) SeenTracker.IncrementFireCount(player, entry.Id);
             SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
             DebugFireLog.Record(player.GetPlayerName(), entry.Id);
+            MaybeLogQuestStart(player, entry);
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entryId });
         }
@@ -366,6 +371,7 @@ namespace ValheimServerGuide.Triggers
             {
                 Plugin.Log.LogInfo($"[dispatch] FireEntry '{entry.Id}' (global) -> server.");
                 GuidanceSync.SendTriggerGlobal(entry.Id, player.GetPlayerName());
+                MaybeLogQuestStart(player, entry);
                 SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
                 return;
             }
@@ -380,6 +386,7 @@ namespace ValheimServerGuide.Triggers
             if (maxFires > 0) SeenTracker.IncrementFireCount(player, entry.Id);
             SeenTracker.MarkCooldown(entry.Id, entry.Cooldown, Time.time);
             DebugFireLog.Record(player.GetPlayerName(), entry.Id);
+            MaybeLogQuestStart(player, entry);
 
             if (entry.Announce?.Discord != null)
                 GuidanceSync.SendAnnounceRequest(entry.Id, player.GetPlayerName());
@@ -390,6 +397,23 @@ namespace ValheimServerGuide.Triggers
                 RewardDispatcher.Grant(entry.Rewards, player);
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entry.Id });
+        }
+
+        /// Quest-start debug log (separate Discord webhook). Fires exactly once per character
+        /// per quest — the first time the player begins it (a chain's first step, or the first
+        /// fire of any single entry). Latched in QuestStartLogState so repeat fires, cooldown
+        /// re-fires, and later chain steps don't re-log. The webhook URL is server-side, so we
+        /// forward the id + player + current location to the server, which resolves base quest
+        /// info from its config and posts. Cleared by vsg_reset so a quest can be re-tested.
+        private static void MaybeLogQuestStart(Player player, GuidanceEntry entry)
+        {
+            if (player == null || entry == null || string.IsNullOrEmpty(entry.Id)) return;
+            if (QuestStartLogState.WasLogged(player, entry.Id)) return;
+            QuestStartLogState.MarkLogged(player, entry.Id);
+
+            var pos = player.transform.position;
+            var biome = player.GetCurrentBiome().ToString();
+            GuidanceSync.SendQuestStartLog(entry.Id, player.GetPlayerName(), biome, pos);
         }
 
         private static bool Matches(GuidanceEntry entry, TriggerEvent evt)
@@ -440,7 +464,8 @@ namespace ValheimServerGuide.Triggers
                 // Lost Scrolls II integration (see docs in that project's ServerGuide-Integration.md).
                 // Subject = caste name for recruited/duel_won; "Caste:Level" for level_up.
                 case "dvergr_recruited":
-                case "dvergr_duel_won":  return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
+                case "dvergr_duel_won":
+                case "dvergr_rank_changed": return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
                 case "dvergr_level_up":  return MatchDvergrLevelUp(t, evt.Subject);
                 // Type-only matches — no subject filter.
                 case "first_login":
@@ -533,6 +558,10 @@ namespace ValheimServerGuide.Triggers
                 }
             }
 
+            // Lost Scrolls II ranking/tournament extras (docs in that project).
+            string Extra(string key) =>
+                evt?.Extra != null && evt.Extra.TryGetValue(key, out var v) ? v?.ToString() ?? "" : "";
+
             var result = template
                 .Replace("{playerName}", playerName ?? "")
                 .Replace("{player_name}", playerName ?? "")
@@ -540,7 +569,12 @@ namespace ValheimServerGuide.Triggers
                 .Replace("{creatureName}", evt?.DisplayName ?? evt?.Subject ?? "")
                 .Replace("{biome}", string.IsNullOrEmpty(biomeName) ? (evt?.Subject ?? "") : biomeName)
                 .Replace("{skill}", skillName)
-                .Replace("{level}", levelStr);
+                .Replace("{level}", levelStr)
+                .Replace("{rank}", Extra("rank"))
+                .Replace("{rating}", Extra("rating"))
+                .Replace("{companionName}", Extra("companionName"))
+                .Replace("{ownerName}", Extra("ownerName"))
+                .Replace("{caste}", evt?.Subject ?? "");
 
             if (step >= 0)  result = result.Replace("{step}",  step.ToString());
             if (total >= 0) result = result.Replace("{total}", total.ToString());

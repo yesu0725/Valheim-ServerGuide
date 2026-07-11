@@ -17,6 +17,10 @@ When an entry fires and has `announce.discord` configured, the server posts a me
 | `WebhookUrl` | `""` | Discord webhook URL. Empty = disabled. Server only. |
 | `DefaultTemplate` | `"**{playerName}** triggered **{topic}**"` | Template used when `announce.discord: ""` |
 | `BotUsername` | `"ValheimServerGuide"` | Display name for the webhook message in Discord |
+| `DiscordGuideEnabled` | `true` | Master toggle for `discord_on_complete` chain-completion posts |
+| `DiscordGuideFormat` | `"plain"` | `plain` \| `embed` — format for chain-completion posts |
+| `QuestStartLogEnabled` | `true` | Master toggle for the quest-start debug log (see below) |
+| `QuestStartWebhookUrl` | `""` | **Separate** webhook for the quest-start log. Empty = disabled. Server only. |
 
 ---
 
@@ -47,6 +51,29 @@ No RPC needed — the server already processes the global trigger.
 Client sends `VSG_AnnounceRequest(entryId, playerName)` RPC to the server.
 Server's `OnAnnounceRequest` verifies the entry exists and has discord configured, then posts.
 The client never posts directly — it never has the webhook URL.
+
+---
+
+## Quest-Start Debug Log (v0.8.0)
+
+A **separate** announcement path from `announce.discord` / `discord_on_complete`, intended for
+verifying that quests fire as intended. It posts to its own webhook (`QuestStartWebhookUrl`) — never
+the main `WebhookUrl` — so monitoring logs stay isolated from player-facing announcements.
+
+- **When:** the first time a player *begins* a quest — a chain's first step firing, or the first
+  fire of any single (non-chain) entry — for player- and global-scope entries.
+- **Once per character per quest:** latched in `QuestStartLogState` (`VSG.qs.<id>` in `m_customData`).
+  Repeat fires, cooldown re-fires, and later chain steps do **not** re-log. Cleared by
+  `vsg_reset` / `vsg_reset_player` (both `all` and single-id) so a quest can be re-tested.
+- **Transport:** the webhook URL is server-side (CRIT-08 security). The triggering client sends a
+  `VSG_QuestStartLog` RPC to the server carrying `entryId`, `playerName`, `biome`, and `position`
+  (packed into one unit-separator-delimited string). The server resolves the entry's base info
+  (title / category / trigger type or chain step-count) from its own config and posts.
+- **Payload:** a Discord **embed** with fields for Quest (title + id), Category, Trigger, Player,
+  and Location (biome + rounded X/Y/Z), plus an ISO-8601 UTC `timestamp` stamped server-side on
+  RPC receipt (within milliseconds of the trigger).
+- **Dispatcher hooks** (`GuidanceDispatcher.MaybeLogQuestStart`): single-entry player + global paths
+  in `Raise`, `FireEntry`, `FireById`, and chain step-0 in both normal and counter steps.
 
 ---
 
@@ -98,3 +125,6 @@ The client never posts directly — it never has the webhook URL.
 - [ ] A failed POST logs an error but does NOT crash or block the guidance display.
 - [ ] The HTTP request runs in a coroutine so it doesn't block the game loop.
 - [ ] Player-scope announcements are routed to the server via `VSG_AnnounceRequest` RPC; the client never posts directly.
+- [ ] The quest-start log posts only to `QuestStartWebhookUrl` (never the main `WebhookUrl`); empty URL or `QuestStartLogEnabled = false` disables it.
+- [ ] The quest-start log fires once per character per quest and is cleared by `vsg_reset` / `vsg_reset_player`.
+- [ ] The quest-start webhook URL is server-side only; the client sends a `VSG_QuestStartLog` RPC and never posts directly.

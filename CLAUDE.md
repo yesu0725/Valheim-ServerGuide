@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.7.1` |
+| Version | `0.8.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -23,7 +23,7 @@ src/
 ├── Plugin.cs                        BepInEx entry, config, loader lifecycle
 ├── Config/
 │   ├── GuidanceConfig.cs            YAML data model (GuidanceEntry, TriggerSpec, DisplaySpec, RewardSpec, HoverTextSpec, …)
-│   └── GuidanceConfigLoader.cs      FileSystemWatcher + debounce + starter YAML
+│   └── GuidanceConfigLoader.cs      FileSystemWatcher + debounce + starter YAML; recursively merges every *.yaml/*.yml under the config folder (all subfolders)
 ├── State/                           m_customData buckets (one class per VSG.* prefix)
 │   ├── SeenTracker.cs               Fire state + cooldown + max_fires (VSG.fired / VSG.fc.*)
 │   ├── SubmitState.cs               npc_item_submit in-progress counters (VSG.is.*)
@@ -32,6 +32,7 @@ src/
 │   ├── GoalStartedState.cs          item_acquired "started" latch (VSG.ig.*)
 │   ├── ConversationNodeState.cs     Multi-node dialogue current node (VSG.cn.*)
 │   ├── TrackedQuestState.cs         HUD tracker pins + custom panel position (VSG.trk / VSG.tpos)
+│   ├── QuestStartLogState.cs        Once-per-quest "start already logged to Discord" latch (VSG.qs.*)
 │   ├── PrerequisiteChecker.cs       requires/stop_when satisfaction logic
 │   └── DebugFireLog.cs              Session-only last-10-fired ring buffer (vsg_debug; not persisted)
 ├── Triggers/                        One Harmony-patch file per trigger type; see CRIT-02
@@ -50,11 +51,11 @@ src/
 │   ├── RewardDispatcher.cs          17 reward types (CRIT-18 base + CRIT-23 enhanced)
 │   └── RewardNotification.cs        MessageHud "Received: …" summary
 ├── Net/
-│   └── GuidanceSync.cs              ZRoutedRpc RPCs; config sync, global events, admin, reward-discord, kill-share
+│   └── GuidanceSync.cs              ZRoutedRpc RPCs; config sync, global events, admin, reward-discord, kill-share, quest-start log
 ├── Commands/
 │   └── AdminCommands.cs             vsg_reset / vsg_list / vsg_list_player / vsg_reset_player / vsg_debug
 └── Discord/
-    └── DiscordAnnouncer.cs          Server-side webhook POST via UnityWebRequest
+    └── DiscordAnnouncer.cs          Server-side webhook POST via UnityWebRequest; announce/complete/reward posts + separate quest-start debug log (own webhook)
 ```
 
 ## Development Workflow

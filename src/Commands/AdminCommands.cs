@@ -112,6 +112,7 @@ namespace ValheimServerGuide.Commands
                 KillCountState.ResetAll(player);
                 ConversationNodeState.ResetAll(player);
                 TrackedQuestState.ResetAll(player);
+                QuestStartLogState.ResetAll(player);
                 // Raven entries also carry vanilla's per-character "seen tutorial" flag
                 // (Player.m_shownTutorials), which gates the raven independently of VSG
                 // state. Clear it for our ids or reset raven entries would never re-show.
@@ -188,6 +189,9 @@ namespace ValheimServerGuide.Commands
 
             // A reset quest is no longer in progress — drop its tracker pin so it doesn't linger.
             TrackedQuestState.Clear(player, target);
+
+            // Clear the quest-start log latch so a re-tested quest re-logs its start.
+            QuestStartLogState.Clear(player, target);
 
             if (singleCleared || isChain || hadSubmitProgress || hadGoalStarted || hadKillProgress || hadNodeProgress)
             {

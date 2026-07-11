@@ -52,6 +52,8 @@ namespace ValheimServerGuide
         public static ConfigEntry<string> DiscordBotUsername { get; private set; }
         public static ConfigEntry<bool> DiscordGuideEnabled { get; private set; }
         public static ConfigEntry<string> DiscordGuideFormat { get; private set; }
+        public static ConfigEntry<bool> DiscordQuestStartEnabled { get; private set; }
+        public static ConfigEntry<string> DiscordQuestStartWebhookUrl { get; private set; }
 
         private Harmony _harmony;
         private static GuidanceConfigLoader _loader;
@@ -147,6 +149,16 @@ namespace ValheimServerGuide
             DiscordGuideFormat = Config.Bind(
                 "Discord", "DiscordGuideFormat", "plain",
                 "Format for guide-completion messages: 'plain' (content string) or 'embed' (rich embed).");
+            DiscordQuestStartEnabled = Config.Bind(
+                "Discord", "QuestStartLogEnabled", true,
+                "Enable the quest-start debug log: a separate webhook POST every time a player " +
+                "starts a new quest (a chain's first step, or the first fire of any single entry). " +
+                "Intended for verifying quests trigger correctly. Requires QuestStartWebhookUrl to be set.");
+            DiscordQuestStartWebhookUrl = Config.Bind(
+                "Discord", "QuestStartWebhookUrl", "",
+                "Discord webhook URL for the quest-start debug log (separate channel from WebhookUrl). " +
+                "Server-side only — never share with clients. Leave empty to disable the quest-start log " +
+                "regardless of QuestStartLogEnabled.");
 
             _harmony = new Harmony(PluginGuid);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());

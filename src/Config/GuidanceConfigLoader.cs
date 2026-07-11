@@ -7,9 +7,11 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace ValheimServerGuide.Config
 {
-    /// Watches the config\ValheimServerGuide folder and merges every *.yaml / *.yml
-    /// file in it into a single GuidanceConfig. Any filename works as long as the
-    /// content matches the guidance YAML schema.
+    /// Watches the config\ValheimServerGuide folder (and all its subfolders) and merges
+    /// every *.yaml / *.yml file found into a single GuidanceConfig. Any filename works as
+    /// long as the content matches the guidance YAML schema. Subfolders let you organise
+    /// guidance by pack/topic (e.g. ValheimServerGuide\Companions\*.yaml) — they are merged
+    /// exactly as if the files sat at the top level.
     ///
     /// THREADING: FileSystemWatcher raises its events on a background ThreadPool
     /// thread. The downstream of ConfigChanged touches Unity / ZRoutedRpc (broadcast
@@ -51,7 +53,7 @@ namespace ValheimServerGuide.Config
             // want both *.yaml and *.yml. We filter by extension in the handler instead.
             _watcher = new FileSystemWatcher(_dir)
             {
-                IncludeSubdirectories = false,
+                IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size
                              | NotifyFilters.CreationTime | NotifyFilters.FileName,
                 EnableRaisingEvents = true,
@@ -69,11 +71,22 @@ namespace ValheimServerGuide.Config
 
         private IEnumerable<string> EnumerateYamlFiles()
         {
-            return Directory.EnumerateFiles(_dir)
+            return Directory.EnumerateFiles(_dir, "*", SearchOption.AllDirectories)
                 .Where(IsYamlPath)
                 // Deterministic, case-insensitive order so duplicate-id resolution and
                 // tracker-section precedence don't depend on filesystem enumeration order.
-                .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase);
+                // Order by the path relative to _dir so subfolder files sort predictably
+                // (e.g. "Companions\a.yaml" before "b.yaml") rather than by bare filename.
+                .OrderBy(RelPath, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// Path relative to the watched root, for stable ordering and readable log lines.
+        private string RelPath(string fullPath)
+        {
+            if (fullPath.StartsWith(_dir, StringComparison.OrdinalIgnoreCase))
+                return fullPath.Substring(_dir.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return Path.GetFileName(fullPath);
         }
 
         private static bool IsYamlPath(string path)
@@ -141,7 +154,7 @@ namespace ValheimServerGuide.Config
                 catch (Exception ex)
                 {
                     // One malformed file must not blank out every other file's guidance.
-                    Plugin.Log.LogError($"VSG: failed to parse '{Path.GetFileName(file)}' — skipped. {ex.Message}");
+                    Plugin.Log.LogError($"VSG: failed to parse '{RelPath(file)}' — skipped. {ex.Message}");
                     continue;
                 }
 
@@ -154,7 +167,7 @@ namespace ValheimServerGuide.Config
                 {
                     if (merged.Tracker == null) merged.Tracker = part.Tracker;
                     else Plugin.Log.LogWarning(
-                        $"VSG: '{Path.GetFileName(file)}' also defines a tracker: section — ignored (first file wins).");
+                        $"VSG: '{RelPath(file)}' also defines a tracker: section — ignored (first file wins).");
                 }
             }
 

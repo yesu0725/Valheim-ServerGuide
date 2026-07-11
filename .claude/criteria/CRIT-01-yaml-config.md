@@ -2,7 +2,7 @@
 
 **File:** `src/Config/GuidanceConfig.cs`
 **Loader:** `src/Config/GuidanceConfigLoader.cs`
-**Path on disk:** `BepInEx/config/ValheimServerGuide/guidance.yaml`
+**Path on disk:** `BepInEx/config/ValheimServerGuide/` — any `*.yaml`/`*.yml` in this folder or its subfolders (starter file: `guidance.yaml`)
 
 ---
 
@@ -79,7 +79,15 @@ On first run the loader writes a starter `guidance.yaml` with a single arrows-tu
 
 ## Loader Behavior
 
-- `GuidanceConfigLoader` wraps a `FileSystemWatcher` on the YAML file.
+- `GuidanceConfigLoader` wraps a `FileSystemWatcher` on the config folder.
+- **Recursive multi-file merge (v0.8.0):** every `*.yaml` / `*.yml` file under
+  `BepInEx/config/ValheimServerGuide/` — including in nested subfolders at any depth
+  (`SearchOption.AllDirectories`, watcher `IncludeSubdirectories = true`) — is deserialized and its
+  `guidances` concatenated into one config. Files are processed in ascending order of their path
+  **relative to the config root** (case-insensitive), so duplicate-id resolution and `tracker:`
+  precedence are deterministic. A single malformed file is logged and skipped without blanking the rest.
+- Duplicate `id`s across files are dropped by `Validate` (first occurrence, by relative-path order, wins).
+- The `tracker:` section is taken from the first file (by relative-path order) that defines one.
 - Changes are debounced by **500 ms** before triggering a reload.
 - On reload, `ConfigChanged` event fires → `Plugin.OnConfigChanged` → updates `Plugin.CurrentConfig`, re-registers tutorials, and (if server) broadcasts to clients.
 - Server authority guard: a client's local YAML change is silently ignored if `ZNet.instance.IsServer()` is false.
@@ -96,3 +104,5 @@ On first run the loader writes a starter `guidance.yaml` with a single arrows-tu
 - [ ] `requires` and `stop_when` always check **player-scope** state regardless of the entry's own `scope`.
 - [ ] The loader must NOT run on a pure client (one that joined a dedicated server). Only the server/host runs the loader.
 - [ ] After a hot-reload the new config must be pushed to all connected clients via RPC.
+- [ ] Every `*.yaml`/`*.yml` under the config folder, at any subfolder depth, is merged; edits in subfolders trigger a live reload.
+- [ ] File merge order is by path relative to the config root (case-insensitive); duplicate ids and `tracker:` resolve first-wins by that order.

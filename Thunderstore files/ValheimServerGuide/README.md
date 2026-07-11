@@ -20,7 +20,7 @@ No custom assets. No custom UI skins. Just your words, delivered through Hugin, 
 
 1. Install this mod on your **server** (and on every player's game via r2modman).
 2. Start the server. It creates `BepInEx/config/ValheimServerGuide/guidance.yaml` automatically.
-3. Edit that file to add your guidance entries.
+3. Edit that file to add your guidance entries. You can split guidance across as many `*.yaml` / `*.yml` files as you like — including in nested subfolders — and they are all merged.
 4. Save. All players receive the update without a restart.
 
 The mod works in **single-player and host & play** as well — the host acts as the server.
@@ -86,6 +86,8 @@ A world event when the first boss falls:
     discord: "⚔️ **{playerName}** has slain **Eikthyr** — the first boss has fallen!"
 ```
 
+_New in 0.8.0:_ a separate, opt-in **quest-start Discord log** posts a rich embed (quest info, player, location, timestamp) the first time a player begins any quest — routed to its own webhook channel so you can verify quests trigger correctly, independent of the announcements above.
+
 ---
 
 ## Documentation
@@ -110,5 +112,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.7.1
+**Version:** 0.8.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

@@ -19,11 +19,11 @@
     <BepInExDir>$(VALHEIM_INSTALL)\BepInEx</BepInExDir>
     <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
     <!-- Override on other machines: dotnet build -p:R2MODMAN_PROFILE_DIR="..." -->
-    <R2MODMAN_PROFILE_DIR Condition=" '$(R2MODMAN_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Mod Test Profile</R2MODMAN_PROFILE_DIR>
-    <R2ModmanInstallDir>$(R2MODMAN_PROFILE_DIR)\BepInEx\plugins\ValheimServerGuide</R2ModmanInstallDir>
+    <R2MODMAN_PROFILE_DIR Condition=" '$(R2MODMAN_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Hearthbound Valheim - Test</R2MODMAN_PROFILE_DIR>
+    <R2ModmanInstallDir>$(R2MODMAN_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</R2ModmanInstallDir>
     <!-- Override on other machines: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..." -->
     <VALHEIM_DEDICATED_SERVER_DIR Condition=" '$(VALHEIM_DEDICATED_SERVER_DIR)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server</VALHEIM_DEDICATED_SERVER_DIR>
-    <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\ValheimServerGuide</DedicatedServerInstallDir>
+    <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</DedicatedServerInstallDir>
   </PropertyGroup>
 
   <ItemGroup>

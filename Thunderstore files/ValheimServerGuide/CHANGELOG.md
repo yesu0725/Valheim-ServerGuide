@@ -1,4 +1,20 @@
 # Changelog
+## 0.8.0
+
+### Quest-Start Discord Log (new)
+
+A separate, opt-in Discord webhook that posts a debug/monitoring line every time a player **starts** a new quest — the first step of a chain, or the first fire of any single entry (player- or global-scope). This is independent of the normal `announce.discord` and `discord_on_complete` posts, so you can route quest-start tracking to its own channel to verify quests trigger as intended.
+
+Each log is a rich embed containing the quest's base info (title, id, category, trigger type), the player's name, their location (biome + coordinates at trigger time), and a UTC timestamp. It fires **once per character per quest** (latched), so cooldown re-fires and later chain steps do not re-log. `vsg_reset` / `vsg_reset_player` clear the latch so a quest can be re-tested.
+
+New BepInEx config (`Discord` section):
+
+- `QuestStartWebhookUrl` (default empty) — webhook URL for the quest-start log, a **separate** channel from `WebhookUrl`. Server-side only; empty disables the log.
+- `QuestStartLogEnabled` (default `true`) — master toggle for the quest-start log (requires `QuestStartWebhookUrl` to be set).
+
+### Config Loading
+
+- **Guidance YAML is now loaded recursively from subfolders.** Every `*.yaml` / `*.yml` file anywhere under `BepInEx/config/ValheimServerGuide/` — at any depth — is merged into the config, and the live file-watcher reloads on edits in subfolders too. Organise guidance by pack/topic in nested folders; ids must still be unique across the whole tree. Flat top-level layouts are unaffected.
 ## 0.7.1
 
 ### Intro Cinematic Fixes

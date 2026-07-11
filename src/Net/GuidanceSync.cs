@@ -29,6 +29,7 @@ namespace ValheimServerGuide.Net
         private const string RpcCompleteAnnounce = "VSG_CompleteAnnounce";
         private const string RpcRewardDiscord = "VSG_RewardDiscord";
         private const string RpcShareKillProgress = "VSG_ShareKillProgress";
+        private const string RpcQuestStartLog = "VSG_QuestStartLog";
         // Admin per-player state commands (list / reset another player's guidance state)
         private const string RpcAdminPlayerListReq  = "VSG_APListReq";
         private const string RpcAdminPlayerListFwd  = "VSG_APListFwd";
@@ -71,6 +72,7 @@ namespace ValheimServerGuide.Net
             ZRoutedRpc.instance.Register<string, string>(RpcCompleteAnnounce, OnCompleteAnnounce);
             ZRoutedRpc.instance.Register<string>(RpcRewardDiscord, OnRewardDiscord);
             ZRoutedRpc.instance.Register<string, string, Vector3>(RpcShareKillProgress, OnShareKillProgress);
+            ZRoutedRpc.instance.Register<string>(RpcQuestStartLog, OnQuestStartLog);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListReq,  OnAdminPlayerListReq);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListFwd,  OnAdminPlayerListFwd);
             ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerListResp, OnAdminPlayerListResp);
@@ -238,6 +240,47 @@ namespace ValheimServerGuide.Net
             // KillCountTracker.CheckKillCount call already incremented it locally.
             if (string.Equals(playerName, player.GetPlayerName(), System.StringComparison.Ordinal)) return;
             KillCountTracker.ApplySharedIncrement(entryId, player, position);
+        }
+
+        // ---- Quest-start debug log (client → server) ----
+
+        /// Client → server when a player begins a new quest. The quest-start webhook URL is a
+        /// server-side secret (CRIT-08), so the client can't POST directly — it forwards the
+        /// entry id + player + location and the server resolves base quest info from its config
+        /// and does the POST. Fields are packed into one delimited string (unit-separator) so we
+        /// stay on the single-arg Register<string> overload.
+        public static void SendQuestStartLog(string entryId, string playerName, string biome, Vector3 position)
+        {
+            if (ZRoutedRpc.instance == null) return;
+            var sep = ((char)0x1f).ToString(); // unit separator — won't appear in ids/names/biomes
+            var encoded = string.Join(sep, new[]
+            {
+                entryId ?? "", playerName ?? "", biome ?? "",
+                position.x.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                position.y.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                position.z.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            });
+            var serverPeer = ZRoutedRpc.instance.GetServerPeerID();
+            ZRoutedRpc.instance.InvokeRoutedRPC(serverPeer, RpcQuestStartLog, encoded);
+        }
+
+        private static void OnQuestStartLog(long sender, string encoded)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            if (string.IsNullOrEmpty(encoded)) return;
+
+            var parts = encoded.Split((char)0x1f);
+            if (parts.Length < 6) return;
+            var entryId    = parts[0];
+            var playerName = parts[1];
+            var biome      = parts[2];
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            float.TryParse(parts[3], System.Globalization.NumberStyles.Float, ci, out var x);
+            float.TryParse(parts[4], System.Globalization.NumberStyles.Float, ci, out var y);
+            float.TryParse(parts[5], System.Globalization.NumberStyles.Float, ci, out var z);
+
+            var entry = Plugin.CurrentConfig?.Guidances?.Find(g => g.Id == entryId);
+            DiscordAnnouncer.AnnounceQuestStart(entry, entryId, playerName, biome, new Vector3(x, y, z));
         }
 
         // ---- Timed guidance broadcast (server → all clients) ----
@@ -548,6 +591,7 @@ namespace ValheimServerGuide.Net
                 KillCountState.ResetAll(player);
                 ConversationNodeState.ResetAll(player);
                 TrackedQuestState.ResetAll(player);
+                QuestStartLogState.ResetAll(player);
                 GuidanceDisplay.ClearAllVsgTutorialSeen();
                 GuidanceDisplay.ClearRavenState();
                 GuidanceHudTracker.Instance?.Refresh();
@@ -569,6 +613,7 @@ namespace ValheimServerGuide.Net
                 if (hadKill) KillCountState.Clear(player, resetArg);
                 var hadNode = ConversationNodeState.GetCurrentNode(player, resetArg) != null;
                 if (hadNode) ConversationNodeState.Clear(player, resetArg);
+                QuestStartLogState.Clear(player, resetArg);
 
                 if (singleCleared || isChain || hadSubmit || hadGoal || hadKill || hadNode)
                 {
