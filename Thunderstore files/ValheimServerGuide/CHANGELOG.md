@@ -14,6 +14,16 @@ The `rune` display mode is now rendered by a custom, game-themed panel instead o
 
 See the wiki's Display Modes page for the full field reference and examples.
 
+**Verified: Lost Scrolls II compatibility.** Lost Scrolls II is a separate mod/assembly and
+cannot modify (and did not modify) ServerGuide's rune display code. Its integration is entirely
+through the public trigger API — the new `dvergr_rank_first`/`dvergr_party_*`/`dvergr_tournament_*`
+triggers it raises (see below) are already fully supported. One scope note for anyone comparing
+notes with Lost Scrolls II's own UI: its **Ranking Board** and **Tournament Board** (opened by
+their own hotkeys, not fired as ServerGuide guidance entries) render with the plain **vanilla**
+`TextViewer.Style.Rune` reading directly — they do not route through ServerGuide's dispatcher, so
+they do not pick up the new themed panel, fonts/colors, lists, or fade in/out described above.
+Only entries authored with `mode: rune` in ServerGuide's own YAML get the new panel.
+
 ### Reward Message Templating (fix)
 
 `chat_message` and `discord` **reward** messages now expand the firing entry's **full** token set — `{companionName}`, `{rank}`, `{rating}`, `{winSize}`, `{opponentOwner}`, `{mode}`, `{bracketSize}`, `{partyName}`, `{biome}`, `{level}`, and the rest — not just `{player_name}`. Previously any other `{...}` placeholder in a reward message rendered literally, so reward text couldn't reference what actually triggered it. Display/message text was already templated; rewards now match it (chain-completion and NPC-conversation-choice rewards, which have no triggering event to template from, still expand only `{player_name}`).
