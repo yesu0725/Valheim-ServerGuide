@@ -111,7 +111,7 @@ namespace ValheimServerGuide.Triggers
                     GuidanceSync.SendCompleteAnnounce(entry.Id, player.GetPlayerName());
 
                 if (entry.Rewards != null && entry.Rewards.Count > 0)
-                    RewardDispatcher.Grant(entry.Rewards, player);
+                    RewardDispatcher.Grant(entry.Rewards, player, s => TemplateText(s, evt, player.GetPlayerName()));
 
                 completedIds.Add(entry.Id);
                 fired++;
@@ -394,7 +394,7 @@ namespace ValheimServerGuide.Triggers
                 GuidanceSync.SendCompleteAnnounce(entry.Id, player.GetPlayerName());
 
             if (entry.Rewards != null && entry.Rewards.Count > 0)
-                RewardDispatcher.Grant(entry.Rewards, player);
+                RewardDispatcher.Grant(entry.Rewards, player, s => TemplateText(s, evt, player.GetPlayerName()));
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entry.Id });
         }
@@ -465,8 +465,19 @@ namespace ValheimServerGuide.Triggers
                 // Subject = caste name for recruited/duel_won; "Caste:Level" for level_up.
                 case "dvergr_recruited":
                 case "dvergr_duel_won":
-                case "dvergr_rank_changed": return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
+                case "dvergr_rank_changed":
+                // dvergr_rank_first: fired only when a companion reaches #1 (Discord "new champion").
+                case "dvergr_rank_first": return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
                 case "dvergr_level_up":  return MatchDvergrLevelUp(t, evt.Subject);
+                // Party duels (subject = owner name) — no caste filter.
+                case "dvergr_party_duel_won":
+                case "dvergr_party_rank_changed":
+                // dvergr_party_rank_first: fired only when a party reaches #1.
+                case "dvergr_party_rank_first": return true;
+                // Tournaments (subject = caste name or "party") — optional caste filter.
+                case "dvergr_tournament_joined":
+                case "dvergr_tournament_match":
+                case "dvergr_tournament_won": return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
                 // Type-only matches — no subject filter.
                 case "first_login":
                 case "chest_opened":
@@ -574,6 +585,14 @@ namespace ValheimServerGuide.Triggers
                 .Replace("{rating}", Extra("rating"))
                 .Replace("{companionName}", Extra("companionName"))
                 .Replace("{ownerName}", Extra("ownerName"))
+                .Replace("{partyName}", Extra("partyName"))
+                .Replace("{winSize}", Extra("winSize"))
+                .Replace("{opponentOwner}", Extra("opponentOwner"))
+                .Replace("{mvpCaste}", Extra("mvpCaste"))
+                .Replace("{round}", Extra("round"))
+                .Replace("{opponent}", Extra("opponent"))
+                .Replace("{mode}", Extra("mode"))
+                .Replace("{bracketSize}", Extra("bracketSize"))
                 .Replace("{caste}", evt?.Subject ?? "");
 
             if (step >= 0)  result = result.Replace("{step}",  step.ToString());

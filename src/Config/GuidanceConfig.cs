@@ -303,5 +303,54 @@ namespace ValheimServerGuide.Config
         public string NpcName { get; set; }
         /// bubble mode: seconds the bubble stays visible before fading out. Default 6.
         public float Duration { get; set; } = 6f;
+        /// rune mode: optional styling overrides for the custom rune-reading panel
+        /// (header/body/list fonts, colors, bullet list). Null/absent = themed defaults.
+        public RuneStyleSpec Rune { get; set; }
+    }
+
+    /// Per-entry styling for the `rune` display mode's custom themed panel.
+    /// Every field is optional; unset values fall back to the game-themed defaults
+    /// (gold header, parchment body on a dark stone background). Colors are hex strings
+    /// ("#RRGGBB" or "#RRGGBBAA", leading '#' optional). Font styles accept any combination
+    /// of Normal | Bold | Italic | Underline (e.g. "Bold Italic"). Alignment is
+    /// Left | Center | Right. All text fields support {player_name} / template variables.
+    public class RuneStyleSpec
+    {
+        // ── Header ──────────────────────────────────────────────────────────────
+        /// Header text. Falls back to display.topic when unset.
+        public string Header { get; set; }
+        public string HeaderColor { get; set; }
+        public float HeaderFontSize { get; set; } = 26f;
+        public string HeaderStyle { get; set; } = "Bold";
+        public string HeaderAlignment { get; set; } = "Center";
+
+        // ── Body / description ──────────────────────────────────────────────────
+        public string BodyColor { get; set; }
+        public float BodyFontSize { get; set; } = 17f;
+        public string BodyStyle { get; set; } = "Normal";
+        public string BodyAlignment { get; set; } = "Left";
+
+        // ── Bullet list ─────────────────────────────────────────────────────────
+        /// Optional list rendered below the body, one styled row per entry.
+        public List<string> Items { get; set; }
+        /// Glyph prefixed to each list row (set to "" for no bullet). Default "•".
+        public string Bullet { get; set; } = "•";
+        public string ItemColor { get; set; }
+        public float ItemFontSize { get; set; } = 16f;
+        public string ItemStyle { get; set; } = "Normal";
+
+        // ── Panel ───────────────────────────────────────────────────────────────
+        /// Panel fill color. Default dark stone.
+        public string BackgroundColor { get; set; }
+        /// Header/body divider rule color. Default muted bronze.
+        public string AccentColor { get; set; }
+        /// Panel width in pixels. Default 620.
+        public float Width { get; set; } = 620f;
+
+        // ── Fade ────────────────────────────────────────────────────────────────
+        /// Seconds to fade the panel in from transparent when it appears. 0 = instant.
+        public float FadeIn { get; set; } = 0.35f;
+        /// Seconds to fade the panel out to transparent when it closes. 0 = instant.
+        public float FadeOut { get; set; } = 0.35f;
     }
 }

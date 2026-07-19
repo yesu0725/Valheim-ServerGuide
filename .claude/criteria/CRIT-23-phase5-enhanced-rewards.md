@@ -22,10 +22,32 @@ See [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATURE_ROADMAP.md) Phase 5.
 | `set_global_key` / `remove_global_key` | `key` | `ZoneSystem.instance.SetGlobalKey(key)` / `RemoveGlobalKey(key)` — world-wide, persists with the save. |
 | `set_player_key` / `remove_player_key` | `key` | `player.AddUniqueKey(key)` / `RemoveUniqueKey(key)` — same storage other mods read via `Player.HaveUniqueKey()`. |
 | `weather` | `preset`, `duration` (default 60s) | `EnvMan.instance.SetForceEnvironment(preset)`; a coroutine clears it back to `""` after `duration`, but only if nothing else has since forced a *different* environment in the meantime. Logs a warning (but still forces it) if `preset` doesn't match any `EnvSetup.m_name` in `EnvMan.m_environments`. |
-| `chat_message` | `message` (supports `{player_name}`) | `Chat.instance.AddString(text)` — local-only, same call `display.mode: chat` already uses. |
+| `chat_message` | `message` (full token set — see below) | `Chat.instance.AddString(text)` — local-only, same call `display.mode: chat` already uses. |
 | `teleport` | `x`, `z`, `allowlist_only` | `player.TeleportTo(new Vector3(x, player.y, z), player.rotation, true)`. See note below on `allowlist_only`. |
 | `rename_player` | `suffix` | Appends to the player's networked name: `zdo.Set(ZDOVars.s_playerName, baseName + " " + suffix)` via `player.GetComponent<ZNetView>().GetZDO()`. Visible to everyone (chat, name tags) since it's the actual replicated player name field, not a local-only cosmetic. |
-| `discord` | `message` (supports `{player_name}`) | Client sends the already-expanded text over a new RPC (`VSG_RewardDiscord`) to the server; `GuidanceSync.OnRewardDiscord` calls `DiscordAnnouncer.AnnounceRaw(message)`, which posts with the server's own `DiscordWebhookUrl`/`DiscordBotUsername` config — mirrors the existing `RpcAnnounce` pattern used for `announce.discord`. |
+| `discord` | `message` (full token set — see below) | Client sends the already-expanded text over a new RPC (`VSG_RewardDiscord`) to the server; `GuidanceSync.OnRewardDiscord` calls `DiscordAnnouncer.AnnounceRaw(message)`, which posts with the server's own `DiscordWebhookUrl`/`DiscordBotUsername` config — mirrors the existing `RpcAnnounce` pattern used for `announce.discord`. |
+
+### Reward message templating (`RewardDispatcher.Grant`'s `expand` parameter)
+
+`chat_message` and `discord` reward `message` fields originally only expanded `{player_name}`
+(via the private `ExpandPlayerName` helper). `Grant` now takes an optional
+`System.Func<string, string> expand` parameter:
+
+```csharp
+public static void Grant(List<RewardSpec> rewards, Player player, System.Func<string, string> expand = null)
+```
+
+Two of the four `Grant` call sites in `GuidanceDispatcher.cs` — single-entry `Raise()` fire, and
+a per-step reward fire — pass `s => TemplateText(s, evt, player.GetPlayerName())`, so those reward
+messages get the **same full token set** the entry's own `display.text` does (CRIT-13) —
+`{rank}`, `{companionName}`, `{opponent}`, `{step}`/`{total}` in a chain, etc. `expand` runs
+**before** `ExpandPlayerName`, so `{player_name}` still resolves correctly either way.
+
+The other two call sites pass no `expand` argument (`null` default → player-name-only, the
+original behavior), because neither has a `TriggerEvent` in scope to template from: the
+**chain-completion** rewards fire in `AdvanceChain` after the triggering event has already been
+consumed, and **conversation choice** rewards (`NpcConversationPanel.OnChoiceSelected`) are
+granted from a player's UI click, not a `TriggerEvent` at all.
 
 ### `allowlist_only` is documentation-only
 

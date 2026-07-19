@@ -1,0 +1,419 @@
+using System.Collections;
+using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+using ValheimServerGuide.Config;
+using ValheimServerGuide.Triggers;
+
+namespace ValheimServerGuide.Display
+{
+    /// Custom themed panel for the `rune` display mode. Replaces the vanilla
+    /// TextViewer.Rune reading with a Valheim-styled card that supports per-entry
+    /// customization: a styled header, a word-wrapped body/description, an optional
+    /// bullet list, and configurable fonts/colors/alignment (see RuneStyleSpec).
+    ///
+    /// Vanilla assets only — the game font (resolved lazily the same way the Codex and
+    /// Conversation panels do) plus Image color fills. No custom textures.
+    ///
+    /// Behaviour matches the old rune mode: the screen darkens, ghost mode is engaged
+    /// (invulnerable + undetected) while the reading is up, and there is NO input lock —
+    /// the player dismisses it at will by pressing Use (E) / Escape, or clicking.
+    public class RunePanel : MonoBehaviour
+    {
+        public static RunePanel Instance { get; private set; }
+        public bool IsOpen { get; private set; }
+
+        // ── Themed defaults (match the Codex palette so all VSG UI reads as one system) ──
+        private static readonly Color DefBackground = new Color(0.06f, 0.05f, 0.04f, 0.96f);
+        private static readonly Color DefAccent     = new Color(0.45f, 0.36f, 0.22f, 1f);
+        private static readonly Color DefHeader     = new Color(1f, 0.82f, 0.42f);   // gold
+        private static readonly Color DefBody       = new Color(0.90f, 0.88f, 0.82f); // parchment
+        private static readonly Color DefItem       = new Color(0.86f, 0.80f, 0.62f); // warm
+
+        // ── Scene objects ────────────────────────────────────────────────────────
+        private GameObject _uiRoot;
+        private Image _backdrop;
+        private Image _panelBg;
+        private RectTransform _panelRect;
+        private TMP_Text _headerText;
+        private Image _divider;
+        private TMP_Text _bodyText;
+        private Transform _listContent;
+        private TMP_Text _footerText;
+
+        private TMP_FontAsset _font;
+        private float _openTime;
+
+        // ── Fade ─────────────────────────────────────────────────────────────────
+        private CanvasGroup _canvasGroup;
+        private Coroutine _fadeRoutine;
+        private float _fadeInDuration = 0.35f;
+        private float _fadeOutDuration = 0.35f;
+
+        // ── Factory ───────────────────────────────────────────────────────────────
+
+        public static RunePanel Get()
+        {
+            if (Instance != null) return Instance;
+
+            var go = new GameObject("VSG_RunePanel");
+            go.SetActive(false); // inactive during build → TMP Awake suppressed until font set
+            Object.DontDestroyOnLoad(go);
+
+            var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 210; // above the conversation panel (200), below the codex (1100)
+            go.AddComponent<GraphicRaycaster>();
+
+            Instance = go.AddComponent<RunePanel>();
+            Instance.BuildPanel();
+            return Instance;
+        }
+
+        // ── Construction ────────────────────────────────────────────────────────────
+
+        private void BuildPanel()
+        {
+            // Dedicated root canvas kept on this GameObject.
+            _uiRoot = gameObject;
+
+            // CanvasGroup on the root fades the backdrop + panel together as one unit.
+            _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+            // Full-screen darkening backdrop — click to dismiss (when the cursor is free).
+            var backdropGo = new GameObject("Backdrop");
+            backdropGo.transform.SetParent(transform, false);
+            var bdRect = backdropGo.AddComponent<RectTransform>();
+            bdRect.anchorMin = Vector2.zero;
+            bdRect.anchorMax = Vector2.one;
+            bdRect.offsetMin = Vector2.zero;
+            bdRect.offsetMax = Vector2.zero;
+            _backdrop = backdropGo.AddComponent<Image>();
+            _backdrop.color = new Color(0f, 0f, 0f, 0.72f);
+            var bdBtn = backdropGo.AddComponent<Button>();
+            bdBtn.transition = Selectable.Transition.None;
+            bdBtn.onClick.AddListener(Close);
+
+            // Centered panel. A VerticalLayoutGroup stacks header / divider / body / list /
+            // footer; a ContentSizeFitter grows the panel height to fit the content while the
+            // width stays fixed (set per-entry from RuneStyleSpec.Width).
+            var panelGo = new GameObject("Panel");
+            panelGo.transform.SetParent(transform, false);
+            _panelRect = panelGo.AddComponent<RectTransform>();
+            _panelRect.anchorMin        = new Vector2(0.5f, 0.5f);
+            _panelRect.anchorMax        = new Vector2(0.5f, 0.5f);
+            _panelRect.pivot            = new Vector2(0.5f, 0.5f);
+            _panelRect.sizeDelta        = new Vector2(620f, 200f);
+            _panelRect.anchoredPosition = Vector2.zero;
+            _panelBg = panelGo.AddComponent<Image>();
+            _panelBg.color = DefBackground;
+
+            var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
+            vlg.childControlWidth      = true;
+            vlg.childForceExpandWidth  = true;
+            vlg.childControlHeight     = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childAlignment         = TextAnchor.UpperCenter;
+            vlg.spacing                = 12f;
+            vlg.padding                = new RectOffset(28, 28, 22, 20);
+
+            var fitter = panelGo.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // width is fixed
+            fitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
+
+            // Header.
+            _headerText = MakeText(panelGo.transform, "Header", 26f, FontStyles.Bold,
+                DefHeader, TextAlignmentOptions.Center);
+
+            // Divider rule.
+            var divGo = new GameObject("Divider");
+            divGo.transform.SetParent(panelGo.transform, false);
+            divGo.AddComponent<RectTransform>();
+            _divider = divGo.AddComponent<Image>();
+            _divider.color = DefAccent;
+            var divLe = divGo.AddComponent<LayoutElement>();
+            divLe.minHeight       = 2f;
+            divLe.preferredHeight = 2f;
+
+            // Body / description.
+            _bodyText = MakeText(panelGo.transform, "Body", 17f, FontStyles.Normal,
+                DefBody, TextAlignmentOptions.TopLeft);
+            _bodyText.enableWordWrapping = true;
+            _bodyText.overflowMode       = TextOverflowModes.Overflow;
+
+            // List container (one styled row per item).
+            var listGo = new GameObject("List");
+            listGo.transform.SetParent(panelGo.transform, false);
+            _listContent = listGo.AddComponent<RectTransform>();
+            var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
+            listVlg.childControlWidth      = true;
+            listVlg.childForceExpandWidth  = true;
+            listVlg.childControlHeight     = true;
+            listVlg.childForceExpandHeight = false;
+            listVlg.childAlignment         = TextAnchor.UpperLeft;
+            listVlg.spacing                = 4f;
+
+            // Footer hint.
+            _footerText = MakeText(panelGo.transform, "Footer", 12f, FontStyles.Italic,
+                new Color(0.62f, 0.60f, 0.55f), TextAlignmentOptions.Center);
+            _footerText.text = "Press [E] to continue";
+        }
+
+        /// Create a child TextMeshProUGUI with a LayoutElement-friendly rect (the parent
+        /// VerticalLayoutGroup controls its size). Font is applied later in EnsureFont.
+        private TMP_Text MakeText(Transform parent, string name, float size,
+            FontStyles style, Color color, TextAlignmentOptions align)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<RectTransform>();
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.fontSize       = size;
+            tmp.fontStyle      = style;
+            tmp.color          = color;
+            tmp.alignment      = align;
+            tmp.raycastTarget  = false;
+            return tmp;
+        }
+
+        // ── Public API ──────────────────────────────────────────────────────────────
+
+        /// Show a rune reading. `renderedText` is already template-expanded (the body).
+        public void Open(GuidanceEntry entry, string renderedText)
+        {
+            if (_uiRoot == null) return;
+
+            EnsureFont();
+
+            var style      = entry.Display?.Rune;
+            var playerName = Player.m_localPlayer != null ? Player.m_localPlayer.GetPlayerName() : "";
+
+            // ── Header ──
+            var headerRaw = !string.IsNullOrEmpty(style?.Header)
+                ? style.Header
+                : entry.Display?.Topic ?? "";
+            var header = GuidanceDispatcher.TemplateText(headerRaw, null, playerName) ?? "";
+            _headerText.text        = header;
+            _headerText.gameObject.SetActive(!string.IsNullOrEmpty(header));
+            _headerText.fontSize    = style?.HeaderFontSize ?? 26f;
+            _headerText.fontStyle   = ParseStyle(style?.HeaderStyle, FontStyles.Bold);
+            _headerText.color       = ParseColor(style?.HeaderColor, DefHeader);
+            _headerText.alignment   = ParseAlign(style?.HeaderAlignment, TextAlignmentOptions.Center);
+
+            // Only show the divider when there is a header to separate.
+            _divider.gameObject.SetActive(!string.IsNullOrEmpty(header));
+            _divider.color = ParseColor(style?.AccentColor, DefAccent);
+
+            // ── Body ──
+            _bodyText.text        = renderedText ?? "";
+            _bodyText.gameObject.SetActive(!string.IsNullOrEmpty(renderedText));
+            _bodyText.fontSize    = style?.BodyFontSize ?? 17f;
+            _bodyText.fontStyle   = ParseStyle(style?.BodyStyle, FontStyles.Normal);
+            _bodyText.color       = ParseColor(style?.BodyColor, DefBody);
+            _bodyText.alignment   = ParseAlign(style?.BodyAlignment, TextAlignmentOptions.TopLeft);
+
+            // ── Panel geometry / fill ──
+            var width = Mathf.Clamp(style?.Width ?? 620f, 240f, 1200f);
+            _panelRect.sizeDelta = new Vector2(width, _panelRect.sizeDelta.y);
+            _panelBg.color       = ParseColor(style?.BackgroundColor, DefBackground);
+
+            // ── List ──
+            BuildList(style, playerName);
+
+            // ── Fade ──
+            _fadeInDuration  = Mathf.Max(0f, style?.FadeIn ?? 0.35f);
+            _fadeOutDuration = Mathf.Max(0f, style?.FadeOut ?? 0.35f);
+
+            IsOpen    = true;
+            _openTime = Time.unscaledTime;
+            GuidanceDisplay.BeginRuneGhost();
+
+            if (_fadeRoutine != null) { StopCoroutine(_fadeRoutine); _fadeRoutine = null; }
+            // Start from transparent unless we're re-triggering mid fade-out (in which case
+            // fading in from the current alpha reads as a smooth crossfade, not a flash).
+            if (!_uiRoot.activeSelf) _canvasGroup.alpha = 0f;
+            _uiRoot.SetActive(true);
+
+            // Content was populated while children were (re)built; force a layout pass so the
+            // VerticalLayoutGroup + ContentSizeFitter compute the final panel height this frame.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+
+            if (_fadeInDuration > 0f)
+                _fadeRoutine = StartCoroutine(FadeRoutine(_canvasGroup.alpha, 1f, _fadeInDuration, null));
+            else
+                _canvasGroup.alpha = 1f;
+        }
+
+        /// Rebuild the bullet list from RuneStyleSpec.Items. The container is toggled inactive
+        /// while rows are created so each new TMP label's Awake fires only after its font is set
+        /// (TMP null-font Awake warning rule).
+        private void BuildList(RuneStyleSpec style, string playerName)
+        {
+            for (var i = _listContent.childCount - 1; i >= 0; i--)
+                Destroy(_listContent.GetChild(i).gameObject);
+
+            var items = style?.Items;
+            if (items == null || items.Count == 0)
+            {
+                _listContent.gameObject.SetActive(false);
+                return;
+            }
+
+            _listContent.gameObject.SetActive(false);
+
+            var bullet    = style.Bullet ?? "•";
+            var prefix    = string.IsNullOrEmpty(bullet) ? "" : bullet + "  ";
+            var itemColor = ParseColor(style.ItemColor, DefItem);
+            var itemStyle = ParseStyle(style.ItemStyle, FontStyles.Normal);
+            var itemSize  = style.ItemFontSize <= 0f ? 16f : style.ItemFontSize;
+
+            foreach (var raw in items)
+            {
+                var text = GuidanceDispatcher.TemplateText(raw ?? "", null, playerName) ?? "";
+                var row  = MakeText(_listContent, "Item", itemSize, itemStyle, itemColor,
+                    TextAlignmentOptions.TopLeft);
+                ApplyFont(row);
+                row.text                = prefix + text;
+                row.enableWordWrapping  = true;
+                row.overflowMode        = TextOverflowModes.Overflow;
+            }
+
+            _listContent.gameObject.SetActive(true);
+        }
+
+        /// Dismiss with a fade-out (duration from RuneStyleSpec.FadeOut).
+        public void Close() => CloseInternal(immediate: false);
+
+        /// Dismiss instantly, skipping any fade-out. Used when an intro cinematic
+        /// preempts the reading and on session teardown, where a lingering fade
+        /// coroutine would otherwise carry state across the transition.
+        public void CloseImmediate() => CloseInternal(immediate: true);
+
+        private void CloseInternal(bool immediate)
+        {
+            if (!IsOpen) return;
+            IsOpen = false;
+
+            if (_fadeRoutine != null) { StopCoroutine(_fadeRoutine); _fadeRoutine = null; }
+
+            // If an intro cinematic has taken over it owns the ghost-mode lifetime (it engaged
+            // ghost mode too, and releasing here would strip the intro's invulnerability). Mirror
+            // TextViewerHidePatch's "intro owns its own release" rule.
+            if (immediate || _fadeOutDuration <= 0f)
+            {
+                if (_uiRoot != null) _uiRoot.SetActive(false);
+                if (!GuidanceDisplay.IntroLockActive) GuidanceDisplay.ReleaseGhostMode();
+                return;
+            }
+
+            _fadeRoutine = StartCoroutine(FadeRoutine(_canvasGroup.alpha, 0f, _fadeOutDuration, () =>
+            {
+                if (_uiRoot != null) _uiRoot.SetActive(false);
+                if (!GuidanceDisplay.IntroLockActive) GuidanceDisplay.ReleaseGhostMode();
+                _fadeRoutine = null;
+            }));
+        }
+
+        private IEnumerator FadeRoutine(float from, float to, float duration, System.Action onComplete)
+        {
+            var t = 0f;
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                _canvasGroup.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            _canvasGroup.alpha = to;
+            onComplete?.Invoke();
+        }
+
+        // ── Per-frame ───────────────────────────────────────────────────────────────
+
+        private void Update()
+        {
+            if (!IsOpen) return;
+
+            // Intro cinematic takes over — close instantly, no fade.
+            if (GuidanceDisplay.IntroLockActive) { CloseImmediate(); return; }
+
+            // Dismiss on Use (E) / Escape, matching the vanilla rune reading. A short grace
+            // window prevents a key the player was already holding from skipping instantly.
+            if (Time.unscaledTime - _openTime < 0.3f) return;
+            if (ZInput.GetButtonDown("Use") || ZInput.GetButtonDown("JoyUse")
+                || Input.GetKeyDown(KeyCode.Escape))
+                Close();
+        }
+
+        // ── Font ──────────────────────────────────────────────────────────────────
+
+        private void ApplyFont(TMP_Text t)
+        {
+            if (_font != null && t != null) t.font = _font;
+        }
+
+        private void EnsureFont()
+        {
+            if (_font == null)
+            {
+                _font = (GuidanceHudTracker.Instance != null
+                            ? GuidanceHudTracker.Instance.ResolvedFont : null)
+                        ?? GuidanceHudTracker.FindVanillaFontStatic();
+            }
+            if (_font == null) return;
+            ApplyFont(_headerText);
+            ApplyFont(_bodyText);
+            ApplyFont(_footerText);
+        }
+
+        // ── Parse helpers ───────────────────────────────────────────────────────────
+
+        /// Parse "#RRGGBB" / "#RRGGBBAA" (leading '#' optional). Returns fallback on empty/invalid.
+        private static Color ParseColor(string hex, Color fallback)
+        {
+            if (string.IsNullOrWhiteSpace(hex)) return fallback;
+            if (!hex.StartsWith("#")) hex = "#" + hex;
+            return ColorUtility.TryParseHtmlString(hex, out var c) ? c : fallback;
+        }
+
+        /// Parse a space/comma-separated font style list (Normal | Bold | Italic | Underline).
+        private static FontStyles ParseStyle(string s, FontStyles fallback)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return fallback;
+            var result = FontStyles.Normal;
+            var any = false;
+            foreach (var tok in s.Split(' ', ',', '|', '+'))
+            {
+                switch (tok.Trim().ToLowerInvariant())
+                {
+                    case "":         break;
+                    case "normal":   any = true; break;
+                    case "bold":     result |= FontStyles.Bold; any = true; break;
+                    case "italic":   result |= FontStyles.Italic; any = true; break;
+                    case "underline":result |= FontStyles.Underline; any = true; break;
+                    case "uppercase":result |= FontStyles.UpperCase; any = true; break;
+                    case "strikethrough": result |= FontStyles.Strikethrough; any = true; break;
+                }
+            }
+            return any ? result : fallback;
+        }
+
+        /// Parse Left | Center | Right into a top-aligned TMP alignment.
+        private static TextAlignmentOptions ParseAlign(string s, TextAlignmentOptions fallback)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return fallback;
+            switch (s.Trim().ToLowerInvariant())
+            {
+                case "left":   return TextAlignmentOptions.TopLeft;
+                case "center": return TextAlignmentOptions.Center;
+                case "right":  return TextAlignmentOptions.TopRight;
+                default:       return fallback;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+    }
+}

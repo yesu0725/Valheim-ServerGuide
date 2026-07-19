@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.8.0` |
+| Version | `0.9.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -43,6 +43,7 @@ src/
 │   └── NpcConversationTrigger.cs    Hold-E detect, multi-quest picker, hover_text override
 ├── Display/
 │   ├── GuidanceDisplay.cs           Mode dispatch (raven/message/chat/rune/intro/conversation/bubble) + patches
+│   ├── RunePanel.cs                 Custom themed rune-reading panel (header/body/list, configurable fonts/colors; CRIT-03)
 │   ├── GuidanceHudTracker.cs        Progress panel (F10): Codex-pinned quests only, drag-to-move, no input lock
 │   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); per-quest "Show on Tracker" pin toggle
 │   ├── NpcConversationPanel.cs      Hold-E conversation panel; multi-node trees (CRIT-17/22)

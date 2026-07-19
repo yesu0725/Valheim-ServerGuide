@@ -306,10 +306,11 @@
 
 ## External-Integration Triggers (Lost Scrolls II)
 
-These three trigger types have **no in-repo source file** — they are not raised by any
-ServerGuide Harmony patch. Instead the companion mod **Lost Scrolls II** raises them by calling
-ServerGuide's public `GuidanceDispatcher.Raise(new TriggerEvent { Type = "...", Subject = "..." })`.
-ServerGuide only supplies the *matching* side here. Both mods must be installed for these to fire.
+These trigger types have **no in-repo source file** — they are not raised by any ServerGuide
+Harmony patch. Instead the companion mod **Lost Scrolls II** raises them by calling ServerGuide's
+public `GuidanceDispatcher.Raise(new TriggerEvent { Type = "...", Subject = "...", Extra = {...} })`.
+ServerGuide only supplies the *matching* + *templating* side here. Both mods must be installed for
+these to fire. See CRIT-13 for the full `{token}` list each one makes available.
 
 ### `dvergr_recruited`
 - **Raised by:** Lost Scrolls II when a player frees (communes with) a corrupted Dvergr.
@@ -317,9 +318,10 @@ ServerGuide only supplies the *matching* side here. Both mods must be installed 
 - **YAML field matched:** `trigger.caste` (empty = match any caste).
 
 ### `dvergr_duel_won`
-- **Raised by:** Lost Scrolls II when a player wins a Dvergr duel.
+- **Raised by:** Lost Scrolls II when a player wins a 1v1 Dvergr duel.
 - **Subject:** the **winner's** caste name.
 - **YAML field matched:** `trigger.caste` (empty = match any caste).
+- **`Extra`:** `companionName`, `opponent`, `caste` (also mirrored as `evt.Subject`).
 
 ### `dvergr_level_up`
 - **Raised by:** Lost Scrolls II when a recruited Dvergr gains a level.
@@ -327,6 +329,55 @@ ServerGuide only supplies the *matching* side here. Both mods must be installed 
 - **YAML fields matched:** `trigger.caste` (empty = any caste) and `trigger.level`
   (`0` or omitted = any level — fires on every level-up). Both filters are optional and ANDed.
 - **Helper:** `MatchDvergrLevelUp` in `GuidanceDispatcher.cs`.
+
+### `dvergr_rank_changed`
+- **Raised by:** Lost Scrolls II when a companion crosses into (or moves within) the top ranks
+  of the server's 1v1 Duel Ladder.
+- **Subject:** the companion's caste name.
+- **YAML field matched:** `trigger.caste` (empty = match any caste).
+- **`Extra`:** `rank`, `rating`, `companionName`, `ownerName`.
+
+### `dvergr_rank_first`
+- **Raised by:** Lost Scrolls II only when a companion reaches **rank #1** on the Duel Ladder (a
+  genuine climb to the top, not just re-entering the top 3) — the "new champion" moment.
+- **Subject:** the companion's caste name.
+- **YAML field matched:** `trigger.caste` (empty = match any caste).
+- **`Extra`:** `rank` (always `"1"`), `rating`, `companionName`, `ownerName`.
+
+### `dvergr_party_duel_won`
+- **Raised by:** Lost Scrolls II when a player's party of companions wins a team-vs-team duel.
+- **Subject:** the winning party's owner name. **No `caste` filter** — party duels aren't
+  caste-scoped, so `trigger.caste` is ignored for this type.
+- **`Extra`:** `partyName` (falls back to the owner's name if unnamed), `winSize`,
+  `opponentOwner`, `mvpCaste`, `ownerName`.
+
+### `dvergr_party_rank_changed`
+- **Raised by:** Lost Scrolls II when a party crosses into (or moves within) the top ranks of the
+  Party Ladder. No `caste` filter (party-scoped, not caste-scoped).
+- **`Extra`:** `rank`, `rating`, `partyName`, `ownerName`.
+
+### `dvergr_party_rank_first`
+- **Raised by:** Lost Scrolls II only when a party reaches **rank #1** on the Party Ladder. No
+  `caste` filter.
+- **`Extra`:** `rank` (always `"1"`), `rating`, `partyName`, `ownerName`.
+
+### `dvergr_tournament_joined`
+- **Raised by:** Lost Scrolls II when a player registers for a bracket tournament.
+- **Subject:** the caste name entered (1v1 tournaments) or the literal string `"party"` (party
+  tournaments).
+- **YAML field matched:** `trigger.caste` (empty = match any caste/mode).
+
+### `dvergr_tournament_match`
+- **Raised by:** Lost Scrolls II when a round's pairing is set, announced to both players.
+- **Subject:** same as `dvergr_tournament_joined` (caste name or `"party"`).
+- **YAML field matched:** `trigger.caste` (empty = match any).
+- **`Extra`:** `round`, `opponent`.
+
+### `dvergr_tournament_won`
+- **Raised by:** Lost Scrolls II for the tournament winner only.
+- **Subject:** caste name or `"party"`.
+- **YAML field matched:** `trigger.caste` (empty = match any).
+- **`Extra`:** `mode`, `bracketSize`.
 
 ---
 
@@ -370,9 +421,18 @@ ServerGuide only supplies the *matching* side here. Both mods must be installed 
      timed               -> trigger.id matches evt.Subject
      entry_finished      -> trigger.entry matches evt.Subject (the completed entry's ID)
      dvergr_recruited /
-     dvergr_duel_won     -> trigger.caste matches evt.Subject (empty = any caste)
+     dvergr_duel_won /
+     dvergr_rank_changed /
+     dvergr_rank_first   -> trigger.caste matches evt.Subject (empty = any caste)
      dvergr_level_up     -> trigger.caste matches caste part of "Caste:level" (empty = any);
                             trigger.level matches level part (0 = any level)
+     dvergr_party_duel_won /
+     dvergr_party_rank_changed /
+     dvergr_party_rank_first -> type match only (no caste filter — party-scoped, not caste-scoped)
+     dvergr_tournament_joined /
+     dvergr_tournament_match /
+     dvergr_tournament_won   -> trigger.caste matches evt.Subject (empty = any; Subject is
+                                 the caste name or the literal "party")
      first_login / chest_opened / player_death -> type match only (no subject filter)
      (anything else)     -> match succeeds
 
@@ -389,9 +449,13 @@ ServerGuide only supplies the *matching* side here. Both mods must be installed 
 public class TriggerEvent
 {
     public string Type;          // any trigger type string above
-    public string Subject;       // prefab name / biome / "Skill:level" / ""
+    public string Subject;       // prefab name / biome / "Skill:level" / caste / owner name / ""
     public string DisplayName;   // localized display name when available
-    public Dictionary<string, object> Extra;  // reserved
+    public Dictionary<string, object> Extra;  // key/value bag for {token} expansion (CRIT-13) —
+                                               // used by the Lost Scrolls II ranking/tournament
+                                               // triggers above (rank, rating, companionName,
+                                               // ownerName, partyName, winSize, opponentOwner,
+                                               // mvpCaste, round, opponent, mode, bracketSize)
 }
 ```
 
@@ -424,7 +488,10 @@ public float  Window = 0.02f;   // time_of_day: +/- tolerance around GameTimeFra
 public string Day;         // day_number (parsed as int) | day_of_week (matched as weekday name)
 public int    UtcHour;     // real_world_time
 public int    UtcMinute;   // real_world_time
-public string Caste;       // dvergr_recruited | dvergr_duel_won | dvergr_level_up (empty = any caste)
+public string Caste;       // dvergr_recruited | dvergr_duel_won | dvergr_level_up |
+                            // dvergr_rank_changed | dvergr_rank_first | dvergr_tournament_*
+                            // (empty = any caste). Ignored by the party-scoped dvergr_party_*
+                            // types, which have no caste filter.
 ```
 
 ---

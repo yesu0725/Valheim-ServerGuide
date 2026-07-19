@@ -1,0 +1,162 @@
+# Lost Scrolls II — Companion Handbook (GAMEPLAY help, not lore).
+#
+# Teaches players how to actually USE their freed Dvergr companions: the command
+# keys, the caste-specific chores, and taking companions on adventures (ships,
+# portals, totems, leveling). Kept in its own file (ServerGuide merges every
+# *.yaml in config/ValheimServerGuide/) and in its own `category: Companions`
+# so the Guide Codex (F3) groups it apart from the mythic lore beats.
+#
+# Delivery mechanics used (all confirmed in ServerGuide's dispatcher):
+#   - dvergr_recruited (+ optional caste filter) — the natural moment to teach.
+#   - ship_sailed / portal_used — contextual adventure tips (recurring events, so
+#     `requires` is safe: they'll fire on a later sail/portal once the player has
+#     recruited).
+#   - dvergr_level_up — first level-up tip.
+#   - build (piece: incinerator) — the totem-sealing tip, shown when an
+#     Incinerator/Obliterator is placed. (`build` subject is the piece prefab
+#     name, logged as `[build] subject=...` — confirm 'incinerator' there.)
+#
+# Keys shown are the mod DEFAULTS (E / Y / G / J / H); they're rebindable in the
+# Lost Scrolls II BepInEx config. `once: true` (the default) keeps every tip a
+# one-time teach per character; all remain re-readable in the F3 Codex.
+
+guidances:
+  # -------------------------------------------------------------------
+  # Core command reference — fires on the player's FIRST recruit.
+  # -------------------------------------------------------------------
+  - id: ls_companion_commands
+    category: Companions
+    title: "Commanding Your Companion"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+    display:
+      mode: raven
+      topic: "Commanding Your Companion"
+    message: "A freed Dvergr follows and fights at your side, and shows on your map. Hover it and press — [E] to cycle stance: Follow (comes with you, even onto ships and through portals), Guard (holds a spot and fights nearby threats), Standby (waits quietly, won't fight unless struck); [Y] to open its pack (an 8-slot inventory, with a rename field inside); [G] to feed it a health mead and heal it; [J] to duel another player's companion. Press [H] on a workstation to put it to work, or [H] on the companion to call it back. (Default keys — rebindable in the config.) Re-read all of this in the Guide Codex (F3)."
+    summary: "Hover your companion: [E] stance (Follow/Guard/Standby) · [Y] open pack + rename · [G] feed a health mead to heal · [J] duel. [H] on a station to work / on the companion to recall. It shows on your map."
+
+  # -------------------------------------------------------------------
+  # Companion INVENTORY — the 8-slot pack, feeding, and weight.
+  # -------------------------------------------------------------------
+  - id: ls_companion_inventory
+    category: Companions
+    title: "Your Companion's Pack"
+    version: 1
+    requires: [ls_companion_commands]
+    trigger:
+      type: dvergr_recruited
+    display:
+      mode: raven
+      topic: "Your Companion's Pack"
+    message: "Every companion carries its own pack — press [Y] while hovering it to open an 8-slot inventory (just like a chest, and where you rename it too). Stock it and the companion looks after itself: it PICKS UP loose loot of kinds it already carries; EATS food you leave in it, one at a time, for a temporary max-HP boost; SIPS a health mead when badly hurt; and DRINKS poison/fire/frost resist meads to shrug off those hazards. But the pack has a 150 weight cap — overload it and the companion won't fight (though it still follows), so don't turn your ally into a pack mule mid-battle. It drops everything if it falls, and a sealed Communion Totem keeps the pack for when you summon it back."
+    summary: "[Y] opens a companion's 8-slot pack (and rename). Leave food/meads in it and it self-feeds, self-heals and resists; picks up matching loot. 150-weight cap — overloaded allies won't fight. Drops its pack on death; totems keep it."
+
+  # -------------------------------------------------------------------
+  # Caste-specific CHORES — each fires when you free that caste.
+  # -------------------------------------------------------------------
+  - id: ls_chore_fire
+    category: Companions
+    title: "Chores — Fire Mage (heat)"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: FireMage
+    display:
+      mode: raven
+      topic: "Chores — Fire Mage"
+    message: "A Fire Mage tends heat: smelters, blast furnaces, charcoal kilns and forges. Put a chest holding the ore AND coal within ~8 m of the station, stand the mage nearby, hover the station and press [H] — it ferries ore in and feeds fuel on its own, stopping at each cap. Press [H] on the station (or on the mage) to recall it. Only a Fire Mage can run these."
+    summary: "Fire Mage → smelters / blast furnaces / kilns / forges. Chest of ore + coal within ~8 m, hover the station, press [H]."
+
+  - id: ls_chore_ice
+    category: Companions
+    title: "Chores — Ice Mage (refining)"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: IceMage
+    display:
+      mode: raven
+      topic: "Chores — Ice Mage"
+    message: "An Ice Mage runs the refineries: the Eitr Refinery and the Spinning Wheel. Keep a chest with the inputs within ~8 m, stand the mage nearby, hover the station and press [H] — it loads and tends it for you. Press [H] on the station (or the mage) to recall it. Only an Ice Mage can run these."
+    summary: "Ice Mage → Eitr Refinery / Spinning Wheel. Chest of inputs within ~8 m, hover the station, press [H]."
+
+  - id: ls_chore_support
+    category: Companions
+    title: "Chores — Support Mage (provisioning)"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: SupportMage
+    display:
+      mode: raven
+      topic: "Chores — Support Mage"
+    message: "A Support Mage keeps the home fires: it can FARM, COOK, BREW and TEND TAMED ANIMALS. Keep a stocked chest within ~8 m, then hover the target and press [H] — a cooking station or Stone Oven (chest of raw food), a fermenter (chest of mead base), a tamed animal (chest of its food), or a crop / a Cultivator on an item stand by a field (chest of seeds). It plants, harvests, cooks, taps and feeds on its own. Press [H] on the target (or the mage) to recall it."
+    summary: "Support Mage → farm / cook / brew / feed tamed animals. Stocked chest within ~8 m, hover the crop/animal/station, press [H]."
+
+  - id: ls_chore_rogue
+    category: Companions
+    title: "Chores — Rogue (hauling)"
+    version: 1
+    trigger:
+      type: dvergr_recruited
+      caste: Rogue
+    display:
+      mode: raven
+      topic: "Chores — Rogue"
+    message: "A Rogue hauls. Drop loose items on the ground within ~10 m of a chest, hover the CHEST and press [H] — the Rogue holds its post by the chest and pulls nearby drops straight in, one at a time. Press [H] on the chest (or the Rogue) to recall it. Only a Rogue can haul."
+    summary: "Rogue → haul loose drops into a chest. Drop items within ~10 m of a chest, hover the chest, press [H]."
+
+  # -------------------------------------------------------------------
+  # ADVENTURES — taking companions with you.
+  # -------------------------------------------------------------------
+  - id: ls_adv_ship
+    category: Companions
+    title: "Adventuring — Sailing with a Companion"
+    version: 1
+    requires: [ls_companion_commands]
+    trigger:
+      type: ship_sailed
+    display:
+      mode: raven
+      topic: "Sailing with a Companion"
+    message: "A companion set to Follow will come to sea with you — lead it to the hull and it climbs aboard through the ladder, then walks the deck freely and fights off serpents as you sail. On land it avoids deep water, but it will swim out to board while you're aboard. Keep it on Follow ([E]) so it comes along."
+    summary: "Follow-stance companions board your ship via the ladder and ride along, fighting on deck. Keep it on Follow."
+
+  - id: ls_adv_portal
+    category: Companions
+    title: "Adventuring — Portals"
+    version: 1
+    requires: [ls_companion_commands]
+    trigger:
+      type: portal_used
+    display:
+      mode: raven
+      topic: "Through the Portals"
+    message: "Companions set to Follow teleport through portals with you — they arrive around the far portal and keep following. Only Follow comes: allies on a chore, or set to Guard or Standby, or in a duel, stay where they are. So to bring an ally through, set it to Follow ([E]) first."
+    summary: "Follow-stance companions follow you through portals. Chore / Guard / Standby / duel allies stay put."
+
+  - id: ls_level_up
+    category: Companions
+    title: "Companions Grow Stronger"
+    version: 1
+    trigger:
+      type: dvergr_level_up
+    display:
+      mode: raven
+      topic: "Companions Grow Stronger"
+    message: "Your companion is levelling up. It earns XP from kills near you — more from tougher creatures and harsher biomes, plus a bonus for winning a duel — up to level 10, shown as a gold star badge above its name. Rogues and Fire Mages grow faster; Ice and Support Mages grow tougher. Keep it near you in a fight and it climbs on its own."
+    summary: "Companions gain XP from nearby kills (and duel wins) up to Lv 10 (gold ★). Rogue/Fire = faster, Ice/Support = tougher."
+
+  - id: ls_feature_totem
+    category: Companions
+    title: "Sealing a Companion — the Communion Totem"
+    version: 1
+    trigger:
+      type: build
+      piece: incinerator
+    display:
+      mode: raven
+      topic: "The Communion Totem"
+    message: "At an Incinerator (Obliterator) you can pack a companion away for travel. Gather your Follow-stance companions here, drop in Wisps — one per companion — and pull the lever: each becomes a carriable 'Communion Totem', keeping its name and level. Later, use the totem from your hotbar to summon that companion back where you're looking. Handy for portaling home with a full retinue."
+    summary: "At an Incinerator, drop 1 Wisp per Follow companion and pull the lever to seal each into a Communion Totem. Use the totem to summon it back."

@@ -1,0 +1,76 @@
+# Lost Scrolls II — Tournaments (announcements + champion prizes).
+#
+# Delivered through ServerGuide like the ladders. Own `category: Tournaments`.
+# The mod's bracket runner (docs/Tournaments.md) fires these on the relevant
+# player's client:
+#   dvergr_tournament_joined — subject = caste name (1v1) or "party".
+#   dvergr_tournament_match  — subject = caste/"party"; vars {round} {opponent}.
+#   dvergr_tournament_won    — subject = caste/"party"; vars {mode} {bracketSize}.
+#
+# The champion prize is the centrepiece. Keep it prestigious but not power-crept;
+# tune the item/buff/title to your server.
+
+guidances:
+  # -------------------------------------------------------------------
+  # Registered — confirmation when a player enters the tournament.
+  # -------------------------------------------------------------------
+  - id: ls_tourney_joined
+    category: Tournaments
+    title: "Entered the Tournament"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_tournament_joined
+    display:
+      mode: raven
+      topic: "Entered the Tournament"
+    message: "You are entered in the tournament. When the bracket begins you'll be told who you face — bring your companion to the arena and duel (party tournaments: gather your team with [K]). Win to advance; the last standing is champion. Type de_tournament bracket to see the draw."
+    summary: "You're in the tournament. Await your pairing, then duel to advance. de_tournament bracket shows the draw."
+
+  # -------------------------------------------------------------------
+  # Pairing — announced to both players when a round's match is set.
+  # -------------------------------------------------------------------
+  - id: ls_tourney_match
+    category: Tournaments
+    title: "Your Tournament Match"
+    version: 1
+    once: false
+    cooldown: 2
+    trigger:
+      type: dvergr_tournament_match
+    display:
+      mode: message
+      position: Center
+    message: "Round {round}: you face {opponent}. To the arena — begin the duel when you're both ready!"
+
+  # -------------------------------------------------------------------
+  # Champion — the centrepiece prize. Fires for the winner only.
+  # -------------------------------------------------------------------
+  - id: ls_tourney_won
+    category: Tournaments
+    title: "Tournament Champion"
+    version: 1
+    once: false
+    cooldown: 10
+    trigger:
+      type: dvergr_tournament_won
+    display:
+      mode: intro
+      topic: "Tournament Champion"
+    message: "Champion! You have won the {mode} tournament — a bracket of {bracketSize}. Let your name be remembered in the Hall of Champions."
+    rewards:
+      - type: chat_message
+        message: "🏆 {player_name} is the {mode} tournament champion (bracket of {bracketSize})! 🏆"
+      - type: discord
+        message: "🏆 **{player_name}** is the **{mode}** tournament champion — a bracket of {bracketSize}! Their name enters the Hall of Champions."
+      - type: buff
+        effect: GP_Eikthyr
+        duration_override: 300
+      # A trophy prize — swap the prefab for whatever fits your server's economy.
+      - type: item
+        item: Coins
+        amount: 500
+      # A lasting title. Uncomment to brand the champion's name.
+      # - type: rename_player
+      #   suffix: "the Champion"

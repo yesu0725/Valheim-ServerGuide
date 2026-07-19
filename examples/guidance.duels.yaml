@@ -1,0 +1,50 @@
+# Lost Scrolls II — Duel result broadcasts (Discord + chat).
+#
+# Announces EVERY duel win — personal (1v1) and party — to Discord and server
+# chat. Tournament matches are ordinary duels under the hood, so a tournament win
+# is announced by the same 1v1/party entry here (the tournament CHAMPION gets its
+# own prestige entry in guidance.tournaments.yaml).
+#
+# Requires the server to set DiscordWebhookUrl in the ServerGuide config for the
+# `discord` reward to post; with no webhook it's a logged no-op, and the chat
+# line still fires. Delivered through ServerGuide's RewardDispatcher like every
+# other reward — tune or delete freely.
+#
+# Trigger contract (see the mod's docs/Ranking.md + ServerGuide-Integration.md):
+#   dvergr_duel_won       — subject = winner caste; vars {companionName} {opponent} {caste} {player_name}.
+#   dvergr_party_duel_won — subject = winner owner; vars {winSize} {opponentOwner} {mvpCaste} {partyName} {player_name}.
+#
+# `cooldown` here only de-dupes accidental double-fires within a couple of
+# seconds; back-to-back wins in separate bouts still each announce.
+
+guidances:
+  # -------------------------------------------------------------------
+  # 1v1 duel win — announced for every personal duel (incl. tournament matches).
+  # -------------------------------------------------------------------
+  - id: ls_duel_broadcast
+    category: Rankings
+    title: "Duel Won"
+    version: 1
+    once: false
+    cooldown: 2
+    trigger:
+      type: dvergr_duel_won
+    rewards:
+      - type: discord
+        message: "⚔️ **{companionName}** ({player_name}'s {caste}) won a duel against **{opponent}**!"
+
+  # -------------------------------------------------------------------
+  # Party duel win — announced for every team-vs-team victory. {partyName}
+  # falls back to the owner's name when the party is unnamed.
+  # -------------------------------------------------------------------
+  - id: ls_party_duel_broadcast
+    category: Rankings
+    title: "Party Duel Won"
+    version: 1
+    once: false
+    cooldown: 2
+    trigger:
+      type: dvergr_party_duel_won
+    rewards:
+      - type: discord
+        message: "🛡️ **{partyName}** (led by {player_name}, {winSize} strong) won a party duel against {opponentOwner}'s team!"

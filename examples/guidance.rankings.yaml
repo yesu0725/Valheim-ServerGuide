@@ -1,0 +1,157 @@
+# Lost Scrolls II — Duel Ladder & Rankings (GAMEPLAY help + milestones).
+#
+# Delivered through ServerGuide like the Companion Handbook. Its own
+# `category: Rankings` so the Guide Codex (F3) groups it apart from lore and the
+# handbook. Two kinds of entry here:
+#   1. A Codex reference page teaching how the duel ladder works.
+#   2. Milestone entries that fire on `dvergr_rank_changed` (raised by Lost
+#      Scrolls II when a companion climbs into the top ranks) to celebrate + reward.
+#
+# Trigger contract (see the mod's docs/Ranking.md + ServerGuide-Integration.md):
+#   dvergr_rank_changed — subject = winner caste; optional `caste:` filter.
+#     Templating vars available: {rank} {rating} {companionName} {ownerName} {caste}.
+#
+# Rewards use ServerGuide's existing RewardDispatcher — nothing here is Lost
+# Scrolls II-specific. Tune freely; keep prizes modest so the ladder stays about
+# prestige, not power creep.
+
+guidances:
+  # -------------------------------------------------------------------
+  # Reference page — how the duel ladder works. Fires on the first duel win.
+  # -------------------------------------------------------------------
+  - id: ls_ladder_intro
+    category: Rankings
+    title: "The Duel Ladder"
+    version: 1
+    trigger:
+      type: dvergr_duel_won
+    display:
+      mode: raven
+      topic: "The Duel Ladder"
+    message: "Every duel your companion wins against another player's companion is recorded on the server's Duel Ladder. Each companion carries its own rating (Elo — beat a stronger rival and you climb faster), shown as a rank on its name and listed with its wins and losses. Type de_ladder in the console to see the standings (de_ladder fire|ice|support|rogue to filter by caste). Rankings persist across restarts and reset each season."
+    summary: "Companion duel wins feed a persistent server ladder (Elo rating). See standings with de_ladder. Rank shows on the companion's name tag."
+
+  # -------------------------------------------------------------------
+  # Milestone — a companion reaches the top 3. Celebratory, light reward.
+  # `dvergr_rank_changed` only fires when a real threshold is crossed, so this
+  # won't spam; `cooldown` guards against rapid re-entry into the top 3.
+  # -------------------------------------------------------------------
+  - id: ls_ladder_top3
+    category: Rankings
+    title: "Among the Champions"
+    version: 1
+    once: false
+    cooldown: 600
+    trigger:
+      type: dvergr_rank_changed
+    display:
+      mode: message
+      position: TopLeft
+    message: "{companionName} climbs to rank #{rank} on the Duel Ladder (rating {rating})!"
+    rewards:
+      # A short, thematic buff — prestige, not power. Swap/extend as you like.
+      - type: buff
+        effect: Rested
+        duration_override: 120
+      - type: chat_message
+        message: "{player_name}'s companion {companionName} is now rank #{rank} on the Duel Ladder!"
+  # -------------------------------------------------------------------
+  # New #1 — a companion reaches the TOP of the Duel Ladder. Fires on the
+  # dedicated dvergr_rank_first trigger (only ever fires at rank #1, on a genuine
+  # climb), so it can carry a Discord "new champion" broadcast without a rank
+  # filter. Requires the server to have set DiscordWebhookUrl in the ServerGuide
+  # config; the discord reward is a no-op (logged) if the webhook is empty.
+  # -------------------------------------------------------------------
+  - id: ls_ladder_first
+    category: Rankings
+    title: "Duel Ladder Champion"
+    version: 1
+    once: false
+    cooldown: 30
+    trigger:
+      type: dvergr_rank_first
+    display:
+      mode: intro
+      topic: "Duel Ladder Champion"
+    message: "{companionName} stands at the very top of the Duel Ladder — rank #1, rating {rating}. The finest companion on the server."
+    rewards:
+      - type: chat_message
+        message: "👑 {player_name}'s companion {companionName} is now the #1 duelist on the server (rating {rating})!"
+      - type: discord
+        message: "👑 **{companionName}** ({ownerName}'s {caste}) has claimed **#1** on the Duel Ladder — rating {rating}!"
+
+  # -------------------------------------------------------------------
+  # Party ladder reference page — fires on the first party duel win.
+  # -------------------------------------------------------------------
+  - id: ls_party_ladder_intro
+    category: Rankings
+    title: "The Party Ladder"
+    version: 1
+    trigger:
+      type: dvergr_party_duel_won
+    display:
+      mode: raven
+      topic: "The Party Ladder"
+    message: "Party duels — your team of companions against another player's team ([K] to gather your Follow-stance allies into a party) — feed a separate Party Ladder. Each party is rated by its owner (team Elo), tracked with the companions that fought for it. Type de_party_ladder in the console to see the standings. Like the duel ladder, it persists across restarts and resets each season."
+    summary: "Team-vs-team party duels ([K]) feed a per-owner Party Ladder (team Elo). See standings with de_party_ladder."
+
+  # -------------------------------------------------------------------
+  # Party win — celebratory notice each time a party duel is won.
+  # -------------------------------------------------------------------
+  - id: ls_party_won
+    category: Rankings
+    title: "Party Victory"
+    version: 1
+    once: false
+    cooldown: 60
+    trigger:
+      type: dvergr_party_duel_won
+    display:
+      mode: message
+      position: TopLeft
+    message: "Your party of {winSize} bested {opponentOwner}'s team!"
+
+  # -------------------------------------------------------------------
+  # Party milestone — a party climbs into the top 3.
+  # -------------------------------------------------------------------
+  - id: ls_party_top3
+    category: Rankings
+    title: "A Renowned Company"
+    version: 1
+    once: false
+    cooldown: 600
+    trigger:
+      type: dvergr_party_rank_changed
+    display:
+      mode: message
+      position: Center
+    message: "{ownerName}'s party climbs to rank #{rank} on the Party Ladder (rating {rating})!"
+    rewards:
+      - type: buff
+        effect: Rested
+        duration_override: 120
+      - type: chat_message
+        message: "{player_name}'s party is now rank #{rank} on the Party Ladder!"
+
+  # -------------------------------------------------------------------
+  # New #1 party — reaches the TOP of the Party Ladder (dvergr_party_rank_first).
+  # Broadcasts to Discord like the 1v1 champion. {partyName} falls back to the
+  # owner's name when no party name has been set.
+  # -------------------------------------------------------------------
+  - id: ls_party_first
+    category: Rankings
+    title: "Party Ladder Champions"
+    version: 1
+    once: false
+    cooldown: 30
+    trigger:
+      type: dvergr_party_rank_first
+    display:
+      mode: intro
+      topic: "Party Ladder Champions"
+    message: "{partyName} stands atop the Party Ladder — the #1 company on the server, rating {rating}."
+    rewards:
+      - type: chat_message
+        message: "👑 {partyName} is now the #1 party on the server (rating {rating})!"
+      - type: discord
+        message: "👑 **{partyName}** ({ownerName}) has claimed **#1** on the Party Ladder — rating {rating}!"

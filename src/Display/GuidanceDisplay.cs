@@ -129,7 +129,9 @@ namespace ValheimServerGuide.Display
 
             if (Eq(mode, "rune"))
             {
-                ShowViewer(TextViewer.Style.Rune, entry.Display?.Topic ?? "", renderedText, autoHide: false, lockIntroMusic: false);
+                // Custom themed rune-reading panel (header/body/list + configurable
+                // fonts/colors). Ghost mode is engaged/released by the panel itself.
+                RunePanel.Get().Open(entry, renderedText);
                 return;
             }
 
@@ -364,16 +366,6 @@ namespace ValheimServerGuide.Display
             return $"<color={hex}>{text}</color>";
         }
 
-        private static void ShowViewer(TextViewer.Style style, string topic, string text, bool autoHide, bool lockIntroMusic)
-        {
-            if (TextViewer.instance == null) { Plugin.Log.LogWarning($"[show] {style}: TextViewer.instance null."); return; }
-            EngageGhostMode();
-            if (lockIntroMusic) EngageIntroMusic();
-            // TextViewer.ShowText runs the value through Localization; raw text is fine,
-            // it's passed through when not a registered token.
-            TextViewer.instance.ShowText(style, topic, text, autoHide);
-        }
-
         /// Intro mode with optional fade-to-black + pre-text delay.
         ///
         /// The player is FROZEN (input) and truly INVULNERABLE (ghost mode +
@@ -556,6 +548,10 @@ namespace ValheimServerGuide.Display
             if (!_priorGhostState) player.SetGhostMode(true);
             _ghostEngaged = true;
         }
+
+        /// Engage ghost mode for the custom rune panel (invulnerable + undetected while the
+        /// reading is up). Release is owned by RunePanel.Close via ReleaseGhostMode().
+        internal static void BeginRuneGhost() => EngageGhostMode();
 
         /// Releases ghost mode only. Intro music is intentionally NOT released here —
         /// its lifetime is governed by IntroMusicDuration so the soundtrack plays
@@ -802,6 +798,8 @@ namespace ValheimServerGuide.Display
         private static void Postfix()
         {
             GuidanceDisplay.ClearRavenState();
+            // Dismiss any open rune reading so it doesn't linger into the next session.
+            if (RunePanel.Instance != null) RunePanel.Instance.CloseImmediate();
             // Safety: if the session ends mid-intro (disconnect / logout), make sure the
             // static freeze flag can't carry into the next session and lock input there.
             GuidanceDisplay.ReleaseIntroLock();

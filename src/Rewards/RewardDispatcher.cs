@@ -7,7 +7,11 @@ namespace ValheimServerGuide.Rewards
 {
     public static class RewardDispatcher
     {
-        public static void Grant(List<RewardSpec> rewards, Player player)
+        // `expand` (optional) applies the firing entry's full token templating
+        // (e.g. {companionName}/{rank}/{winSize}) to message-bearing rewards, so a
+        // chat_message/discord reward reads the same trigger vars the display text
+        // does. Null = only {player_name} is expanded (back-compat).
+        public static void Grant(List<RewardSpec> rewards, Player player, System.Func<string, string> expand = null)
         {
             if (rewards == null || rewards.Count == 0 || player == null) return;
 
@@ -28,10 +32,10 @@ namespace ValheimServerGuide.Rewards
                     case "set_player_key":   GrantSetPlayerKey(reward, player);    break;
                     case "remove_player_key":GrantRemovePlayerKey(reward, player); break;
                     case "weather":          GrantWeather(reward);                break;
-                    case "chat_message":     GrantChatMessage(reward, player);     break;
+                    case "chat_message":     GrantChatMessage(reward, player, expand); break;
                     case "teleport":         GrantTeleport(reward, player);        break;
                     case "rename_player":    GrantRenamePlayer(reward, player);    break;
-                    case "discord":          GrantDiscord(reward, player);         break;
+                    case "discord":          GrantDiscord(reward, player, expand); break;
                     default:
                         Plugin.Log.LogWarning($"[rewards] Unknown reward type '{reward.Type}' — skipping.");
                         break;
@@ -379,7 +383,7 @@ namespace ValheimServerGuide.Rewards
                 EnvMan.instance.SetForceEnvironment("");
         }
 
-        private static void GrantChatMessage(RewardSpec reward, Player player)
+        private static void GrantChatMessage(RewardSpec reward, Player player, System.Func<string, string> expand = null)
         {
             if (string.IsNullOrEmpty(reward.Message))
             {
@@ -391,7 +395,7 @@ namespace ValheimServerGuide.Rewards
                 Plugin.Log.LogWarning("[rewards] chat_message: Chat.instance null — skipping.");
                 return;
             }
-            var text = ExpandPlayerName(reward.Message, player);
+            var text = ExpandPlayerName(expand != null ? expand(reward.Message) : reward.Message, player);
             Chat.instance.AddString(text);
         }
 
@@ -425,14 +429,14 @@ namespace ValheimServerGuide.Rewards
             Plugin.Log.LogInfo($"[rewards] Renamed player to '{newName}'.");
         }
 
-        private static void GrantDiscord(RewardSpec reward, Player player)
+        private static void GrantDiscord(RewardSpec reward, Player player, System.Func<string, string> expand = null)
         {
             if (string.IsNullOrEmpty(reward.Message))
             {
                 Plugin.Log.LogWarning("[rewards] discord reward missing 'message' field — skipping.");
                 return;
             }
-            var text = ExpandPlayerName(reward.Message, player);
+            var text = ExpandPlayerName(expand != null ? expand(reward.Message) : reward.Message, player);
             GuidanceSync.SendRewardDiscord(text);
         }
 

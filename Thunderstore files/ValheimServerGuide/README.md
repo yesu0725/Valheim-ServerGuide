@@ -86,7 +86,7 @@ A world event when the first boss falls:
     discord: "⚔️ **{playerName}** has slain **Eikthyr** — the first boss has fallen!"
 ```
 
-_New in 0.8.0:_ a separate, opt-in **quest-start Discord log** posts a rich embed (quest info, player, location, timestamp) the first time a player begins any quest — routed to its own webhook channel so you can verify quests trigger correctly, independent of the announcements above.
+_New in 0.9.0:_ the **rune** display mode is now a fully customizable, game-themed panel — set your own header/body/list fonts, colors, and alignment per entry, add a bullet list, and enjoy a smooth fade in/out. Plus seven new Lost Scrolls II trigger types for party duels, the party ladder, and bracket tournaments.
 
 ---
 
@@ -112,5 +112,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.8.0
+**Version:** 0.9.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

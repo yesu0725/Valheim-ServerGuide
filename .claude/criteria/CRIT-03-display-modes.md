@@ -98,18 +98,86 @@ display:
 
 ## Mode: `rune`
 
-- Uses `TextViewer.instance.ShowText(TextViewer.Style.Rune, topic, text, autoHide: false)`.
-- Screen darkens; centered text styled like a vanilla runestone reading.
-- Ghost mode is engaged on display, released when `TextViewer.Hide` or `TextViewer.HideIntro` fires.
-- No fade transition, no music, no input lock (player can dismiss at will).
-- No ESC block.
+- Rendered by the custom **`RunePanel`** (`src/Display/RunePanel.cs`) — a Valheim-themed
+  reading card on a dedicated `ScreenSpaceOverlay` canvas (`sortingOrder = 210`), not the
+  vanilla `TextViewer`. Uses the game font (resolved the same way as the Codex / Conversation
+  panels) plus `Image` color fills. No custom assets (CRIT-14).
+- **Layout:** a full-screen darkening backdrop behind a centered card. The card is a
+  `VerticalLayoutGroup` + `ContentSizeFitter` that stacks **header → divider → body → list →
+  footer**; its height grows to fit the content, its width is fixed (`rune.width`, default 620).
+- **Default content (no `rune:` block):** header = `display.topic`, body = `message:` / `display.text`,
+  styled with themed defaults (gold header, parchment body on dark stone). The header + divider are
+  hidden when there is no topic; the body is hidden when there is no text; the list is hidden when empty.
+- Screen darkens; ghost mode is engaged on open (invulnerable + undetected) and released after the
+  panel finishes closing. If an intro cinematic takes over, the intro owns the ghost-mode release.
+- **Fade in/out:** a `CanvasGroup` on the panel's root fades the whole card (backdrop + panel) in on
+  open and out on close, via `RuneStyleSpec.FadeIn` / `FadeOut` (seconds, default `0.35` each; `0` =
+  instant). Re-triggering `Open()` while a fade-out is still running crossfades smoothly from the
+  current alpha rather than flashing to black first.
+- No music, no input lock (player can move; the reading is dismissed at will).
+- **Dismissal:** press **Use (E)** / **Escape**, or click the backdrop (a 0.3 s grace prevents an
+  already-held key from skipping instantly) — dismissal via `Close()` fades out. An intro cinematic
+  starting, or session teardown (`ZNet.OnDestroy`), closes the panel instantly via `CloseImmediate()`
+  (no fade), since a lingering fade coroutine would otherwise carry stale state across the transition.
 
-**Config example:**
+### Customization — `display.rune` (`RuneStyleSpec`)
+
+All fields optional; unset → themed defaults. Colors are hex (`#RRGGBB` / `#RRGGBBAA`, leading `#`
+optional). Font styles accept any combination of `Normal | Bold | Italic | Underline | Uppercase |
+Strikethrough` (e.g. `"Bold Italic"`). Alignment is `Left | Center | Right`. All text fields support
+`{player_name}` and the other template variables.
+
+| Field | Default | Purpose |
+|---|---|---|
+| `header` | `display.topic` | Header text override |
+| `header_color` | gold | Header color |
+| `header_font_size` | `26` | Header size |
+| `header_style` | `Bold` | Header font style |
+| `header_alignment` | `Center` | Header alignment |
+| `body_color` | parchment | Body color |
+| `body_font_size` | `17` | Body size |
+| `body_style` | `Normal` | Body font style |
+| `body_alignment` | `Left` | Body alignment |
+| `items` | — | Bullet-list rows (each styled + templated) |
+| `bullet` | `•` | Row glyph (`""` = none) |
+| `item_color` | warm | List row color |
+| `item_font_size` | `16` | List row size |
+| `item_style` | `Normal` | List row font style |
+| `background_color` | dark stone | Panel fill |
+| `accent_color` | bronze | Header/body divider rule |
+| `width` | `620` | Panel width (px, clamped 240–1200) |
+| `fade_in` | `0.35` | Fade-in duration, seconds (`0` = instant) |
+| `fade_out` | `0.35` | Fade-out duration, seconds (`0` = instant) |
+
+**Config example (default themed look):**
 ```yaml
 display:
   mode: rune
   topic: "Ancient Inscription"
   text: "Long ago, the gods carved these words..."
+```
+
+**Config example (fully customized with a list):**
+```yaml
+display:
+  mode: rune
+  topic: "The Elder's Charge"
+  text: "Heed these trials, {player_name}, and Valhalla awaits."
+  rune:
+    header_color: "#E6B34A"
+    header_font_size: 30
+    header_style: "Bold Uppercase"
+    body_color: "#D8D2C2"
+    body_style: "Italic"
+    accent_color: "#8A6A2A"
+    background_color: "#0F0C08F0"
+    width: 680
+    bullet: "◆"
+    item_color: "#C8B87A"
+    items:
+      - "Slay the Elder in the Black Forest."
+      - "Recover the swamp key from Bonemass."
+      - "Return to the sacred stones."
 ```
 
 ---
@@ -227,7 +295,11 @@ Released by calling `GuidanceDisplay.ReleaseGhostMode()`.
 - [ ] `message` respects `position: Center` vs `position: TopLeft`.
 - [ ] `chat` text must be visually distinct from white say and yellow shout (gold color by default).
 - [ ] `chat` must force the chat panel visible immediately (not rely on the player having the panel open).
-- [ ] `rune` engages ghost mode; releases ghost mode when viewer closes.
+- [ ] `rune` engages ghost mode; releases ghost mode when the panel finishes closing.
+- [ ] `rune` renders header (topic) + body (message/text) with themed defaults when no `rune:` block is present.
+- [ ] `rune` honors `display.rune` overrides: header/body/item colors, font sizes, styles, alignment, bullet list, width, background.
+- [ ] `rune` is dismissed by Use (E) / Escape / backdrop click, fading out over `fade_out` seconds; auto-closes instantly (no fade) on intro start and session teardown.
+- [ ] `rune` fades in over `fade_in` seconds on open; re-opening mid fade-out crossfades from the current alpha instead of flashing.
 - [ ] `intro` engages ghost mode + input freeze + ESC block + music; all released when text is dismissed.
 - [ ] Ghost mode state before the display is restored exactly (if already ghost, stays ghost after release).
 - [ ] Unknown `mode` values log a warning and do nothing; they do not throw.

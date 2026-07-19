@@ -1,4 +1,37 @@
 # Changelog
+## 0.9.0
+
+### Rune Display Mode — Full Redesign
+
+The `rune` display mode is now rendered by a custom, game-themed panel instead of the plain vanilla runestone reading — and every part of it is now configurable per-entry under a new `display.rune` block:
+
+- **Layout:** header, divider, word-wrapped body, and an optional bullet list, stacked in a centered card that auto-sizes to its content.
+- **Fonts & colors:** independent color/size/font-style (`Bold`/`Italic`/`Underline`/`Uppercase`/`Strikethrough`, any combination)/alignment for the header, body, and list rows, plus panel background and accent (divider) color.
+- **Lists:** an `items:` array renders as a styled bullet list below the body — pick your own glyph, color, size, and style.
+- **Fade in/out:** the panel now fades in on open and fades out on dismiss (`fade_in`/`fade_out`, seconds, default `0.35` each — `0` for instant). Re-triggering a reading mid fade-out crossfades smoothly instead of flashing.
+- Uses the game's own font and vanilla `Image` color fills only — no custom assets. Ghost mode (ubiquitous invulnerability + undetected) and ghost-mode/intro interplay are unchanged from the old rune mode.
+- Entries with no `rune:` block are unaffected in behavior — they get the new panel with the same themed defaults (gold header, parchment body, dark stone background) the old vanilla reading approximated.
+
+See the wiki's Display Modes page for the full field reference and examples.
+
+### Reward Message Templating (fix)
+
+`chat_message` and `discord` **reward** messages now expand the firing entry's **full** token set — `{companionName}`, `{rank}`, `{rating}`, `{winSize}`, `{opponentOwner}`, `{mode}`, `{bracketSize}`, `{partyName}`, `{biome}`, `{level}`, and the rest — not just `{player_name}`. Previously any other `{...}` placeholder in a reward message rendered literally, so reward text couldn't reference what actually triggered it. Display/message text was already templated; rewards now match it (chain-completion and NPC-conversation-choice rewards, which have no triggering event to template from, still expand only `{player_name}`).
+
+### Lost Scrolls II Integration — Rankings, Party Duels & Tournaments
+
+Seven new trigger types for the companion mod's competitive suite (party duels, party ladder, and bracket tournaments), plus the matching template variables (CRIT-13) so guidance can announce results without extra plumbing:
+
+- `dvergr_rank_first` — a companion reaches **#1** on the duel ladder (optional `caste:` filter). Vars: `{rank}` `{rating}` `{companionName}` `{ownerName}`.
+- `dvergr_party_duel_won` — a party of companions wins a team-vs-team duel. Vars: `{partyName}` `{winSize}` `{opponentOwner}` `{mvpCaste}` `{ownerName}`.
+- `dvergr_party_rank_changed` — a party crosses into (or moves within) the party ladder's top ranks. Vars: `{rank}` `{rating}` `{partyName}` `{ownerName}`.
+- `dvergr_party_rank_first` — a party reaches **#1** on the party ladder. Vars: `{rank}` `{rating}` `{partyName}` `{ownerName}`.
+- `dvergr_tournament_joined` — a player registers for a bracket tournament (1v1 or party).
+- `dvergr_tournament_match` — a round's pairing is announced. Vars: `{round}` `{opponent}`.
+- `dvergr_tournament_won` — the tournament champion is decided. Vars: `{mode}` `{bracketSize}`.
+
+New templating variables: **`{partyName}`**, **`{winSize}`**, **`{opponentOwner}`**, **`{mvpCaste}`**, **`{round}`**, **`{opponent}`**, **`{mode}`**, **`{bracketSize}`**.
+
 ## 0.8.0
 
 ### Quest-Start Discord Log (new)
