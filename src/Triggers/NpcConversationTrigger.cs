@@ -122,14 +122,14 @@ namespace ValheimServerGuide.Triggers
             var eligible = NpcConversationTrigger.FindEntry(subject, player);
             if (eligible?.HoverText?.Default != null)
             {
-                __result += "\n" + eligible.HoverText.Default;
+                __result += "\n" + GuidanceDispatcher.TemplateLocal(eligible.HoverText.Default);
                 return;
             }
 
             var firedWithHover = FindFiredEntryWithAfterFireHover(subject, player);
             if (firedWithHover != null)
             {
-                __result += "\n" + firedWithHover.HoverText.AfterFire;
+                __result += "\n" + GuidanceDispatcher.TemplateLocal(firedWithHover.HoverText.AfterFire);
                 return;
             }
 

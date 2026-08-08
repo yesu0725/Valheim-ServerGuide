@@ -1,6 +1,6 @@
 # CRIT-13 — Text Templates
 
-**File:** `src/Triggers/GuidanceDispatcher.cs` (`TemplateText`)
+**File:** `src/Triggers/GuidanceDispatcher.cs` (`TemplateText`, `TemplateLocal`)
 
 ---
 
@@ -10,6 +10,11 @@
 callback (CRIT-23) — reward `message` fields (`chat_message`, `discord`) all support token
 substitution. Tokens are replaced at fire time with contextual values from the triggering event
 and player.
+
+The UI panels that re-render the *same* config fields outside a fire path (Guide Codex, HUD
+tracker, conversation chrome, raven topic, NPC hover text) substitute through `TemplateLocal`
+instead — see "Non-Fire-Path Surfaces" below. Every surface that shows author-written text must
+run it through one of the two; anything else prints a raw `{playerName}` to the screen.
 
 ---
 
@@ -128,6 +133,45 @@ Note: `{itemName}` and `{creatureName}` resolve to the same value (`DisplayName 
 
 ---
 
+## Non-Fire-Path Surfaces (`TemplateLocal`)
+
+A guidance entry's text is authored once but rendered in more than one place. The dispatcher
+templates it when the entry **fires**; the persistent UI re-reads the same YAML fields later,
+with no `TriggerEvent` and no dispatcher call in sight. Those readers call:
+
+```csharp
+internal static string TemplateLocal(string template)
+```
+
+which resolves only what is knowable without an event — `{playerName}`, `{player_name}`, and
+`{biome}` (live, from `Player.m_localPlayer`) — and **leaves every other token verbatim**.
+
+That last part is deliberate. `TemplateText(template, null, name)` would blank `{creatureName}`,
+`{rank}`, and the rest to `""`, silently deleting words from a Codex entry that reads correctly
+when it actually fires. Leaving the token intact is the lesser evil: the panel shows the same
+placeholder the author typed, and nothing goes missing.
+
+Surfaces that must call it:
+
+| Surface | Fields |
+|---|---|
+| `GuidanceCodex` | entry title (list + header), `summary`, `message` / `display.text` body, step `message` / `description`, locked upcoming-step labels |
+| `GuidanceHudTracker` | pinned quest titles on every row type, step `description` in the hover tooltip |
+| `NpcConversationPanel` | header (`display.topic` ?? `title`), all choice-button labels, multi-quest picker rows |
+| `GuidanceDisplay` | raven `m_topic`/`m_label` and the intro topic — these are baked into `Tutorial.m_texts` at registration, **before** a local player exists, so they are re-templated at show time in `UpdateTutorialText`, not at registration |
+| `NpcConversationTrigger` | `hover_text.default` and `hover_text.after_fire` |
+
+`RunePanel` already templates its header and list items directly through `TemplateText` with the
+local player's name; it needs no change.
+
+### Reward messages
+
+`RewardDispatcher.ExpandPlayerName` is the fallback used when `Grant` is called **without** the
+dispatcher's `expand` callback (chain-completion and conversation-choice rewards). It expands
+`{playerName}` and `{player_name}` — both spellings, since they are documented as aliases.
+
+---
+
 ## Discord Template Tokens
 
 In addition to the above, Discord templates (in `announce.discord` or `DiscordDefaultTemplate`) support:
@@ -172,3 +216,6 @@ Discord token substitution is handled inside `DiscordAnnouncer.Announce`, not in
 - [ ] A null or empty `display.text` passes through unchanged (no null reference exception).
 - [ ] Reward `chat_message`/`discord` messages receive the full token set (not just `{player_name}`) when granted through `RewardDispatcher.Grant`'s `expand` callback (see CRIT-23).
 - [ ] All `Extra`-backed tokens (`{rank}`, `{rating}`, `{companionName}`, etc.) resolve to `""` — never throw — when `evt.Extra` is null or the key is missing.
+- [ ] No UI surface prints a raw `{playerName}` / `{player_name}`: the Codex, HUD tracker, conversation panel chrome, raven topic/label, intro topic, and NPC hover text all route author-written text through `TemplateLocal`.
+- [ ] `TemplateLocal` leaves event-derived tokens (`{creatureName}`, `{rank}`, …) **unexpanded** rather than blanking them, and returns the input unchanged when there is no local player.
+- [ ] `RewardDispatcher.ExpandPlayerName` accepts both `{playerName}` and `{player_name}`, so a reward granted without the `expand` callback still resolves either spelling.

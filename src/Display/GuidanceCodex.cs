@@ -548,7 +548,7 @@ namespace ValheimServerGuide.Display
                 foreach (var entry in byCategory[cat])
                 {
                     var complete   = IsEntryComplete(entry, player);
-                    var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : entry.Title;
+                    var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title);
 
                     var rowGo = new GameObject("VSG_Row_" + entry.Id);
                     rowGo.transform.SetParent(_leftContent, false);
@@ -634,7 +634,7 @@ namespace ValheimServerGuide.Display
                 return;
             }
 
-            var title    = string.IsNullOrEmpty(entry.Title) ? entry.Id : entry.Title;
+            var title    = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title);
             var complete = IsEntryComplete(entry, player);
 
             UpdateTrackToggle(entry, player, complete);
@@ -694,7 +694,7 @@ namespace ValheimServerGuide.Display
             // Completed chains without a summary fall back to the last step's message.
             if (complete && !string.IsNullOrEmpty(entry.Summary))
             {
-                _bodyText.text = "<color=#96F296><b>Quest Complete</b></color>\n\n" + entry.Summary;
+                _bodyText.text = "<color=#96F296><b>Quest Complete</b></color>\n\n" + Template(entry.Summary);
             }
             else if (entry.Steps != null && entry.Steps.Count > 0)
             {
@@ -708,13 +708,14 @@ namespace ValheimServerGuide.Display
                 {
                     var idx = ChainState.GetStep(player, entry.Id);
                     displayStep = idx < entry.Steps.Count ? entry.Steps[idx] : null;
-                    _bodyText.text = displayStep?.Description ?? "";
+                    _bodyText.text = Template(displayStep?.Description ?? "");
                 }
             }
             else
             {
                 // Non-chain entry: show its message, optionally prepended with collection progress.
-                var body = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text ?? "";
+                var body = Template(!string.IsNullOrEmpty(entry.Message)
+                    ? entry.Message : entry.Display?.Text ?? "");
 
                 var submitGoal = ItemSubmitGoal(entry);
                 if (submitGoal > 0 && !complete)
@@ -988,16 +989,20 @@ namespace ValheimServerGuide.Display
         private static string StepMessage(GuidanceStep step)
         {
             if (step == null) return "";
-            if (!string.IsNullOrEmpty(step.Message)) return step.Message;
-            return step.Display?.Text ?? "";
+            if (!string.IsNullOrEmpty(step.Message)) return Template(step.Message);
+            return Template(step.Display?.Text ?? "");
         }
+
+        /// Expand {playerName}/{player_name}/{biome}/… in any config text the Codex renders.
+        private static string Template(string text)
+            => GuidanceDispatcher.TemplateLocal(text) ?? "";
 
         /// For the current (incomplete) step: prefer Description over Message so the Codex
         /// shows what the player needs to DO rather than the reward text that fires on completion.
         private static string StepDescription(GuidanceStep step)
         {
             if (step == null) return "";
-            if (!string.IsNullOrEmpty(step.Description)) return step.Description;
+            if (!string.IsNullOrEmpty(step.Description)) return Template(step.Description);
             return StepMessage(step);
         }
 

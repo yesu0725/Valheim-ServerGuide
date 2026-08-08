@@ -137,7 +137,7 @@ namespace ValheimServerGuide.Display
 
             if (Eq(mode, "intro"))
             {
-                ShowIntroWithFade(entry.Display?.Topic ?? "", renderedText);
+                ShowIntroWithFade(GuidanceDispatcher.TemplateLocal(entry.Display?.Topic) ?? "", renderedText);
                 return;
             }
 
@@ -220,7 +220,8 @@ namespace ValheimServerGuide.Display
             // Overwrite the baked text with the live-rendered version so that
             // (a) top-level `message:` fields are honoured, and
             // (b) template variables ({player_name} etc.) are expanded before display.
-            UpdateTutorialText(entry.Id, renderedText);
+            UpdateTutorialText(entry.Id, renderedText,
+                GuidanceDispatcher.TemplateLocal(entry.Display?.Topic));
             // Vanilla gates the raven on Player.m_shownTutorials: clear the seen-flag so
             // VSG (not vanilla) owns repeat semantics via `once`/SeenTracker.
             ClearVanillaTutorialSeen(entry.Id);
@@ -656,7 +657,9 @@ namespace ValheimServerGuide.Display
 
         /// Overwrite the m_text of an already-registered tutorial slot with the
         /// current rendered value so templates and top-level message: fields take effect.
-        private static void UpdateTutorialText(string id, string text)
+        /// The topic/label are baked at registration (before a local player exists), so they
+        /// are re-templated here too — otherwise a raven topic prints raw "{playerName}".
+        private static void UpdateTutorialText(string id, string text, string topic)
         {
             if (Tutorial.instance == null) return;
             var list = Tutorial.instance.m_texts;
@@ -664,6 +667,11 @@ namespace ValheimServerGuide.Display
             {
                 if (list[i].m_name != id) continue;
                 list[i].m_text = text;
+                if (!string.IsNullOrEmpty(topic))
+                {
+                    list[i].m_topic = topic;
+                    list[i].m_label = topic;
+                }
                 return;
             }
         }

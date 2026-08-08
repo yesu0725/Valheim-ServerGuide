@@ -10,7 +10,7 @@ namespace ValheimServerGuide.Rewards
         // `expand` (optional) applies the firing entry's full token templating
         // (e.g. {companionName}/{rank}/{winSize}) to message-bearing rewards, so a
         // chat_message/discord reward reads the same trigger vars the display text
-        // does. Null = only {player_name} is expanded (back-compat).
+        // does. Null = only {playerName}/{player_name} is expanded (back-compat).
         public static void Grant(List<RewardSpec> rewards, Player player, System.Func<string, string> expand = null)
         {
             if (rewards == null || rewards.Count == 0 || player == null) return;
@@ -440,9 +440,15 @@ namespace ValheimServerGuide.Rewards
             GuidanceSync.SendRewardDiscord(text);
         }
 
+        /// Both spellings are aliases for the same value (CRIT-13) — a reward message written
+        /// with {playerName} must not print the raw token just because it skipped the
+        /// dispatcher's `expand` callback.
         private static string ExpandPlayerName(string template, Player player)
         {
-            return template.Replace("{player_name}", player?.GetPlayerName() ?? "");
+            var name = player?.GetPlayerName() ?? "";
+            return template
+                .Replace("{playerName}", name)
+                .Replace("{player_name}", name);
         }
 
         /// Lowercases and strips a leading "$", then a leading "se_", so the YAML "SE_Rested",

@@ -162,7 +162,7 @@ namespace ValheimServerGuide.Display
                 if (_bodyText   != null) _bodyText.font   = _font;
             }
 
-            _headerText.text = entry.Display?.Topic ?? entry.Title ?? "";
+            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "");
             _bodyText.text   = renderedText ?? "";
 
             // Rebuild choice buttons — container stays inactive while rows are created
@@ -263,7 +263,7 @@ namespace ValheimServerGuide.Display
                 if (_bodyText   != null) _bodyText.font   = _font;
             }
 
-            _headerText.text = entry.Display?.Topic ?? entry.Title ?? "";
+            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "");
             _bodyText.text   = GuidanceDispatcher.TemplateText(node.Text, null, player?.GetPlayerName()) ?? "";
 
             if (player != null) ConversationNodeState.SetCurrentNode(player, entry.Id, node.Id);
@@ -401,6 +401,11 @@ namespace ValheimServerGuide.Display
 
         // ── Private helpers ────────────────────────────────────────────────────
 
+        /// Expand {playerName}/{player_name}/… in the panel chrome (header topic/title and
+        /// choice labels). Node/entry body text is templated by its own call site.
+        private static string Template(string text)
+            => GuidanceDispatcher.TemplateLocal(text) ?? "";
+
         private void AddChoiceButton(ChoiceSpec choice, System.Action onClick = null, bool interactable = true)
         {
             var btnGo = new GameObject("Btn");
@@ -437,7 +442,7 @@ namespace ValheimServerGuide.Display
 
             var label = labelGo.AddComponent<TextMeshProUGUI>();
             if (_font != null) label.font = _font;
-            label.text             = choice.Text ?? "";
+            label.text             = Template(choice.Text ?? "");
             label.fontSize         = 13f;
             label.alignment        = TextAlignmentOptions.Center;
             label.color            = interactable ? Color.white : new Color(1f, 1f, 1f, 0.45f);

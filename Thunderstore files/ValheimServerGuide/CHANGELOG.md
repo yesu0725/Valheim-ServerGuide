@@ -1,4 +1,21 @@
 # Changelog
+## 0.9.1
+
+### Template tokens now expand everywhere text is shown (fix)
+
+`{playerName}` was rendering **literally** — as the raw text `{playerName}` — in several places, most visibly the **Guide Codex**. The token itself was always correct (`{playerName}` and `{player_name}` are aliases for the same value); the problem was that only the *firing* path expanded it. The panels that re-read the same YAML fields later printed them verbatim. No config changes are needed — guides already written with `{playerName}` simply start rendering correctly.
+
+Fixed in:
+
+- **Guide Codex** — quest titles (both the category list and the detail header), `summary`, the `message` / `display.text` body, step `message` and `description` text, and the greyed-out "upcoming steps" labels.
+- **HUD tracker** — pinned quest titles on every row type (chains, item-submit, kill-count, item-collection) and the step description in the hover tooltip.
+- **NPC conversation panel** — the header (`display.topic` / `title`), every choice-button label, and the multi-quest picker rows. Node body text was already correct.
+- **Raven** — the topic/label shown above the message. The raven *body* was already correct; the topic is registered before a character exists, so it is now re-expanded at display time. Same fix for the `intro` mode topic.
+- **NPC hover text** — `hover_text.default` and `hover_text.after_fire`.
+- **Rewards** — a `chat_message` or `discord` reward written with `{playerName}` (rather than `{player_name}`) no longer prints the raw token when granted from a chain completion or a conversation choice. Both spellings now work on every reward path.
+
+Tokens that depend on what triggered the entry (`{creatureName}`, `{itemName}`, `{rank}`, and the rest) are intentionally left **as written** in these panels rather than blanked, since the Codex has no triggering event to resolve them from — they still expand normally in the message shown when the entry fires.
+
 ## 0.9.0
 
 ### Rune Display Mode — Full Redesign

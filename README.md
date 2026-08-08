@@ -221,6 +221,9 @@ guidances:
       mode: raven               # raven | message | chat | rune | intro | conversation
       topic: "My Topic"         # header / Hugin popup title
       text: "My text…"          # body; supports {playerName} {itemName} {creatureName} {biome}
+                                # ({playerName} and {player_name} are aliases — both work, and
+                                #  both expand in the Codex/tracker/hover text too, not just
+                                #  in the message shown when the entry fires)
       position: TopLeft         # for message mode: TopLeft | Center
 
     message: "Short text"       # alternative to display.text for single-entry entries

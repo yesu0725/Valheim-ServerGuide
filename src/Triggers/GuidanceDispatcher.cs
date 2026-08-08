@@ -601,6 +601,34 @@ namespace ValheimServerGuide.Triggers
             return result;
         }
 
+        /// Expand the variables that are knowable without a trigger event, for UI surfaces that
+        /// render config text outside a fire path (Guide Codex, HUD tracker, conversation
+        /// chrome, raven topic/label, hover text). Without this they print a raw
+        /// "{playerName}" / "{player_name}" to the screen.
+        ///
+        /// Deliberately NOT TemplateText(template, null, name): with a null event that would
+        /// blank every event-derived token ({creatureName}, {rank}, …) instead of leaving it
+        /// alone. Here an unresolvable token is left verbatim, so nothing silently disappears
+        /// from a Codex entry the dispatcher renders correctly when it actually fires.
+        internal static string TemplateLocal(string template)
+        {
+            if (string.IsNullOrEmpty(template)) return template;
+            var lp = Player.m_localPlayer;
+            if (lp == null) return template;
+
+            var name = lp.GetPlayerName();
+            if (!string.IsNullOrEmpty(name))
+                template = template
+                    .Replace("{playerName}", name)
+                    .Replace("{player_name}", name);
+
+            var biome = lp.GetCurrentBiome().ToString();
+            if (!string.IsNullOrEmpty(biome))
+                template = template.Replace("{biome}", biome);
+
+            return template;
+        }
+
         /// Check every completed chain for a version bump. When entry.Version > the stored
         /// completion version, re-deliver the last step's message as a notification so the player
         /// sees the updated content. Chain progress is never reset. Called on player login.
