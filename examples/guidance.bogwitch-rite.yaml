@@ -1,0 +1,197 @@
+# ==========================================================================
+# Lost Scrolls II — "An Echo in the Mire" (Bog Witch Dvergr rites)
+#
+# Lets players spawn and commune with Dvergr companions in the Swamp,
+# without needing to reach the Mistlands. Two weekly rites themed on the
+# existing Sunken Crypts lore beat in guidance.lost-scrolls.yaml
+# (ls_beat_swamp_crypt: "a rite... not of binding, but of waking") — this
+# file doesn't duplicate that text, just echoes the same idea in the Bog
+# Witch's own folksier voice.
+#
+#   1. ls_bogwitch_echo_intro / _rite   — kill 2 Draugr Elite -> a wild
+#      Rogue-caste Dverger wakes nearby (no staff = Rogue on recruit).
+#   2. ls_bogwitch_mage_intro / _rite   — unlocked after rite 1 has fired at
+#      least once. Kill 2 Wraith (NIGHT-ONLY spawn) -> a wild DvergerMage
+#      wakes nearby. Caste (Fire/Ice/Support) is whichever staff vanilla's
+#      own spawn logic randomly equips it with — ServerGuide's spawn_creature
+#      reward can't force a specific one, so this matches the same
+#      randomness as finding one naturally in the Mistlands.
+#
+# No ServerGuide or Lost Scrolls II code changes required: built entirely
+# from existing building blocks (npc_conversation / kill / spawn_creature).
+# Lost Scrolls II's own caste detection (CommunionService.DetectCaste) reads
+# whatever's equipped at recruit time, same as any other Dvergr. Rite 1
+# matches the story's intended "meet Rogue first" order (see
+# ls_guide_recruit_order in guidance.lost-scrolls.yaml).
+#
+# SOFT DEPENDENCY: "BogWitch" is a trader provided by ProfMags-TraderOverhaul
+# (Hearthbound modpack), not a standalone mod. On a server without it, the
+# BogWitch prefab never exists, so these quests simply never trigger — no
+# error, no crash, and no effect on any other Lost Scrolls II content.
+# ==========================================================================
+guidances:
+
+  # ---- Reveal: Bog Witch tells of the echo trapped in the crypts ----------
+  - id: ls_bogwitch_echo_intro
+    title: "An Echo in the Mire"
+    category: Companions
+    version: 1
+    once: true
+    trigger:
+      type: npc_conversation
+      npc: BogWitch
+    display:
+      mode: conversation
+      topic: "The Bog Witch"
+    hover_text:
+      default: "[Hold E] Ask of the echo in the mire"
+    conversation:
+      nodes:
+        - id: root
+          text: >-
+            You come again to my door, child. There is a stirring in my mire I have not
+            spoken of before now — will you hear it?
+          choices:
+            - label: "Tell me of the stirring."
+              goto_node: reveal
+            - label: "Not now."
+        - id: reveal
+          text: >-
+            Long before you or I, the small folk kept a rite down in the sunken crypts.
+            Not a binding-rite, mind — the kind that traps and holds. A waking one. That
+            rite is near forgot now, but its echo is not: I feel one still, bound in the
+            bones of the drowned dead that guard those crypts — a captain's rot with
+            something small and frightened curled inside it. Break the rotted captains
+            that hold it, child, and the shell will crack. What wakes will be no monster
+            of malice — only one of the fallen, same as the rest, needing the same mercy
+            the small folk have always needed. Do it, and do not fear what stirs. Fear
+            only leaving it bound. Return to the crypts, and the rite will renew itself
+            in time, should you wish to try again.
+          choices:
+            - label: "I understand."
+    summary: >-
+      The Bog Witch spoke of an echo bound in the Sunken Crypts' rotted captains — break
+      the shell, and a Dvergr wakes free of its cage, if not yet its shadow.
+
+  # ---- Rite: kill 2 Draugr Elite -> a Dverger wakes nearby -----------------
+  - id: ls_bogwitch_echo_rite
+    title: "The Rite of Waking"
+    category: Companions
+    version: 1
+    once: false
+    cooldown: 604800   # weekly
+    requires: [ls_bogwitch_echo_intro]
+    trigger:
+      type: kill
+      creature: Draugr_Elite
+      count: 2
+      share_progress: true
+    display:
+      mode: rune
+      topic: "The Shell Breaks"
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5B5F26"
+        background_color: "#0C0A14F5"
+        width: 580
+    message: >-
+      The last of the rotted captains falls, and the shell it wore crumbles to bog-water
+      and bone. What was bound within stirs at last — small, hunched, wary, and free of
+      its cage, though not yet free of its shadow. It will not strike first; the small
+      folk never do, not truly, not until roused. Subdue it gently, then hold your
+      ground and your nerve, and see if it does not choose freedom over the dark.
+    summary: >-
+      Broke the shell binding a Dvergr echo in the Sunken Crypts. A Rogue-caste Dvergr
+      woke nearby, free to commune.
+    rewards:
+      - type: spawn_creature
+        prefab: Dverger
+        count: 1
+        tamed: false
+      - type: item
+        item: Coins
+        amount: 20
+
+  # ---- Reveal: a deeper echo, unlocked after the first rite -----------------
+  - id: ls_bogwitch_mage_intro
+    title: "The Deeper Echo"
+    category: Companions
+    version: 1
+    once: true
+    requires: [ls_bogwitch_echo_rite]
+    trigger:
+      type: npc_conversation
+      npc: BogWitch
+    display:
+      mode: conversation
+      topic: "The Bog Witch"
+    hover_text:
+      default: "[Hold E] Ask of the deeper echo"
+    conversation:
+      nodes:
+        - id: root
+          text: >-
+            You freed one echo from my mire, child, and you did not flinch. There is
+            another, deeper down — will you hear of it?
+          choices:
+            - label: "Tell me of the deeper echo."
+              goto_node: reveal
+            - label: "Not now."
+        - id: reveal
+          text: >-
+            This one is stranger, and closer to the old rite's heart. It does not walk
+            by day; it is more shadow than shape, a thing my mire only shows to those
+            awake past moonrise. Break it where it hunts in the dark, and see what wakes
+            within. I cannot tell you what face it wears — flame, frost, or the healer's
+            quiet calm. Even I do not know until the shadow falls away. Return by
+            night, and the rite will renew itself in time, should you wish to try again.
+          choices:
+            - label: "I understand."
+    summary: >-
+      The Bog Witch spoke of a deeper echo, bound in a shadow that only walks the mire
+      by night — flame, frost, or a healer's calm, not even she knows which until it wakes.
+
+  # ---- Rite: kill 2 Wraith (night-only) -> a DvergerMage wakes nearby -------
+  - id: ls_bogwitch_mage_rite
+    title: "The Rite of the Unseen Hand"
+    category: Companions
+    version: 1
+    once: false
+    cooldown: 604800   # weekly
+    requires: [ls_bogwitch_mage_intro]
+    trigger:
+      type: kill
+      creature: Wraith
+      count: 2
+      share_progress: true
+    display:
+      mode: rune
+      topic: "The Shadow Falls Away"
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5B5F26"
+        background_color: "#0C0A14F5"
+        width: 580
+    message: >-
+      The wraith-shadow scatters like smoke pulled apart by wind, and what was bound
+      within it rises slower than the last — wary, watchful, its hands already curling
+      toward a shape of magic half-remembered. Flame, frost, or a healer's calm: only
+      the small folk carry that answer, and it will not give it freely. Subdue it, as
+      before, and hold your nerve a little longer this time.
+    summary: >-
+      Broke the shadow binding a deeper Dvergr echo. A mage-caste Dvergr woke nearby,
+      free to commune — flame, frost, or calm, whichever it carried within.
+    rewards:
+      - type: spawn_creature
+        prefab: DvergerMage
+        count: 1
+        tamed: false
+      - type: item
+        item: Coins
+        amount: 30

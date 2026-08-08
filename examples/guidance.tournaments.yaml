@@ -1,6 +1,12 @@
-# Lost Scrolls II — Tournaments (announcements + champion prizes).
+# Lost Scrolls II — Tournaments (help + announcements + champion prizes).
 #
 # Delivered through ServerGuide like the ladders. Own `category: Tournaments`.
+# Players enter and follow tournaments entirely through the in-game Tournament
+# panel ([F7]): they lock a companion's Communion Totem in to register (escrow),
+# and when the host activates a round the mod summons each entrant's companion
+# at full health to fight its assigned bracket opponent automatically. Formats:
+# single elimination, double elimination or round robin (the host picks one).
+#
 # The mod's bracket runner (docs/Tournaments.md) fires these on the relevant
 # player's client:
 #   dvergr_tournament_joined — subject = caste name (1v1) or "party".
@@ -11,6 +17,23 @@
 # tune the item/buff/title to your server.
 
 guidances:
+  # -------------------------------------------------------------------
+  # How to enter — a Codex reference taught once a player has a companion.
+  # Teaches the F7 Tournament panel + the escrow (lock-a-totem) entry flow.
+  # -------------------------------------------------------------------
+  - id: ls_tourney_howto
+    category: Tournaments
+    title: "Entering a Tournament"
+    version: 1
+    requires: [ls_companion_commands]
+    trigger:
+      type: dvergr_recruited
+    display:
+      mode: raven
+      topic: "Entering a Tournament"
+    message: "Companions can compete in server tournaments. First seal your companion into a Communion Totem (at an Incinerator), then press [F7] to open the Tournament panel. While registration is open, choose Lock Totem → Enter to submit your companion — the totem is held safely until the event (some tournaments require a specific companion level). When the host activates your round, your companion is summoned at your side, fully healed, and fights its assigned opponent automatically — win to advance. Use View Bracket on the panel to see the pairings, companion levels and the live standings; your totem is returned when the tournament ends. (Default key — rebindable in the config.)"
+    summary: "Seal your companion into a Communion Totem, press [F7], and choose Lock Totem → Enter. Your companion is auto-summoned (full HP) for each match. View Bracket shows pairings, levels and standings; your totem comes back at the end."
+
   # -------------------------------------------------------------------
   # Registered — confirmation when a player enters the tournament.
   # -------------------------------------------------------------------
@@ -25,8 +48,8 @@ guidances:
     display:
       mode: raven
       topic: "Entered the Tournament"
-    message: "You are entered in the tournament. When the bracket begins you'll be told who you face — bring your companion to the arena and duel (party tournaments: gather your team with [K]). Win to advance; the last standing is champion. Type de_tournament bracket to see the draw."
-    summary: "You're in the tournament. Await your pairing, then duel to advance. de_tournament bracket shows the draw."
+    message: "You're entered — your companion's Communion Totem is locked in and held safely until the event. Open the Tournament panel ([F7]) and choose View Bracket to follow the field, companion levels and the live standings. When the host activates your round, your companion is summoned beside you at full health and fights its match automatically. Win to advance; the last standing is champion."
+    summary: "You're in. Your totem is held safely. Open [F7] → View Bracket for the field and standings. Your companion is auto-summoned at full HP when your round starts — win to advance."
 
   # -------------------------------------------------------------------
   # Pairing — announced to both players when a round's match is set.
@@ -42,7 +65,7 @@ guidances:
     display:
       mode: message
       position: Center
-    message: "Round {round}: you face {opponent}. To the arena — begin the duel when you're both ready!"
+    message: "Round {round}: you face {opponent}! Your companion is summoned to duel when the host starts the round — press [F7] → View Bracket for the draw and standings."
 
   # -------------------------------------------------------------------
   # Champion — the centrepiece prize. Fires for the winner only.

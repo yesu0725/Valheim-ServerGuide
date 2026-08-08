@@ -28,8 +28,8 @@ guidances:
     display:
       mode: raven
       topic: "The Duel Ladder"
-    message: "Every duel your companion wins against another player's companion is recorded on the server's Duel Ladder. Each companion carries its own rating (Elo — beat a stronger rival and you climb faster), shown as a rank on its name and listed with its wins and losses. Type de_ladder in the console to see the standings (de_ladder fire|ice|support|rogue to filter by caste). Rankings persist across restarts and reset each season."
-    summary: "Companion duel wins feed a persistent server ladder (Elo rating). See standings with de_ladder. Rank shows on the companion's name tag."
+    message: "Every duel your companion wins against another player's companion is recorded on the server's Duel Ladder. Each companion carries its own rating (Elo — beat a stronger rival and you climb faster), shown as a rank on its name and listed with its wins and losses. Press [F6] to open the Ranking board — a read-only view of both the duel and party ladders; close it with Escape, like reading a runestone. Rankings persist across restarts and reset each season."
+    summary: "Companion duel wins feed a persistent server ladder (Elo rating). Press [F6] to open the Ranking board and see the standings. Rank shows on the companion's name tag."
 
   # -------------------------------------------------------------------
   # Milestone — a companion reaches the top 3. Celebratory, light reward.
@@ -92,8 +92,8 @@ guidances:
     display:
       mode: raven
       topic: "The Party Ladder"
-    message: "Party duels — your team of companions against another player's team ([K] to gather your Follow-stance allies into a party) — feed a separate Party Ladder. Each party is rated by its owner (team Elo), tracked with the companions that fought for it. Type de_party_ladder in the console to see the standings. Like the duel ladder, it persists across restarts and resets each season."
-    summary: "Team-vs-team party duels ([K]) feed a per-owner Party Ladder (team Elo). See standings with de_party_ladder."
+    message: "Party duels — your team of companions against another player's team ([K] to gather your Follow-stance allies into a party) — feed a separate Party Ladder. Each party is rated by its owner (team Elo), tracked with the companions that fought for it, and can be given a party name. Press [F6] to open the Ranking board, where the Party Ladder is shown below the duel standings. Like the duel ladder, it persists across restarts and resets each season."
+    summary: "Team-vs-team party duels ([K]) feed a per-owner Party Ladder (team Elo). Press [F6] to open the Ranking board and see the party standings."
 
   # -------------------------------------------------------------------
   # Party win — celebratory notice each time a party duel is won.
