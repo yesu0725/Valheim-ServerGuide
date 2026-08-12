@@ -25,6 +25,11 @@ guidances:
   # Core command reference — fires on the player's FIRST recruit.
   # -------------------------------------------------------------------
   - id: ls_companion_commands
+    highlight:
+      # The three stances are the point of the paragraph — each one names a distinct behaviour.
+      - any: ["Follow", "Guard", "Standby"]
+        color: "#F0C868"
+        style: "Bold"
     category: Companions
     title: "Commanding Your Companion"
     version: 1
@@ -40,6 +45,15 @@ guidances:
   # Companion INVENTORY — the 8-slot pack, feeding, and weight.
   # -------------------------------------------------------------------
   - id: ls_companion_inventory
+    highlight:
+      # The four things a stocked pack does on its own. Already shouted in caps by the author —
+      # colour makes them scannable instead of merely loud.
+      - any: ["PICKS UP", "EATS", "SIPS", "DRINKS"]
+        color: "#F0C868"
+        style: "Bold"
+      - text: "It drops everything if it falls"
+        color: "#FF9E8A"
+        style: "Bold"
     category: Companions
     title: "Your Companion's Pack"
     version: 1
@@ -137,6 +151,14 @@ guidances:
     summary: "Follow-stance companions follow you through portals. Chore / Guard / Standby / duel allies stay put."
 
   - id: ls_level_up
+
+    highlight:
+      - any: ["level 10", "gold star badge"]
+        color: "#FFB86B"
+        style: "Bold"
+      - any: ["Rogues", "Fire Mages", "Ice", "Support Mages"]
+        color: "#F0C868"
+        style: "Bold"
     category: Companions
     title: "Companions Grow Stronger"
     version: 1

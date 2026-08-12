@@ -16,6 +16,12 @@ tracker, conversation chrome, raven topic, NPC hover text) substitute through `T
 instead — see "Non-Fire-Path Surfaces" below. Every surface that shows author-written text must
 run it through one of the two; anything else prints a raw `{playerName}` to the screen.
 
+**Order: template first, highlight second.** Display paths call `RenderDisplay` / `RenderLocal`,
+which run `TemplateText` / `TemplateLocal` and then `TextHighlighter.Apply` (CRIT-25). Doing it
+in that order lets a `highlight:` rule match text a token *produced* — a player name, a creature
+name — while the highlighter never sees the tokens themselves. Discord paths call `TemplateText`
+directly and skip highlighting entirely.
+
 ---
 
 ## Supported Tokens

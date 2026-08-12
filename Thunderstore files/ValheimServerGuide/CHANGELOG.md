@@ -1,4 +1,42 @@
 # Changelog
+## 0.10.0
+
+### Panels size themselves to your text — nothing is cut off
+
+The **NPC conversation panel** was a fixed 750×185 box with an 82-pixel body set to ellipsis: roughly four lines, about 360 characters, and everything past that was silently thrown away. Long dialogue simply lost its ending.
+
+It is now driven entirely by its content. The panel is anchored above the bottom edge and grows **upward** as the text gets longer, so it can never slide off screen. There is no character limit: the body sizes itself to whatever you wrote, and only once the panel would exceed 82% of the screen height does it stop growing and let the body scroll instead. The header wraps too, and choice buttons now flow onto as many rows as they need — three across, or two across when there are more than three options — with each button growing to fit a label that wrapped onto a second line. Five choices used to become five unreadable slivers.
+
+The same audit was applied to every other mode:
+
+- **rune** — auto-sized already, but had no ceiling, so a very long reading would have run off both edges of the screen. The body and bullet list now share a scroll view capped at 86% of screen height.
+- **message** with `position: Center` — vanilla's centre text is a single non-wrapping line, so a full sentence ran off both sides. It now word-wraps at 70% of the screen width. Applied to the shared vanilla component and only ever growing its rect, so vanilla's own centre messages are untouched.
+- **raven / intro** — forced to overflow rather than clip, so nothing is dropped. Note these are fixed-size vanilla art and cannot grow: very long text will spill past the parchment, which is a sign the entry wants `rune` or `conversation` instead.
+- **bubble** — an explicit world rect so wrapping has a sensible measure; overflow, never truncate.
+- **Guide Codex** — the detail-pane quest title now wraps instead of ellipsising. (The category list on the left stays single-line on purpose — it is navigation, and the full title shows on the right.)
+
+### Highlight chosen words in any text — new `highlight:` block
+
+Long guides are skimmed. You can now colour the words that must survive the skim — a hotkey, an item name, a cost, a warning — anywhere text is shown.
+
+```yaml
+highlight:
+  - any: ["[F7]", "[E]"]
+    color: "#8FD5FF"
+    style: "Bold"
+  - text: "Communion Totem"
+    color: "#F0C868"
+```
+
+Fields: `text` or `any` (a list sharing one style), `color` (`#RRGGBB` / `#RRGGBBAA`), `style` (`Bold` / `Italic` / `Underline` / `Strikethrough`, combinable), `size_percent`, `first`, `match_case`, `whole_word`.
+
+- **Three scopes.** At the root of any YAML file the rules apply server-wide — and unlike `tracker:`, the lists from *every* file are merged, so each guide pack can contribute its own vocabulary. Per entry and per chain step are also supported; step beats entry beats server-wide.
+- **Sensible matching by default.** A phrase that starts and ends with a letter or digit matches on word boundaries, so `Guard` never lights up inside `Guardian`, while `[F7]` or `Shift + E` match literally. Case-insensitive unless you ask otherwise.
+- **Safe output.** Matching never looks inside an existing rich-text tag, so markup you wrote yourself is never corrupted, and a span that one rule has highlighted is left alone by later rules — tags never nest into something the game cannot render. An invalid colour is dropped with a warning rather than printed as broken markup.
+- **Everywhere in game, never on Discord.** Raven, message, chat, rune, intro, conversation, bubble, the Guide Codex, the HUD tracker and NPC hover text all pick it up. Discord webhook posts deliberately do not — they would show the raw `<color=…>` markup. (The `chat_message` reward is the one reward that does get highlighting, since it renders in the in-game chat.)
+
+Highlighting runs *after* token substitution, so a rule can match text a token produced — a player name, a creature name — without ever seeing the tokens themselves.
+
 ## 0.9.1
 
 ### Template tokens now expand everywhere text is shown (fix)

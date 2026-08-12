@@ -22,6 +22,17 @@ guidances:
   # Teaches the F7 Tournament panel + the escrow (lock-a-totem) entry flow.
   # -------------------------------------------------------------------
   - id: ls_tourney_howto
+    highlight:
+      # The exact entry ritual: seal, open, submit. Anything else in this paragraph is flavour.
+      - text: "Lock Totem"
+        color: "#8FD5FF"
+        style: "Bold"
+      - any: ["Incinerator", "Tournament panel", "View Bracket"]
+        color: "#F0C868"
+        style: "Bold"
+      - text: "your totem is returned when the tournament ends"
+        color: "#96E6A1"
+        style: "Bold"
     category: Tournaments
     title: "Entering a Tournament"
     version: 1

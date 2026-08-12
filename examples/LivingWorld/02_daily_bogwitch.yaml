@@ -1,0 +1,72 @@
+# ==========================================================================
+# Living World — Daily quests (The Bog Witch's Daily Rite)
+# `cooldown: 82800` (~23h) gives a once-per-real-day cadence. The dawn greeting
+# is posted by a `real_world_time` trigger at a set UTC hour (server clock).
+# Flair-first rewards. Daily turn-in goes to the Bog Witch; daily hunt is vanilla.
+# ==========================================================================
+guidances:
+
+  # ---- The Day's Forage — bring foraged food to the Bog Witch --------------
+  - id: lw_daily_forage
+    title: "The Day's Forage"
+    category: "Daily Rites"
+    trigger:
+      type: npc_item_submit
+      npc: BogWitch
+      item: Raspberry
+      count: 20
+      consume: true
+    display:
+      mode: message
+      position: Center
+      text: "The basket is full, {playerName}. The mist thanks you."
+    scope: player
+    cooldown: 82800        # ~23h — once per real day
+    rewards:
+      - type: item
+        item: Coins
+        amount: 15
+      - type: buff
+        effect: SE_Rested
+        duration_override: 600
+
+  # ---- The Day's Quarry — daily hunt --------------------------------------
+  - id: lw_daily_quarry
+    title: "The Day's Quarry"
+    category: "Daily Rites"
+    trigger:
+      type: kill
+      creature: Draugr
+      count: 5
+      share_progress: true
+    display:
+      mode: message
+      position: Center
+      text: "The day's quarry is taken, {playerName}. Rest, then hunt again at dawn."
+    scope: player
+    cooldown: 82800        # ~23h — once per real day
+    rewards:
+      - type: item
+        item: Coins
+        amount: 10
+      - type: buff
+        effect: SE_Rested
+        duration_override: 600
+
+  # ---- Dawn's Greeting — daily flavor raven (no reward) --------------------
+  - id: lw_daily_dawn
+    title: "Dawn's Greeting"
+    category: "Daily Rites"
+    trigger:
+      type: real_world_time
+      utc_hour: 12
+      utc_minute: 0
+    display:
+      mode: raven
+      topic: "A New Day in Midgard"
+      text: >-
+        A new dawn breaks over the realm, warriors. The Bog Witch has set the day's rites
+        upon Hildir's board and her own mire; the bounty board at Haldor's tent has turned
+        over its contracts as well. Sharpen your blade — there is work to be done.
+    scope: global
+    cooldown: 82800        # ~23h — fire once per real day

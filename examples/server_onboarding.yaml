@@ -16,6 +16,14 @@ guidances:
   # ═══════════════════════════════════════
 
   - id: server_welcome
+
+    highlight:
+      - any: ["over 40 mods", "178 new points of interest"]
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "no whitelist"
+        color: "#96E6A1"
+        style: "Bold"
     title: "Welcome to Hearthbound"
     category: Onboarding
     version: 1
@@ -25,9 +33,42 @@ guidances:
     display:
       mode: raven
       topic: "Welcome"
-    message: "Welcome to Hearthbound Valheim! This is a public, casual-friendly modded server — no whitelist, no strict schedules. Treat it as a shared hub world where players from any timezone can meet, explore, trade, and build together. The server runs over 30 mods including a player-driven economy, companion NPCs, ship upgrades, skill perks, and 178 new points of interest across every biome. Whether you are here to grind, build, trade, or just hang out — you are welcome here. More tips and mod guides will appear as you explore the world."
+    message: "Welcome to Hearthbound Valheim! This is a public, casual-friendly modded server — no whitelist, no strict schedules. Treat it as a shared hub world where players from any timezone can meet, explore, trade, and build together. The server runs over 40 mods including a player-driven economy, companion NPCs, ship upgrades, skill perks, and 178 new points of interest across every biome. Whether you are here to grind, build, trade, or just hang out — you are welcome here. More tips and mod guides will appear as you explore the world."
+
+  - id: quest_tip
+
+    highlight:
+      - text: "Press F3"
+        color: "#8FD5FF"
+        style: "Bold"
+    title: "Quest Guidance"
+    category: Onboarding
+    version: 1
+    once: true
+    scope: player
+    trigger:
+      type: entry_finished
+      entry: server_welcome
+    display:
+      mode: rune
+      rune:
+        header_color: "#F0C868"
+        body_color: "#F0E6CC"
+        accent_color: "#8A6A2A"
+        background_color: "#100C06F0"
+      topic: "Quest Guidance"
+    message: "Embark on a series of exciting quests unique to this server! Press F3 at any time to view your progress."
 
   - id: server_rules_reminder
+
+    highlight:
+      # Rules text is skimmed. The two prohibitions and where to read the rest must survive that.
+      - any: ["Be respectful", "No griefing or theft"]
+        color: "#FF9E8A"
+        style: "Bold"
+      - text: "#in-game-rules"
+        color: "#8FD5FF"
+        style: "Bold"
     title: "Server Rules"
     category: Onboarding
     version: 1

@@ -1,0 +1,95 @@
+# ==========================================================================
+# BiomeLords — Tier 1: Neck Lord (Meadows)
+# Part of the "Trail of the Fallen Lords" pack. See PLAN.md.
+# Blessing: Fisher's Boon (SE_NeckLordSpirit) | Forsaken Power: Tide's Grace (GP_TidesGrace)
+# Kill-gate (mod-owned): 20x Neck. Lord prefab: NeckLord | Trophy: TrophyNeckLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_neck_intro
+    title: "The Neck Lord"
+    category: "Neck Lord"
+    trigger:
+      type: biome
+      biome: Meadows
+    display:
+      mode: raven
+      topic: "Ripples in the Shallows"
+      text: >-
+        The Necks of the Meadows grow bold, {playerName} — and among them festers one
+        swollen with the tide's malice: the Neck Lord, a crimson tyrant of the shallows.
+        Thin the pack — slay 20 Neck across the Meadows — then sound a Lord's Horn at the
+        water's edge to call the Lord forth. (The Horn judges your tally itself; hunt until
+        it answers.)
+    once: true
+
+  - id: biomelords_neck_defeat
+    title: "The Crimson Tide Recedes"
+    category: "Neck Lord"
+    trigger:
+      type: kill
+      creature: NeckLord
+    requires: [biomelords_neck_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0C9"
+        body_color: "#D7F2EA"
+        body_style: "Italic"
+        accent_color: "#2C6B60"
+        background_color: "#071410F2"
+      topic: "The Neck Lord Falls"
+      text: >-
+        The Neck Lord sinks beneath the shallows it ruled, {playerName}. Its tide-borne fury
+        is spent — and its gift is already yours: the Forsaken Power Tide's Grace now answers
+        your call. Take up its Trophy, and raise it where the Lords are honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Neck-Slayer"
+
+  - id: biomelords_neck_serverfirst
+    title: "First Blood of the Meadows"
+    category: "Neck Lord"
+    trigger:
+      type: kill
+      creature: NeckLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Neck Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Neck Lord** — first on the server!"
+
+  - id: biomelords_neck_blessing
+    title: "Fisher's Boon"
+    category: "Neck Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyNeckLord
+    requires: [biomelords_neck_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0C9"
+        body_color: "#D7F2EA"
+        accent_color: "#2C6B60"
+        background_color: "#071410F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#7FE0C9"
+        items:
+          - "Blessing — Fisher's Boon: bait survives a missed cast; the waters occasionally yield a bonus catch."
+          - "Forsaken Power — Tide's Grace: restores stamina while swimming; turns the Wet curse into a +50% melee bonus."
+      topic: "Claim the Blessing"
+      text: >-
+        Raise a Hall of the Lords (built as a Yagluth altar is) and mount the Trophy of the
+        Neck Lord upon it to draw its Blessing — Fisher's Boon: your bait survives a missed
+        cast, and the waters yield the odd bonus catch. Only one Lord's Blessing may burn at a
+        time, and each Trophy holds five draws before it crumbles to dust — hunt the Lord anew
+        to restore it. Your Forsaken Power, Tide's Grace, restores stamina while you swim and
+        turns the Wet curse to your favour — a +50% bite to your melee while soaked, with none
+        of its penalties.
+    once: true

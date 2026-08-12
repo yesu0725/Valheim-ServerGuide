@@ -100,6 +100,14 @@ guidances:
       location: "Eikthyrnir"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#2C6B60"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "A God in Antler and Bone"
     message: "They bound a god in antler and bone and named it master. So it has always been — the creature worshipped and served more than the Creator. And still the ground is cursed to labor: in the sweat of thy face shalt thou eat bread. When you have looked long enough, go down beneath the black pines, where the dead were laid in stone."
 
@@ -116,6 +124,14 @@ guidances:
       location: "Crypt*"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#3B5C22"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "The Dark That Waits"
     message: "Down where the dark waits in stone and root, a light still shines — and the darkness comprehended it not. Damon learned to love the dark instead. Now seek the old one, rooted and raging, at the heart of this forest."
 
@@ -129,6 +145,14 @@ guidances:
       location: "GDKing"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#3B5C22"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "Older Than His Name"
     message: "An old thing, rooted and blind to what made it. Men loved darkness rather than light — and the shadow Damon served, older than his name, settled where iron sleeps and embers cool, and waited to be wanted. Go now into the mire, where the world rots and will not die."
 
@@ -145,6 +169,14 @@ guidances:
       location: "SunkenCrypt4"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5B5F26"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "A Rite of Waking"
     message: "The small folk knew a rite here once — not of binding, but of waking. The whole creation groaneth and travaileth in pain together, and none stoop to listen. Find the drowned hill that calls itself a king."
 
@@ -158,6 +190,14 @@ guidances:
       location: "Bonemass"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5B5F26"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "The Wages of the Path"
     message: "A hill of the drowned, ruling nothing. This is the end of every path left unturned: the wages of sin is death. Climb now to the frozen peaks, where the wind forgets your name."
 
@@ -174,6 +214,14 @@ guidances:
       location: "MountainCave*"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#3E6B85"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "A Ward Taught to Kill"
     message: "Here a warmth was kept prisoner in the cold. What was made to shelter was taught to kill, and forgot it was ever a ward. There is a way which seemeth right unto a man. Seek the lone queen above, guarding eggs no spring will warm."
 
@@ -187,6 +235,14 @@ guidances:
       location: "Dragonqueen"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#3E6B85"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "Every One to His Own Way"
     message: "High and alone she waits, guarding a spring that will not come. All we like sheep have gone astray; we have turned every one to his own way. Descend, when you are ready, into the tall grass where a dead king still reaches."
 
@@ -203,6 +259,14 @@ guidances:
       location: "GoblinCamp2"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#8A6A2A"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "A God of a Totem"
     message: "They dance around a totem and call it a god — and worshipped and served the creature, and were glad of it. Professing themselves to be wise, they became fools. Find the hand of the fallen king in the grass."
 
@@ -216,6 +280,14 @@ guidances:
       location: "GoblinKing"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#8A6A2A"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "The End of the Road"
     message: "A hand of the fallen still reaches, crowned and kingless — and the end thereof are the ways of death. The road felt right to every one who walked it. Beyond the sea lies the fog, where the small folk toil still. Go, and look closely at them."
 
@@ -232,6 +304,14 @@ guidances:
       location: "Mistlands_DvergrTownEntrance*"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5C3E85"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "So Are You"
     message: "See them toil, the small folk, bound to a purpose they no longer remember. Whosoever committeth sin is the servant of sin. So are you. Free one — the rite is offered, not forced — then seek their diggings, deeper in the fog."
 
@@ -245,6 +325,14 @@ guidances:
       location: "Mistlands_Excavation*"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5C3E85"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "Look at It Again"
     message: "They dig for masters long turned to dust, in the sweat of a brow that is not their own. Set a freed one to your chores, and look at it again. Then find the great gate, where the rite once had keepers."
 
@@ -258,6 +346,14 @@ guidances:
       location: "Mistlands_DvergrBossEntrance1"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#5C3E85"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "If Any Remain to Ask"
     message: "Here the rite had keepers once. The creature itself also shall be delivered from the bondage of corruption — if any remain to ask it. One road is left to walk: the world's burning edge."
 
@@ -274,6 +370,14 @@ guidances:
       location: "CharredRuins*"
     display:
       mode: rune
+      rune:
+        header_color: "#D8C08A"
+        header_style: "Bold Italic"
+        body_color: "#DCD6C8"
+        body_style: "Italic"
+        accent_color: "#8A3A1E"
+        background_color: "#0C0A14F5"
+        width: 580
       topic: "Where the Road Leads"
     message: "The end of the world is on fire, and it was always coming. Having no hope, and without God in the world — this is where the road leads. Seek the black fortress in the ash."
 

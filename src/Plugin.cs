@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -19,7 +19,7 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.9.1";
+        public const string PluginVersion = "0.10.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }

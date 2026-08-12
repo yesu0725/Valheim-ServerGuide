@@ -33,6 +33,11 @@ guidances:
 
   # ---- Reveal: Bog Witch tells of the echo trapped in the crypts ----------
   - id: ls_bogwitch_echo_intro
+    highlight:
+      # Story text, so barely any colour — just the instruction hiding inside the parable.
+      - text: "Break the rotted captains that hold it"
+        color: "#F0C868"
+        style: "Bold"
     title: "An Echo in the Mire"
     category: Companions
     version: 1
@@ -75,11 +80,15 @@ guidances:
 
   # ---- Rite: kill 2 Draugr Elite -> a Dverger wakes nearby -----------------
   - id: ls_bogwitch_echo_rite
+    highlight:
+      - text: "Subdue it gently, then hold your ground and your nerve"
+        color: "#F0C868"
+        style: "Bold"
     title: "The Rite of Waking"
     category: Companions
     version: 1
     once: false
-    cooldown: 604800   # weekly
+    cooldown: 2880   # 2 days
     requires: [ls_bogwitch_echo_intro]
     trigger:
       type: kill
@@ -117,6 +126,15 @@ guidances:
 
   # ---- Reveal: a deeper echo, unlocked after the first rite -----------------
   - id: ls_bogwitch_mage_intro
+    highlight:
+      # The passage never names the creature; what it does give the player is when and where
+      # to hunt, so that is what gets the colour.
+      - text: "It does not walk by day"
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "Break it where it hunts in the dark"
+        color: "#F0C868"
+        style: "Bold"
     title: "The Deeper Echo"
     category: Companions
     version: 1
@@ -156,11 +174,15 @@ guidances:
 
   # ---- Rite: kill 2 Wraith (night-only) -> a DvergerMage wakes nearby -------
   - id: ls_bogwitch_mage_rite
+    highlight:
+      - text: "Subdue it, as before, and hold your nerve a little longer this time"
+        color: "#F0C868"
+        style: "Bold"
     title: "The Rite of the Unseen Hand"
     category: Companions
     version: 1
     once: false
-    cooldown: 604800   # weekly
+    cooldown: 2880   # 2 days
     requires: [ls_bogwitch_mage_intro]
     trigger:
       type: kill

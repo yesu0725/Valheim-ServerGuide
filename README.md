@@ -155,7 +155,7 @@ Install via r2modman or Thunderstore mod manager. The mod belongs on both the **
 
 Place at `BepInEx/config/ValheimServerGuide/guidance.yaml` on the server (or single-player host). The mod writes a starter file on first launch. It watches for changes and hot-reloads automatically — no restart needed.
 
-See [`examples/guidance.yaml`](examples/guidance.yaml) for a fully-commented example covering all trigger types and display modes.
+See [`examples/`](examples) for a full set of fully-commented, live-server guidance files covering every trigger type and display mode — organised into subfolders exactly as the loader merges them. [`examples/00_highlights.yaml`](examples/00_highlights.yaml) is a worked example of server-wide text highlighting.
 
 ### BepInEx Config (`com.valheimserverguide.cfg`)
 
@@ -236,6 +236,13 @@ guidances:
 
     requires: [other_id]        # must have fired before this entry is eligible
     stop_when: [another_id]     # stop firing once any of these have fired
+
+    highlight:                  # optional; colour chosen words in this entry's text.
+      - any: ["[F7]", "[E]"]    #   also valid at the ROOT of any file (server-wide, merged
+        color: "#8FD5FF"        #   across every file) and on individual chain steps.
+        style: "Bold"           #   Bold | Italic | Underline | Strikethrough, combinable.
+      - text: "Communion Totem" #   Word-bounded automatically; "[F7]" matches literally.
+        color: "#F0C868"        #   Applies to every in-game surface — never to Discord.
 
     announce:
       discord: "**{playerName}** did the thing!"  # "" = use DefaultTemplate

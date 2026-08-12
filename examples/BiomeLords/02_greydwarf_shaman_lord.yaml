@@ -1,0 +1,94 @@
+# ==========================================================================
+# BiomeLords — Tier 2: Greydwarf Shaman Lord (Black Forest)
+# Blessing: Quick Sprout (SE_GreydwarfLordSpirit) | Forsaken Power: Forest's Embrace (GP_ForestsEmbrace)
+# Kill-gate (mod-owned): 30x Greydwarf / Greydwarf_Elite / Greydwarf_Shaman.
+# Lord prefab: GreydwarfShamanLord | Trophy: TrophyGreydwarfShamanLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_greydwarf_intro
+    title: "The Greydwarf Shaman Lord"
+    category: "Greydwarf Shaman Lord"
+    trigger:
+      type: biome
+      biome: BlackForest
+    display:
+      mode: raven
+      topic: "The Green Aura"
+      text: >-
+        Deep in the Black Forest a shaman has drunk too deeply of the forest's spite,
+        {playerName} — the Greydwarf Shaman Lord, wreathed in a sickly green light, calling
+        roots and kin to its defence. Cull its brood — slay 30 of the Greydwarf-kin
+        (Greydwarf, Elite, and Shaman alike) — then sound a Lord's Horn beneath the pines to
+        summon it. (The Horn keeps the tally; hunt until it answers.)
+    once: true
+
+  - id: biomelords_greydwarf_defeat
+    title: "The Green Light Gutters"
+    category: "Greydwarf Shaman Lord"
+    trigger:
+      type: kill
+      creature: GreydwarfShamanLord
+    requires: [biomelords_greydwarf_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#8FD15A"
+        body_color: "#E2F0D0"
+        body_style: "Italic"
+        accent_color: "#3B5C22"
+        background_color: "#0A1206F2"
+      topic: "The Greydwarf Shaman Lord Falls"
+      text: >-
+        The shaman's green fire goes dark, {playerName}, its roots and saplings stilled. The
+        Forsaken Power Forest's Embrace is yours — the old wood will shelter and mend you now.
+        Claim its Trophy and raise it where the Lords are honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Grove-Breaker"
+
+  - id: biomelords_greydwarf_serverfirst
+    title: "First Blood of the Black Forest"
+    category: "Greydwarf Shaman Lord"
+    trigger:
+      type: kill
+      creature: GreydwarfShamanLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Greydwarf Shaman Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Greydwarf Shaman Lord** — first on the server!"
+
+  - id: biomelords_greydwarf_blessing
+    title: "Quick Sprout"
+    category: "Greydwarf Shaman Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyGreydwarfShamanLord
+    requires: [biomelords_greydwarf_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#8FD15A"
+        body_color: "#E2F0D0"
+        accent_color: "#3B5C22"
+        background_color: "#0A1206F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#8FD15A"
+        items:
+          - "Blessing — Quick Sprout: crops within 30 paces grow roughly a third faster."
+          - "Forsaken Power — Forest's Embrace: mends you as you rest beneath an old tree; the eldest trees heal the most."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Greydwarf Shaman Lord upon a Hall of the Lords to draw its
+        Blessing — Quick Sprout: crops you plant within thirty paces grow about a third
+        faster while the Blessing burns. Only one Lord's Blessing may burn at a time; each
+        Trophy holds five draws before it crumbles. Do not confuse the gifts: the farmer's
+        boon is the Blessing — the forest's healing is your Forsaken Power, Forest's Embrace,
+        which mends you as you rest beneath an old tree, the eldest trees giving the most.
+    once: true

@@ -1,0 +1,106 @@
+# ==========================================================================
+# Living World — Dvergr Challenges
+# Three repeatable entries using mod-provided triggers: dvergr_duel_won (daily),
+# dvergr_recruited (weekly), dvergr_level_up (weekends, gated by Saturday announce).
+#
+# ⚠ SCHEMA NOTE: dvergr_duel_won / dvergr_recruited / dvergr_level_up are trigger
+#   type strings provided by the companion mod. Verify exact field names and any
+#   required sub-fields (e.g. count, creature) against that mod's VSG hook docs
+#   before deploying. Written here in minimal form: `type:` only.
+#
+# Weekend gating follows the same cadence-not-hard-lock pattern as the old Weekend
+# Warband: lw_dvergr_proving_announce fires on Saturday; lw_dvergr_levelup requires
+# it. After the first Saturday fire, the level-up entry is gated only by its own
+# ~weekly cooldown. A level-up that occurs just into the following week still pays
+# out — accepted minor leniency (same caveat as before).
+#
+# ⚠ rename_player sets ONE suffix (latest wins). "the Compact-Keeper" overwrites a
+#   BiomeLords title until re-earned. Documented, accepted as flair.
+# ==========================================================================
+guidances:
+
+  # ---- Daily: win a Dvergr duel --------------------------------------------
+  - id: lw_dvergr_duel
+    title: "The Dwarven Trial"
+    category: "Dvergr Challenges"
+    trigger:
+      type: dvergr_duel_won
+    display:
+      mode: message
+      position: Center
+      text: "You stood your ground against the Dvergr, {playerName} — trial passed."
+    scope: player
+    cooldown: 82800          # ~23h real-time
+    rewards:
+      - type: item
+        item: Coins
+        amount: 15
+      - type: buff
+        effect: SE_Rested
+        duration_override: 300
+
+  # ---- Weekly: recruit a Dvergr companion ----------------------------------
+  - id: lw_dvergr_recruit
+    title: "A New Compact"
+    category: "Dvergr Challenges"
+    trigger:
+      type: dvergr_recruited
+    display:
+      mode: raven
+      topic: "A New Compact"
+      text: >-
+        The Dvergr do not give their loyalty cheaply, {playerName} — they give it to those who
+        earn it blade to blade, in the proper fashion. You met one, contested it fairly, and
+        it judged you worth following. Keep it armed and provisioned; a Dvergr companion
+        fights as hard as it fell, and it will not forget a slight any sooner than it forgets
+        a debt. Hildir has marked the compact in her tally.
+    scope: player
+    cooldown: 518400         # ~6 days
+    rewards:
+      - type: item
+        item: Coins
+        amount: 25
+      - type: buff
+        effect: SE_Rested
+        duration_override: 600
+    announce:
+      discord: "**{playerName}** has forged a Compact — a Dvergr companion now marches at their side."
+
+  # ---- Weekend: Saturday announcement (gates the level-up reward) ----------
+  - id: lw_dvergr_proving_announce
+    title: "The Dvergr Proving Ground"
+    category: "Dvergr Challenges"
+    trigger:
+      type: day_of_week
+      day_of_week: Saturday
+    display:
+      mode: raven
+      topic: "The Dvergr Proving Ground Opens"
+      text: >-
+        Warriors — the Dvergr Proving Ground opens this weekend. Those who bring a companion
+        to a new level of mastery before the weekend is out will be recognized for the bond
+        they have forged. Train your Dvergr hard. The Compact-Keepers will be named.
+    scope: global
+    cooldown: 518400         # ~6 days — fire once per weekend
+
+  # ---- Weekend: Dvergr companion levels up (gated to weekends) -------------
+  - id: lw_dvergr_levelup
+    title: "The Proving Ground"
+    category: "Dvergr Challenges"
+    trigger:
+      type: dvergr_level_up
+    requires: [lw_dvergr_proving_announce]
+    display:
+      mode: message
+      position: Center
+      text: "Your Dvergr grows stronger at your side, {playerName} — the Compact holds."
+    scope: player
+    cooldown: 518400         # ~weekly cadence
+    rewards:
+      - type: rename_player
+        suffix: "the Compact-Keeper"
+      - type: item
+        item: Coins
+        amount: 20
+    announce:
+      discord: "**{playerName}** trained their Dvergr to a new tier and earned the title **Compact-Keeper**!"

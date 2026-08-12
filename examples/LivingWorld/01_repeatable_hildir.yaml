@@ -1,0 +1,52 @@
+# ==========================================================================
+# Living World — Repeatable challenges (Hildir's Standing Challenges)
+# Always available; re-arm on cooldown (no `once`). Pinnable multi-count kills
+# show progress in the F10 tracker / F3 Codex. Flair-first rewards (small Coins
+# + buffs); no items the other mods already grant. Targets vanilla creatures.
+# Does NOT compete with HaldorBounties — that system owns Haldor's contract board;
+# these live on Hildir + stand alone.
+# Short completion text uses `message`; longer teaching lives in the Hildir
+# conversation tree (05_npc_givers.yaml).
+# ==========================================================================
+guidances:
+
+  # ---- Thin the Pack — cull the Greylings (pinnable counter) ---------------
+  - id: lw_rep_greyling
+    title: "Thin the Pack"
+    category: "Standing Challenges"
+    trigger:
+      type: kill
+      creature: Greyling
+      count: 20
+      share_progress: true
+    display:
+      mode: message
+      position: Center
+      text: "The Greyling swarm is thinned, {playerName}. Hildir will see you paid."
+    scope: player
+    cooldown: 14400        # ~4h real-time
+    rewards:
+      - type: item
+        item: Coins
+        amount: 10
+
+  # ---- Trophy Tribute — turn in Neck trophies to Hildir --------------------
+  - id: lw_rep_tribute
+    title: "Trophy Tribute"
+    category: "Standing Challenges"
+    trigger:
+      type: npc_item_submit
+      npc: Hildir
+      item: TrophyNeck
+      count: 5
+      consume: true
+    display:
+      mode: message
+      position: Center
+      text: "Five trophies for the tally, {playerName}. A fair trade."
+    scope: player
+    cooldown: 21600        # ~6h real-time
+    rewards:
+      - type: item
+        item: Coins
+        amount: 25

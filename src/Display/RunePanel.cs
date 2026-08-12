@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -31,6 +31,10 @@ namespace ValheimServerGuide.Display
         private static readonly Color DefBody       = new Color(0.90f, 0.88f, 0.82f); // parchment
         private static readonly Color DefItem       = new Color(0.86f, 0.80f, 0.62f); // warm
 
+        /// Ceiling for the whole panel as a fraction of screen height. Past this the body/list
+        /// area scrolls instead of the panel continuing to grow off the top and bottom edges.
+        private const float MaxHeightFraction = 0.86f;
+
         // ── Scene objects ────────────────────────────────────────────────────────
         private GameObject _uiRoot;
         private Image _backdrop;
@@ -41,6 +45,9 @@ namespace ValheimServerGuide.Display
         private TMP_Text _bodyText;
         private Transform _listContent;
         private TMP_Text _footerText;
+        private RectTransform _contentRect;
+        private LayoutElement _viewportLe;
+        private ScrollRect _contentScroll;
 
         private TMP_FontAsset _font;
         private float _openTime;
@@ -136,15 +143,51 @@ namespace ValheimServerGuide.Display
             divLe.minHeight       = 2f;
             divLe.preferredHeight = 2f;
 
+            // Scrollable content area holding the body and the bullet list. The viewport's
+            // preferred height is set per-reading in ClampContentHeight: it matches the content
+            // exactly until the panel would outgrow the screen, and only then clamps so the rest
+            // scrolls. Nothing is ever truncated.
+            var viewportGo = new GameObject("ContentViewport");
+            viewportGo.transform.SetParent(panelGo.transform, false);
+            var viewportRt = viewportGo.AddComponent<RectTransform>();
+            viewportRt.pivot = new Vector2(0.5f, 1f);
+            viewportGo.AddComponent<RectMask2D>();
+            _viewportLe = viewportGo.AddComponent<LayoutElement>();
+
+            _contentScroll = viewportGo.AddComponent<ScrollRect>();
+            _contentScroll.horizontal        = false;
+            _contentScroll.vertical          = true;
+            _contentScroll.movementType      = ScrollRect.MovementType.Clamped;
+            _contentScroll.scrollSensitivity = 24f;
+            _contentScroll.viewport          = viewportRt;
+
+            var contentGo = new GameObject("Content");
+            contentGo.transform.SetParent(viewportGo.transform, false);
+            _contentRect = contentGo.AddComponent<RectTransform>();
+            _contentRect.anchorMin = new Vector2(0f, 1f);
+            _contentRect.anchorMax = new Vector2(1f, 1f);
+            _contentRect.pivot     = new Vector2(0.5f, 1f);
+            var contentVlg = contentGo.AddComponent<VerticalLayoutGroup>();
+            contentVlg.childControlWidth      = true;
+            contentVlg.childForceExpandWidth  = true;
+            contentVlg.childControlHeight     = true;
+            contentVlg.childForceExpandHeight = false;
+            contentVlg.childAlignment         = TextAnchor.UpperLeft;
+            contentVlg.spacing                = 12f;
+            var contentFitter = contentGo.AddComponent<ContentSizeFitter>();
+            contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            contentFitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
+            _contentScroll.content = _contentRect;
+
             // Body / description.
-            _bodyText = MakeText(panelGo.transform, "Body", 17f, FontStyles.Normal,
+            _bodyText = MakeText(contentGo.transform, "Body", 17f, FontStyles.Normal,
                 DefBody, TextAlignmentOptions.TopLeft);
             _bodyText.enableWordWrapping = true;
             _bodyText.overflowMode       = TextOverflowModes.Overflow;
 
             // List container (one styled row per item).
             var listGo = new GameObject("List");
-            listGo.transform.SetParent(panelGo.transform, false);
+            listGo.transform.SetParent(contentGo.transform, false);
             _listContent = listGo.AddComponent<RectTransform>();
             var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
             listVlg.childControlWidth      = true;
@@ -193,7 +236,8 @@ namespace ValheimServerGuide.Display
             var headerRaw = !string.IsNullOrEmpty(style?.Header)
                 ? style.Header
                 : entry.Display?.Topic ?? "";
-            var header = GuidanceDispatcher.TemplateText(headerRaw, null, playerName) ?? "";
+            var header = TextHighlighter.Apply(
+                GuidanceDispatcher.TemplateText(headerRaw, null, playerName), entry) ?? "";
             _headerText.text        = header;
             _headerText.gameObject.SetActive(!string.IsNullOrEmpty(header));
             _headerText.fontSize    = style?.HeaderFontSize ?? 26f;
@@ -219,7 +263,7 @@ namespace ValheimServerGuide.Display
             _panelBg.color       = ParseColor(style?.BackgroundColor, DefBackground);
 
             // ── List ──
-            BuildList(style, playerName);
+            BuildList(style, playerName, entry);
 
             // ── Fade ──
             _fadeInDuration  = Mathf.Max(0f, style?.FadeIn ?? 0.35f);
@@ -238,6 +282,8 @@ namespace ValheimServerGuide.Display
             // Content was populated while children were (re)built; force a layout pass so the
             // VerticalLayoutGroup + ContentSizeFitter compute the final panel height this frame.
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+            ClampContentHeight();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
 
             if (_fadeInDuration > 0f)
                 _fadeRoutine = StartCoroutine(FadeRoutine(_canvasGroup.alpha, 1f, _fadeInDuration, null));
@@ -245,10 +291,33 @@ namespace ValheimServerGuide.Display
                 _canvasGroup.alpha = 1f;
         }
 
+        /// Sizes the scroll viewport to the body + list. The reading grows to fit whatever the
+        /// author wrote; only once the whole panel would exceed MaxHeightFraction of the screen
+        /// does the content area stop growing and start scrolling, so a very long reading is a
+        /// wheel-scroll away instead of being cut off (or pushed off-screen).
+        private void ClampContentHeight()
+        {
+            if (_viewportLe == null || _contentRect == null) return;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_contentRect);
+            var needed = LayoutUtility.GetPreferredHeight(_contentRect);
+
+            // Everything outside the content area: padding, header, divider, footer, spacing.
+            var chrome = 42f + _headerText.preferredHeight + 2f + 24f
+                       + _footerText.preferredHeight + 24f;
+            var maxContent = Mathf.Max(60f, Screen.height * MaxHeightFraction - chrome);
+
+            _viewportLe.minHeight       = Mathf.Min(needed, maxContent);
+            _viewportLe.preferredHeight = Mathf.Min(needed, maxContent);
+
+            _contentScroll.enabled = needed > maxContent + 0.5f;
+            _contentScroll.verticalNormalizedPosition = 1f;
+        }
+
         /// Rebuild the bullet list from RuneStyleSpec.Items. The container is toggled inactive
         /// while rows are created so each new TMP label's Awake fires only after its font is set
         /// (TMP null-font Awake warning rule).
-        private void BuildList(RuneStyleSpec style, string playerName)
+        private void BuildList(RuneStyleSpec style, string playerName, GuidanceEntry entry)
         {
             for (var i = _listContent.childCount - 1; i >= 0; i--)
                 Destroy(_listContent.GetChild(i).gameObject);
@@ -270,7 +339,8 @@ namespace ValheimServerGuide.Display
 
             foreach (var raw in items)
             {
-                var text = GuidanceDispatcher.TemplateText(raw ?? "", null, playerName) ?? "";
+                var text = TextHighlighter.Apply(
+                    GuidanceDispatcher.TemplateText(raw ?? "", null, playerName), entry) ?? "";
                 var row  = MakeText(_listContent, "Item", itemSize, itemStyle, itemColor,
                     TextAlignmentOptions.TopLeft);
                 ApplyFont(row);

@@ -1,0 +1,177 @@
+# ==========================================================================
+# BiomeLords — "The Law of Tiers": the scaling curriculum (B1–B5)
+# Always-readable Codex record of how each defeated Lord raises YOUR floor and
+# scales the remaining Lords AND the vanilla Forsaken bosses up to meet you.
+#
+# Scaling is PER-PLAYER on this server (GlobalLordDefeats = false): only YOUR
+# kills raise YOUR floor. All wording is second-person/personal. HP figures are
+# the exact tier-table values; damage is taught qualitatively (see scaling.md).
+# Pages reveal in tier order via entry_finished on each Lord's defeat; the three
+# Lore-keepers (00_lorekeepers.yaml) teach the same lessons on demand, earlier.
+# ==========================================================================
+guidances:
+
+  - id: biomelords_law_floor
+    title: "The Law of Tiers — I: The Rising Floor"
+    category: "The Law of Tiers"
+    trigger:
+      type: entry_finished
+      entry: biomelords_neck_defeat
+    display:
+      mode: rune
+      rune:
+        header_color: "#FFD873"
+        header_style: "Bold Uppercase"
+        body_color: "#E6DFC8"
+        accent_color: "#9A7A3E"
+        background_color: "#050505F5"
+        width: 660
+      topic: "The Law of Tiers"
+      text: >-
+        Mark this well, {playerName}. Every Lord you fell raises a floor beneath your world —
+        your tier floor. Nothing you have beaten grows weaker; instead, everything still
+        below that floor rises to meet it. Fell a Lord of a higher tier and the weaker Lords
+        you have not yet faced — and the old Forsaken bosses besides — swell to the strength
+        of your highest kill. The reward for climbing is the Blessing and the Forsaken Power;
+        the price is a world that climbs with you.
+    scope: player
+    once: true
+
+  - id: biomelords_law_hp
+    title: "The Law of Tiers — II: The Rising Tide"
+    category: "The Law of Tiers"
+    trigger:
+      type: entry_finished
+      entry: biomelords_greydwarf_defeat
+    display:
+      mode: rune
+      rune:
+        header_color: "#FFD873"
+        header_style: "Bold Uppercase"
+        body_color: "#E6DFC8"
+        accent_color: "#9A7A3E"
+        background_color: "#050505F5"
+        width: 660
+        bullet: "◆"
+        item_color: "#FFD873"
+        items:
+          - "Tier 1 — 500 HP"
+          - "Tier 2 — 2,500 HP"
+          - "Tier 3 — 5,000 HP"
+          - "Tier 4 — 7,500 HP"
+          - "Tier 5 — 10,000 HP"
+          - "Tier 6 — 12,500 HP"
+          - "Tier 7 — 25,000 HP"
+      topic: "The Law of Tiers"
+      text: >-
+        See it plainly, {playerName}. The floor is measured in tiers, each with its own
+        health: 500, then 2,500, 5,000, 7,500, 10,000, 12,500, and at the peak 25,000. You
+        have now felled a tier-2 Lord, so your floor stands at the second tier. An Eikthyr you
+        have not yet faced will no longer wait at his vanilla 500 — he will rise to 2,500 to
+        match you, and strike the harder for it. Climb higher and that floor climbs again.
+    scope: player
+    once: true
+
+  - id: biomelords_law_bosses
+    title: "The Law of Tiers — III: The Bosses Answer"
+    category: "The Law of Tiers"
+    trigger:
+      type: entry_finished
+      entry: biomelords_draugr_defeat
+    display:
+      mode: rune
+      rune:
+        header_color: "#FFD873"
+        header_style: "Bold Uppercase"
+        body_color: "#E6DFC8"
+        accent_color: "#9A7A3E"
+        background_color: "#050505F5"
+        width: 660
+        bullet: "◆"
+        item_color: "#FFD873"
+        items:
+          - "Tier 1 — Eikthyr"
+          - "Tier 2 — The Elder"
+          - "Tier 3 — Bonemass"
+          - "Tier 4 — Moder"
+          - "Tier 5 — Yagluth"
+          - "Tier 6 — The Queen"
+          - "Tier 7 — The Fallen Valkyrie"
+      topic: "The Law of Tiers"
+      text: >-
+        Know which powers answer your climb, {playerName}. The Lords share their tiers with
+        the old Forsaken: Eikthyr at the first, the Elder at the second, Bonemass at the
+        third, Moder at the fourth, Yagluth at the fifth, the Queen at the sixth, and the
+        Fallen Valkyrie at the seventh. Whatever floor your Lord-kills have set, any of these
+        bosses you have not yet beaten will rise to it in both health and the weight of their
+        blows. Do not return to an old altar expecting an old fight — it has grown with you.
+    scope: player
+    once: true
+
+  - id: biomelords_law_perplayer
+
+    highlight:
+      # The single most misread rule on the server: scaling is per character, not per world.
+      - text: "the floor is counted per warrior"
+        color: "#FF9E8A"
+        style: "Bold"
+      - text: "each of you carries your own tier"
+        color: "#FF9E8A"
+        style: "Bold"
+    title: "The Law of Tiers — IV: Your Path, Your Burden"
+    category: "The Law of Tiers"
+    trigger:
+      type: entry_finished
+      entry: biomelords_fenring_defeat
+    display:
+      mode: rune
+      rune:
+        header_color: "#FFD873"
+        header_style: "Bold Uppercase"
+        body_color: "#E6DFC8"
+        accent_color: "#9A7A3E"
+        background_color: "#050505F5"
+        width: 660
+      topic: "The Law of Tiers"
+      text: >-
+        This burden is yours alone, {playerName}. On these lands the floor is counted per
+        warrior: only the Lords that YOU have felled raise YOUR floor. A shieldmate who has
+        not slain the Lords you have still meets the lesser beasts and the lesser bosses —
+        while you meet ones risen to match your deeds. You may hunt together, but each of you
+        carries your own tier. Walk your own Trail, and bear your own weight.
+    scope: player
+    once: true
+
+  - id: biomelords_law_strategy
+
+    highlight:
+      - text: "Climb the tiers in order"
+        color: "#96E6A1"
+        style: "Bold"
+      - text: "Leap ahead to a far higher Lord and the floor lurches up all at once"
+        color: "#FF9E8A"
+        style: "Bold"
+    title: "The Law of Tiers — V: The Order of the Hunt"
+    category: "The Law of Tiers"
+    trigger:
+      type: entry_finished
+      entry: biomelords_lox_defeat
+    display:
+      mode: rune
+      rune:
+        header_color: "#FFD873"
+        header_style: "Bold Uppercase"
+        body_color: "#E6DFC8"
+        accent_color: "#9A7A3E"
+        background_color: "#050505F5"
+        width: 660
+      topic: "The Law of Tiers"
+      text: >-
+        Then hunt with wisdom, {playerName}. Climb the tiers in order and the floor rises a
+        gentle step at a time, your new Blessings and Powers ready to meet each rise. Leap
+        ahead to a far higher Lord and the floor lurches up all at once — every weaker Lord
+        and every un-beaten boss spikes to that height in a single stroke, and your world
+        turns harsh before you are ready for it. The choice is yours. That is the whole of the
+        Law: power and peril climb together.
+    scope: player
+    once: true

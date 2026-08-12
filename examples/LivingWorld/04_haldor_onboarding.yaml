@@ -1,0 +1,27 @@
+# ==========================================================================
+# Living World — Haldor onboarding (teach the HaldorBounties board)
+# VSG does NOT put a competing bounty board on Haldor — HaldorBounties owns that
+# (its own "Bounties" tab: 4/day, Kill/Miniboss/Raid, daily reset, own rewards).
+# This single entry just TEACHES new players the tab exists, the first time they
+# interact (tap E) with Haldor. Lore/instruction is multi-sentence -> `raven`.
+# `npc_interacted` (tap E) is kept distinct from the hold-E conversation givers.
+# ==========================================================================
+guidances:
+
+  - id: lw_haldor_bounties_intro
+    title: "The Bounty Board"
+    category: "Getting Started"
+    trigger:
+      type: npc_interacted
+      npc: Haldor
+    display:
+      mode: raven
+      topic: "Haldor's Bounty Board"
+      text: >-
+        Heh — looking for work, {playerName}? Open my Bounties tab. Each day I post four
+        contracts: two hunts, a marked miniboss, and a warband raid, all suited to how far
+        you have pushed into the wilds. Take one, see it done, and return to claim your pick of
+        coin, metal, materials, or provisions. The board turns over once a day, so check back
+        often.
+    scope: player
+    once: true

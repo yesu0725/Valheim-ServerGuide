@@ -35,6 +35,11 @@ announce:
 
 Supported tokens in templates: `{playerName}`, `{id}`, `{topic}`, `{text}`.
 
+**Never highlighted.** Discord templating runs on the raw text: `TextHighlighter` (CRIT-25) is
+applied on display paths only, because a webhook post carrying `<color=#FFCC55>` would show the
+literal markup. This includes `{text}`, which is the templated — not highlighted — display text.
+The `chat_message` reward is the sole exception, since it renders in the in-game chat.
+
 ---
 
 ## Two Announcement Paths

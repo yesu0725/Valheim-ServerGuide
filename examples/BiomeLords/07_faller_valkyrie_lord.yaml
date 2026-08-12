@@ -1,0 +1,93 @@
+# ==========================================================================
+# BiomeLords — Tier 7: Fallen Valkyrie Lord (Ashlands) — the capstone Lord
+# Blessing: Featherweight (SE_FallerValkyrieLordSpirit) | Forsaken Power: Valkyrie's Rally (GP_ValkyrieAscension)
+# Kill-gate (mod-owned): 25x Charred_Melee / Charred_Archer / Charred_Mage.
+# Lord prefab: FallerValkyrieLord | Trophy: TrophyFallerValkyrieLord
+# NOTE: prefab names use the misspelling "Faller" (clone of vanilla FallenValkyrie).
+# ==========================================================================
+guidances:
+
+  - id: biomelords_valkyrie_intro
+    title: "The Fallen Valkyrie Lord"
+    category: "Fallen Valkyrie Lord"
+    trigger:
+      type: biome
+      biome: AshLands
+    display:
+      mode: raven
+      topic: "Wings Over the Ash"
+      text: >-
+        The highest Lord waits at the end of the Trail, {playerName} — the Fallen Valkyrie
+        Lord, a radiant horror on true wings that gusts you from the cliffs, dives like a
+        falling star, and drains the very soul from your bones to mend itself. Break the
+        Charred legions — 25 of their Melee, Archers, and Mages — then sound a Lord's Horn upon
+        the burning shore to call it down. (The Horn keeps the tally; hunt until it answers.)
+    once: true
+
+  - id: biomelords_valkyrie_defeat
+    title: "The Trail's End"
+    category: "Fallen Valkyrie Lord"
+    trigger:
+      type: kill
+      creature: FallerValkyrieLord
+    requires: [biomelords_valkyrie_intro]
+    display:
+      mode: intro
+      topic: "The Fallen Valkyrie Lord Falls"
+      text: >-
+        The last and highest Lord falls from the sky, {playerName}. Seven Lords lie behind
+        you, and your tier floor stands at its peak — every Lord and every Forsaken boss of
+        your world now rises to meet you. The Forsaken Power Valkyrie's Rally is yours, to
+        lift a whole warband at a stroke. Take up the final Trophy. The Trail of the Fallen
+        Lords is walked.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Ash-Ascendant"
+
+  - id: biomelords_valkyrie_serverfirst
+    title: "First Blood of the Ashlands"
+    category: "Fallen Valkyrie Lord"
+    trigger:
+      type: kill
+      creature: FallerValkyrieLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Fallen Valkyrie Lord — the Trail is walked!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Fallen Valkyrie Lord** — first on the server to walk the whole Trail!"
+
+  - id: biomelords_valkyrie_blessing
+    title: "Featherweight"
+    category: "Fallen Valkyrie Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyFallerValkyrieLord
+    requires: [biomelords_valkyrie_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#F58A5A"
+        body_color: "#F7DCC9"
+        accent_color: "#8A3A1E"
+        background_color: "#180A06F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#F58A5A"
+        items:
+          - "Blessing — Featherweight: carry up to a thousand stone with no encumbrance, plus two extra pack-space rows."
+          - "Forsaken Power — Valkyrie's Rally: restores health, stamina, and eitr to every nearby ally in a single radiant burst."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Fallen Valkyrie Lord upon a Hall of the Lords to draw its
+        Blessing — Featherweight: the wings bear your burdens. Carry up to a thousand stone
+        with no encumbrance at all, and gain two extra rows of pack-space. (It is a hauler's
+        gift only — it grants no swiftness and no shield from falling.) Switching to another
+        Blessing spills those extra rows into a crate at your feet, so nothing is lost. Only
+        one Lord's Blessing may burn at a time; each Trophy holds five draws. Your Forsaken
+        Power, Valkyrie's Rally, restores the health, stamina, and eitr of every ally near you
+        in a single radiant burst — a battlefield's salvation, on a long cooldown.
+    once: true

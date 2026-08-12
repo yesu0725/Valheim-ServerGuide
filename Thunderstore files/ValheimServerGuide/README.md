@@ -88,6 +88,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.10.0:_ panels now size themselves to your text — the NPC conversation panel grows to fit and scrolls instead of cutting long dialogue off, `message` at `position: Center` word-wraps, and no display mode truncates any more. Plus a new `highlight:` block that colours chosen words or phrases inside any text, so the hotkey, the cost or the warning survives a skim.
+
 _New in 0.9.1:_ `{playerName}` now expands everywhere author-written text is shown — the Guide Codex, the HUD tracker, NPC conversation headers and choice buttons, raven/intro topics, NPC hover text, and every reward message — instead of only in the message shown at the moment an entry fires.
 
 _New in 0.9.0:_ the **rune** display mode is now a fully customizable, game-themed panel — set your own header/body/list fonts, colors, and alignment per entry, add a bullet list, and enjoy a smooth fade in/out. Plus seven new Lost Scrolls II trigger types for party duels, the party ladder, and bracket tournaments.
@@ -116,5 +118,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.9.1
+**Version:** 0.10.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

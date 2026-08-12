@@ -1,0 +1,269 @@
+# ==========================================================================
+# BiomeLords — The Three Lore-keepers (NPC conversation hubs)
+# Haldor (tiers 1-2) -> Hildir (tiers 3-5) -> Bog Witch (tiers 6-7).
+# Each runs a multi-node dialogue tree (CRIT-22): nodes[] with {id,text,choices};
+# node choices use `label:` + goto_node / goto / requires / hidden_when_locked.
+# Entry point is nodes[0]. resume_on_return reopens at the last node.
+#
+# The hand-off node (revealed once that keeper's Lords are felled, via `requires`
+# on the per-player defeat entries) names the next keeper but DELIBERATELY does NOT
+# reveal their location — the player must search. Finding them is rewarded instead:
+# the `biomelords_find_*` entries (npc_interacted, gated on the prior keeper's Lords)
+# grant a finder's reward the first time the player reaches the next keeper.
+# ==========================================================================
+guidances:
+
+  # ---- FINDER'S REWARDS — granted on first reaching the next keeper ---------
+  # Trigger is npc_interacted (TAP E / trade), kept distinct from the hold-E
+  # conversation entries so holding E never spawns a multi-quest picker.
+  # Gated on the *previous* keeper's Lords so the reward only lands once the
+  # player is actually on the search the prior keeper sent them on.
+  - id: biomelords_find_hildir
+    title: "Found: Hildir"
+    category: "The Law of Tiers"
+    trigger:
+      type: npc_interacted
+      npc: Hildir
+    requires: [biomelords_neck_defeat, biomelords_greydwarf_defeat]
+    display:
+      mode: message
+      position: Center
+      text: "You have found Hildir, as Haldor bade. A finder's reward for the searching, {playerName}."
+    scope: player
+    once: true
+    rewards:
+      - type: item
+        item: Coins
+        amount: 50
+      - type: buff
+        effect: SE_Rested
+        duration_override: 480
+
+  - id: biomelords_find_bogwitch
+    title: "Found: the Bog Witch"
+    category: "The Law of Tiers"
+    trigger:
+      type: npc_interacted
+      npc: BogWitch
+    requires:
+      [biomelords_draugr_defeat, biomelords_fenring_defeat, biomelords_lox_defeat]
+    display:
+      mode: message
+      position: Center
+      text: "You have sought out the Bog Witch where none would point the way. The finding is rewarded, {playerName}."
+    scope: player
+    once: true
+    rewards:
+      - type: item
+        item: Coins
+        amount: 100
+      - type: buff
+        effect: SE_Rested
+        duration_override: 480
+
+  # ---- HALDOR — tiers 1-2: Neck Lord, Greydwarf Shaman Lord ----------------
+  - id: biomelords_lorekeeper_haldor
+    title: "The Lore-keeper of the Lords"
+    category: "The Law of Tiers"
+    trigger:
+      type: npc_conversation
+      npc: Haldor
+    display:
+      mode: conversation
+      topic: "Haldor"
+    hover_text:
+      default: "[Hold E] Speak of the Fallen Lords"
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: root
+          text: >-
+            Heh. You smell of the deep woods, friend. The Biome Lords stir again — corrupted
+            beasts, each crowned in its own land. I keep the lore of the near tiers. What would
+            you know?
+          choices:
+            - label: "How does a Lord's power spread?"
+              goto_node: law
+            - label: "Where do I begin?"
+              goto_node: begin
+            - label: "I have felled the Lords of wood and meadow."
+              requires: [biomelords_neck_defeat, biomelords_greydwarf_defeat]
+              hidden_when_locked: true
+              goto_node: handoff
+            - label: "Just trading today."
+        - id: law
+          text: >-
+            Listen, then. Every Lord you slay raises a floor beneath your world — your tier
+            floor. Nothing you beat grows weaker; everything still below that floor rises to
+            meet it. Fell a higher Lord and the lesser Lords — and the old Forsaken bosses
+            besides — swell to match your highest kill. Power and peril climb together.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: begin
+          text: >-
+            Start in the Meadows, with the Neck Lord — a crimson thing of the shallows. Then the
+            Black Forest's Greydwarf Shaman Lord. Hunt the biome's beasts until a Lord's Horn
+            will answer, sound it where that Lord dwells, and when it falls, raise its Trophy on
+            a Hall of the Lords for a Blessing. The Forsaken Power is granted the moment it dies.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: handoff
+          text: >-
+            Both of mine lie dead — well done, Lord-slayer. But my lore ends at the Black
+            Forest's edge. Seek Hildir; she knows the mires, the peaks, and the grasslands, and
+            the Lords that rule them. Where she wanders I'll not say — that's for you to find.
+            Those who track her down are seldom sorry they did.
+          choices:
+            - label: "I will find Hildir."
+
+  # ---- HILDIR — tiers 3-5: Draugr Elite, Fenring, Lox ----------------------
+  - id: biomelords_lorekeeper_hildir
+    title: "The Lore-keeper of the Lords"
+    category: "The Law of Tiers"
+    trigger:
+      type: npc_conversation
+      npc: Hildir
+    display:
+      mode: conversation
+      topic: "Hildir"
+    hover_text:
+      default: "[Hold E] Speak of the Fallen Lords"
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: root
+          text: >-
+            So Haldor sent you on. Good — the lands grow cruel from here. I keep the lore of the
+            mires, the mountains, and the plains. Ask, and mind the Law as you climb.
+          choices:
+            - label: "Show me the Law in flesh."
+              goto_node: law
+            - label: "Do the old bosses change too?"
+              goto_node: bosses
+            - label: "Which Lords do you watch?"
+              goto_node: lords
+            - label: "I have felled the mire, peak, and grass Lords."
+              requires:
+                [biomelords_draugr_defeat, biomelords_fenring_defeat, biomelords_lox_defeat]
+              hidden_when_locked: true
+              goto_node: handoff
+            - label: "Nothing for now."
+        - id: law
+          text: >-
+            The floor is counted in tiers, each with its own health — 500, 2,500, 5,000, 7,500,
+            10,000, 12,500, and 25,000 at the peak. Slay a tier-three Lord and an Eikthyr you
+            have left alive no longer waits at his vanilla 500 — he rises to 5,000 to match you,
+            and hits the harder for it. Every step you climb, that floor climbs with you.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: bosses
+          text: >-
+            They do. The Lords share their tiers with the old Forsaken: Bonemass at the third,
+            Moder at the fourth, Yagluth at the fifth. Whatever floor your kills have set, any of
+            these you have not yet beaten rises to it — health and blow alike. Never return to an
+            old altar thinking it an old fight. It has grown with you.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: lords
+          text: >-
+            Three are mine to name: the Draugr Elite Lord in the Swamp, the Fenring Lord upon the
+            Mountain, and the Lox Lord out on the Plains. Hunt each land's beasts until the Horn
+            answers, fell the Lord, and claim its gifts. They grow harder in that order — climb it
+            in order.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: handoff
+          text: >-
+            All three of mine are fallen. You have come far, slayer — but mine is not the last
+            word. One keeper remains: the Bog Witch, who alone holds the lore of the highest
+            Lords. I'll not tell you where she hides — few know, and she likes it so. Search the
+            far places yourself. Reach her, and the finding will repay you. Then finish the Trail.
+          choices:
+            - label: "I will find the Bog Witch."
+
+  # ---- BOG WITCH — tiers 6-7: Seeker Lord, Fallen Valkyrie Lord ------------
+  - id: biomelords_lorekeeper_bogwitch
+    highlight:
+      # Same two rules as the scaling Codex, retold in the Bog Witch's voice — highlighted the
+      # same way so a player who read one recognises the other.
+      - text: "the floor is counted per warrior"
+        color: "#FF9E8A"
+        style: "Bold"
+      - text: "each bears their own tier"
+        color: "#FF9E8A"
+        style: "Bold"
+      - text: "Climb in order"
+        color: "#96E6A1"
+        style: "Bold"
+      - text: "Leap to a far higher Lord and the floor lurches up all at once"
+        color: "#FF9E8A"
+        style: "Bold"
+    title: "The Lore-keeper of the Lords"
+    category: "The Law of Tiers"
+    trigger:
+      type: npc_conversation
+      npc: BogWitch
+    display:
+      mode: conversation
+      topic: "The Bog Witch"
+    hover_text:
+      default: "[Hold E] Speak of the Fallen Lords"
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: root
+          text: >-
+            Hildir's road ends at my door, child. Two Lords remain, the highest of them all — and
+            one last truth about the floor you have been raising. Ask it, while the mist listens.
+          choices:
+            - label: "Whose floor is it that rises?"
+              goto_node: perplayer
+            - label: "How should I hunt the last Lords?"
+              goto_node: strategy
+            - label: "Which Lords remain?"
+              goto_node: lords
+            - label: "I have walked the whole Trail."
+              requires: [biomelords_seeker_defeat, biomelords_valkyrie_defeat]
+              hidden_when_locked: true
+              goto_node: end
+            - label: "Not yet, witch."
+        - id: perplayer
+          text: >-
+            Yours, and yours alone. On these lands the floor is counted per warrior — only the
+            Lords that YOU have slain raise YOUR floor. A shieldmate who has not done your deeds
+            still meets the lesser beasts and lesser bosses, while you meet ones risen to match
+            you. Hunt together if you like, but each bears their own tier. That is the whole weight
+            of it.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: strategy
+          text: >-
+            With care. Climb in order and the floor rises a gentle step at a time, each new
+            Blessing and Power ready for the next. Leap to a far higher Lord and the floor lurches
+            up all at once — every weaker Lord and un-beaten boss spikes to that height in a
+            stroke, and your world turns harsh before you are ready. The choice has always been
+            yours.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: lords
+          text: >-
+            Two: the Seeker Lord, queen-class in the Mistlands, and the Fallen Valkyrie Lord on
+            the burning shore of the Ashlands — the highest of all, on true wings. Fell them and
+            your floor stands at its peak; all your world will have risen to meet you.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: end
+          text: >-
+            Seven Lords behind you, and the floor at its summit. There is no keeper past me, no
+            tier above yours. You have walked the whole Trail of the Fallen Lords, and your world
+            has risen to call you its equal. Go — wear it well.
+          choices:
+            - label: "The Trail is walked."

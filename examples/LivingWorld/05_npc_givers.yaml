@@ -1,0 +1,115 @@
+# ==========================================================================
+# Living World — NPC quest-givers (conversation trees)
+# Hold E on Hildir / the Bog Witch opens the multi-quest PICKER (these entries
+# coexist with the BiomeLords "Lore-keeper of the Lords" trees — titles are
+# distinct so the chooser reads cleanly). Pure flavor + instruction; choices use
+# `goto_node` to navigate. No rewards on node choices (NodeChoiceSpec reward
+# support is unconfirmed — the actual rewards live on the kill/submit entries).
+# ==========================================================================
+guidances:
+
+  # ---- HILDIR — standing + Dvergr challenges -----------------------------
+  - id: lw_giver_hildir
+    highlight:
+      # A task board read aloud. The quantities and the pin instruction are what the player
+      # actually has to carry away from it.
+      - any: ["five Neck trophies", "a score of them", "Three tasks"]
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "Pin a task in your Codex to track it"
+        color: "#8FD5FF"
+        style: "Bold"
+    title: "Hildir's Standing Challenges"
+    category: "Standing Challenges"
+    trigger:
+      type: npc_conversation
+      npc: Hildir
+    display:
+      mode: conversation
+      topic: "Hildir"
+    hover_text:
+      default: "[Hold E] Ask after work"
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: root
+          text: >-
+            Looking to keep busy, {playerName}? I always have work for a steady hand — open the
+            year round and renewing on the clock. What takes your interest?
+          choices:
+            - label: "What standing work is there?"
+              goto_node: standing
+            - label: "What of the Dvergr work?"
+              goto_node: dvergr
+            - label: "Nothing for now."
+        - id: standing
+          text: >-
+            Three tasks, always open. Face a Dvergr in their trial of combat — daily work, if
+            you have the spine for it. Thin the Greyling swarm, a score of them. Or bring me
+            five Neck trophies for the tally. Each pays in coin and renews once enough time has
+            passed. Pin a task in your Codex to track it.
+          choices:
+            - label: "Tell me more of the Dvergr work."
+              goto_node: dvergr
+            - label: "(Back)"
+              goto_node: root
+        - id: dvergr
+          text: >-
+            Three grades of Dvergr work, each at its own pace. Daily: find a Dvergr and face
+            their trial — win the duel and Hildir tallies it. Weekly: recruit one as a companion
+            after besting it in the proper fashion; a compact forged earns the larger pay.
+            Come the weekend I open the Proving Ground — train your companion to a new level
+            before the weekend is out and you will carry the title of Compact-Keeper, and coin
+            besides. The work renews on its own schedule; keep an eye on your Codex.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+
+  # ---- BOG WITCH — daily rites + seasonal rumors --------------------------
+  - id: lw_giver_bogwitch
+    highlight:
+      - any: ["a basket of raspberries", "five Draugr", "a score"]
+        color: "#FFB86B"
+        style: "Bold"
+    title: "The Bog Witch's Rites"
+    category: "Daily Rites"
+    trigger:
+      type: npc_conversation
+      npc: BogWitch
+    display:
+      mode: conversation
+      topic: "The Bog Witch"
+    hover_text:
+      default: "[Hold E] Ask of the day's rites"
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: root
+          text: >-
+            The mist brings you to my door again, child. Each day asks its own small rite of
+            those who would stay in its favour. And when the seasons turn, the mire whispers of
+            stranger work. What would you hear?
+          choices:
+            - label: "What does the day ask of me?"
+              goto_node: daily
+            - label: "What of the changing seasons?"
+              goto_node: seasonal
+            - label: "Leave the witch in peace."
+        - id: daily
+          text: >-
+            Two small things, renewed each dawn. Bring me a basket of raspberries from the
+            wilds — a score will do — and take the day's quarry: five Draugr put back into the
+            earth. Do them and the mist will see you rested and paid. Come back tomorrow; the
+            rites renew with the sun.
+          choices:
+            - label: "(Back)"
+              goto_node: root
+        - id: seasonal
+          text: >-
+            The wheel of the year turns, and with it the old rites wake and sleep. A hunt at
+            Yule, a gathering at midsummer, a darker errand when the nights grow long. When such
+            a season is upon us you will feel it in the air — and I will have work fit for it.
+            Not now, though. Bide, and watch the skies.
+          choices:
+            - label: "(Back)"
+              goto_node: root

@@ -1,0 +1,93 @@
+# ==========================================================================
+# BiomeLords — Tier 5: Lox Lord (Plains)
+# Blessing: Hearth Master (SE_LoxLordSpirit) | Forsaken Power: Bull Rush (GP_BullRush)
+# Kill-gate (mod-owned): 10x Lox. Lord prefab: LoxLord | Trophy: TrophyLoxLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_lox_intro
+    title: "The Lox Lord"
+    category: "Lox Lord"
+    trigger:
+      type: biome
+      biome: Plains
+    display:
+      mode: raven
+      topic: "The Immovable Beast"
+      text: >-
+        A bull stands over the Plains that will not fall, {playerName} — the Lox Lord, a
+        mountain of hide and rage that wards off blows and heals its wounds in a last,
+        bellowing stand. It cannot be tamed, only broken. Drive 10 Lox from the grasslands —
+        then sound a Lord's Horn upon the open Plains to summon it. (The Horn keeps the tally;
+        hunt until it answers.)
+    once: true
+
+  - id: biomelords_lox_defeat
+    title: "The Bull is Broken"
+    category: "Lox Lord"
+    trigger:
+      type: kill
+      creature: LoxLord
+    requires: [biomelords_lox_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#F0C868"
+        body_color: "#F5E9CE"
+        body_style: "Italic"
+        accent_color: "#8A6A2A"
+        background_color: "#140F07F2"
+      topic: "The Lox Lord Falls"
+      text: >-
+        The immovable beast is moved at last, {playerName} — it falls, and the Plains are
+        quiet. Its unstoppable strength is yours: the Forsaken Power Bull Rush answers your
+        call. Take up its Trophy and raise it where the Lords are honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Beast-Breaker"
+
+  - id: biomelords_lox_serverfirst
+    title: "First Blood of the Plains"
+    category: "Lox Lord"
+    trigger:
+      type: kill
+      creature: LoxLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Lox Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Lox Lord** — first on the server!"
+
+  - id: biomelords_lox_blessing
+    title: "Hearth Master"
+    category: "Lox Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyLoxLord
+    requires: [biomelords_lox_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#F0C868"
+        body_color: "#F5E9CE"
+        accent_color: "#8A6A2A"
+        background_color: "#140F07F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#F0C868"
+        items:
+          - "Blessing — Hearth Master: food buffs linger nearly twice as long."
+          - "Forsaken Power — Bull Rush: unstaggerable, halves stamina costs, and floods you with adrenaline as you strike."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Lox Lord upon a Hall of the Lords to draw its Blessing —
+        Hearth Master: the food you eat nourishes you twice as long, its buffs lingering well
+        past their hour. A feast-bringer's gift for the long Plains campaigns. Only one Lord's
+        Blessing may burn at a time; each Trophy holds five draws. Your Forsaken Power, Bull
+        Rush, makes you unstaggerable, halves the stamina your blows cost, and floods you with
+        adrenaline as you strike — charge in and do not stop.
+    once: true

@@ -9,6 +9,19 @@
 ## Top-Level Shape
 
 ```yaml
+# Optional. Server-wide highlight rules — see CRIT-25. Unlike `tracker:`, the lists from
+# every loaded YAML file are CONCATENATED rather than first-file-wins.
+highlight:
+  - text: string                # phrase to highlight (use this or `any`)
+    any: [string]               # several phrases sharing one style
+    color: string               # "#RRGGBB" / "#RRGGBBAA", leading '#' optional
+    style: string               # Bold | Italic | Underline | Strikethrough, combinable
+    size_percent: float         # span font size as % of surrounding text; 0 = unchanged
+    first: bool                 # only the first occurrence; default false (all)
+    match_case: bool            # default false
+    whole_word: bool            # default: auto — word-bounded when the phrase starts and
+                                # ends with a letter/digit, literal substring otherwise
+
 guidances:
   - id: string                  # required; unique key for this entry
     trigger: TriggerSpec
@@ -20,6 +33,9 @@ guidances:
     scope: string               # "player" (default) | "global"
     summary: string             # optional — short recap shown in Codex body when entry is complete;
                                 # takes priority over the final step's message
+    highlight: [HighlightSpec]  # optional — same shape as the top-level block, scoped to this
+                                # entry. Runs before the server-wide rules. Steps may carry
+                                # their own list, which outranks the entry's. See CRIT-25.
     announce:
       discord: string           # null/absent=off, ""=use default template, else literal template
 ```

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -169,6 +169,14 @@ namespace ValheimServerGuide.Config
                     else Plugin.Log.LogWarning(
                         $"VSG: '{RelPath(file)}' also defines a tracker: section — ignored (first file wins).");
                 }
+
+                // Unlike tracker:, every file's server-wide highlight rules are concatenated —
+                // each pack can contribute its own vocabulary without one file owning the list.
+                if (part.Highlight != null && part.Highlight.Count > 0)
+                {
+                    if (merged.Highlight == null) merged.Highlight = new List<HighlightSpec>();
+                    merged.Highlight.AddRange(part.Highlight);
+                }
             }
 
             Plugin.Log.LogInfo($"VSG: merged {merged.Guidances.Count} raw entries from {files.Count} YAML file(s).");
@@ -182,7 +190,7 @@ namespace ValheimServerGuide.Config
 
         private static GuidanceConfig Validate(GuidanceConfig raw)
         {
-            var result = new GuidanceConfig { Tracker = raw.Tracker };
+            var result = new GuidanceConfig { Tracker = raw.Tracker, Highlight = raw.Highlight };
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var entry in raw.Guidances)

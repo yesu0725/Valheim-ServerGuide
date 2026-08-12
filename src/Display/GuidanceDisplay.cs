@@ -1,6 +1,7 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using ValheimServerGuide.Config;
@@ -115,7 +116,9 @@ namespace ValheimServerGuide.Display
             if (Eq(mode, "message"))
             {
                 if (MessageHud.instance == null) { Plugin.Log.LogWarning("[show] message: MessageHud.instance null."); return; }
-                MessageHud.instance.ShowMessage(ParsePosition(entry.Display?.Position), renderedText);
+                var position = ParsePosition(entry.Display?.Position);
+                if (position == MessageHud.MessageType.Center) EnsureCenterMessageWraps();
+                MessageHud.instance.ShowMessage(position, renderedText);
                 return;
             }
 
@@ -217,6 +220,7 @@ namespace ValheimServerGuide.Display
             // one orphaned by vsg_reset clearing the seen-flag) would silently block re-show.
             // We only reach here with no active raven, so removing it is safe.
             RemoveVanillaTempText(entry.Id);
+            EnsureVanillaTextNotTruncated();
             // Overwrite the baked text with the live-rendered version so that
             // (a) top-level `message:` fields are honoured, and
             // (b) template variables ({player_name} etc.) are expanded before display.
@@ -419,6 +423,7 @@ namespace ValheimServerGuide.Display
             }
 
             EngageIntroMusic();
+            EnsureVanillaTextNotTruncated();
             TextViewer.instance.ShowText(TextViewer.Style.Intro, topic, text, autoHide: true);
 
             // Fade the overlay back out as the text begins scrolling, so the world
@@ -678,6 +683,66 @@ namespace ValheimServerGuide.Display
 
         private static MessageHud.MessageType ParsePosition(string position)
             => Eq(position, "Center") ? MessageHud.MessageType.Center : MessageHud.MessageType.TopLeft;
+
+        /// The vanilla TextViewer boxes (raven parchment, intro card, runestone reading) ship
+        /// with whatever overflow mode the prefab was authored with — a Truncate/Ellipsis
+        /// setting there would silently swallow the tail of a long guide. Force wrapping on and
+        /// overflow to Overflow so the text is always rendered in full.
+        ///
+        /// Note these boxes are fixed-size vanilla art: they do not grow. Overflow means long
+        /// text spills past the parchment rather than being cut — readable, but a sign the
+        /// entry wants `rune` or `conversation` mode, both of which size themselves to content.
+        private static void EnsureVanillaTextNotTruncated()
+        {
+            var tv = TextViewer.instance;
+            if (tv == null) return;
+
+            AllowOverflow(tv.m_text);
+            AllowOverflow(tv.m_introText);
+            AllowOverflow(tv.m_ravenText);
+        }
+
+        private static void AllowOverflow(TMP_Text tmp)
+        {
+            if (tmp == null) return;
+            tmp.enableWordWrapping = true;
+            tmp.overflowMode       = TextOverflowModes.Overflow;
+        }
+
+        /// Vanilla's centre message is a single non-wrapping line sized for "Odin's blessing"
+        /// style one-liners: a full sentence of guidance simply runs off both edges of the
+        /// screen. Widen its rect to a readable measure and turn wrapping on so long text
+        /// stacks into lines instead.
+        ///
+        /// Applied to the shared vanilla component rather than a copy, because MessageHud owns
+        /// the fade coroutine that makes the message appear at all. It is idempotent and only
+        /// ever grows the rect, so vanilla's own centre messages — all far too short to reach
+        /// the wrap width — look exactly as they did.
+        private static void EnsureCenterMessageWraps()
+        {
+            var tmp = MessageHud.instance?.m_messageCenterText;
+            if (tmp == null) return;
+
+            tmp.enableWordWrapping = true;
+            tmp.overflowMode       = TextOverflowModes.Overflow;
+
+            var rt = tmp.rectTransform;
+            if (rt == null) return;
+
+            // 70% of the screen: wide enough for a long sentence, narrow enough that the eye
+            // does not have to travel the full monitor width per line.
+            var targetWidth  = Screen.width * 0.70f;
+            var targetHeight = Screen.height * 0.30f;
+
+            // sizeDelta is an offset from the anchors, not an absolute size, whenever the rect
+            // is anchored to a stretch. Adjusting by the delta between current and target keeps
+            // this correct for either anchoring style.
+            var size = rt.rect.size;
+            if (size.x < targetWidth)
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x + (targetWidth - size.x), rt.sizeDelta.y);
+            if (size.y < targetHeight)
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x, rt.sizeDelta.y + (targetHeight - size.y));
+        }
     }
 
     /// Restore ghost mode when the RUNE viewer closes. Rune mode has no input lock and

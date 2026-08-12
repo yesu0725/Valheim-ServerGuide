@@ -1,0 +1,22 @@
+# ==========================================================================
+# Living World — Weekend events
+# `day_of_week` fires the announcement on Sunday (BiomeLords flavor nudge).
+# ==========================================================================
+guidances:
+
+  # ---- Sunday: a Lord stirs (BiomeLords flavor, no reward) -----------------
+  - id: lw_weekend_lordhunt
+    title: "A Lord Stirs"
+    category: "Weekend"
+    trigger:
+      type: day_of_week
+      day_of_week: Sunday
+    display:
+      mode: raven
+      topic: "A Lord Stirs This Sabbath"
+      text: >-
+        The old powers wake on the sabbath, {playerName}. If your floor stands ready, this is
+        a fitting day to seek out a Biome Lord in its own land and test the Trail of the Fallen
+        Lords. Glory favours the bold — but climb the tiers in their order.
+    scope: global
+    cooldown: 518400       # ~6 days — fire once per weekend

@@ -11,6 +11,47 @@ namespace ValheimServerGuide.Config
         /// Optional HUD tracker layout overrides. When present, these win over the BepInEx
         /// config and are applied live on YAML reload (host / single-player). See Phase 04.
         public TrackerSpec Tracker { get; set; }
+
+        /// Server-wide highlight rules applied to every entry's on-screen text, on top of
+        /// whatever that entry declares itself. Lists from every loaded YAML file are merged.
+        /// Use this for vocabulary that should always pop — hotkeys, item names, warnings.
+        public List<HighlightSpec> Highlight { get; set; }
+    }
+
+    /// One highlight rule: find a word or phrase in the rendered text and re-style just that
+    /// span. Emitted as TMP rich-text tags, so it applies to every in-game display mode.
+    /// Never applied to Discord messages — Discord has no idea what a &lt;color&gt; tag is.
+    ///
+    /// ```yaml
+    /// highlight:
+    ///   - text: "Communion Totem"
+    ///     color: "#FFCC55"
+    ///     style: "Bold"
+    ///   - any: ["[F7]", "[E]", "[K]"]
+    ///     color: "#8FD5FF"
+    /// ```
+    public class HighlightSpec
+    {
+        /// The phrase to highlight. Use this or `any`, not both.
+        public string Text { get; set; }
+        /// Several phrases that share one style — shorthand for repeating the same rule.
+        public List<string> Any { get; set; }
+        /// Hex color ("#RRGGBB" / "#RRGGBBAA", leading '#' optional). Omit to restyle only.
+        public string Color { get; set; }
+        /// Any combination of Bold | Italic | Underline | Strikethrough (e.g. "Bold Italic").
+        public string Style { get; set; }
+        /// Font size for the span as a percentage of the surrounding text, e.g. 120 = 120%.
+        /// 0 (default) leaves the size alone.
+        public float SizePercent { get; set; }
+        /// Highlight only the first occurrence instead of every one.
+        public bool First { get; set; }
+        /// Match case exactly. Default false — "totem" matches "Totem".
+        public bool MatchCase { get; set; }
+        /// Force whole-word matching on/off. Unset (the default) picks automatically: a phrase
+        /// that starts and ends with a letter or digit matches on word boundaries (so "rite"
+        /// does not hit "written"), while anything else — "[F7]", "(Locked", "—" — matches as
+        /// a plain substring.
+        public bool? WholeWord { get; set; }
     }
 
     /// Live-tunable layout for the on-screen objective tracker widget (Phase 04).
@@ -91,6 +132,9 @@ namespace ValheimServerGuide.Config
         /// the entry's trigger.npc, keyed by whether the entry has fired yet. Trader-bound
         /// NPCs only (Phase 6).
         public HoverTextSpec HoverText { get; set; }
+        /// Highlight rules for this entry's on-screen text, applied before the server-wide
+        /// rules in GuidanceConfig.Highlight. A step may override these with its own list.
+        public List<HighlightSpec> Highlight { get; set; }
     }
 
     /// Per-entry NPC hover tooltip override (Phase 6). Null/absent = vanilla behavior
@@ -121,6 +165,8 @@ namespace ValheimServerGuide.Config
         public TriggerSpec ProgressTrigger { get; set; }
         /// HUD label for the counter, e.g. "Trophies".
         public string ProgressLabel { get; set; }
+        /// Highlight rules for this step's text. Takes priority over the entry's list.
+        public List<HighlightSpec> Highlight { get; set; }
     }
 
     public class AnnounceSpec

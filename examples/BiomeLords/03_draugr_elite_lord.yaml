@@ -1,0 +1,95 @@
+# ==========================================================================
+# BiomeLords — Tier 3: Draugr Elite Lord (Swamp)
+# Blessing: Iron Vein (SE_DraugrLordSpirit) | Forsaken Power: Plague Bearer (GP_PlagueBearer)
+# Kill-gate (mod-owned): 25x Draugr / Draugr_Elite / Draugr_Ranged.
+# Lord prefab: DraugrEliteLord | Trophy: TrophyDraugrEliteLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_draugr_intro
+    title: "The Draugr Elite Lord"
+    category: "Draugr Elite Lord"
+    trigger:
+      type: biome
+      biome: Swamp
+    display:
+      mode: raven
+      topic: "Rot in the Mire"
+      text: >-
+        The dead of the Swamp answer a new master, {playerName} — the Draugr Elite Lord, a
+        rotted captain wreathed in plague-light, who cleaves wounds that will not close and
+        feeds on the death around it. Put down 25 of the swamp's Draugr (the common dead, the
+        Elite, and the Ranged) — then sound a Lord's Horn among the sunken crypts to draw it
+        out. (The Horn keeps the tally; hunt until it answers.)
+    once: true
+
+  - id: biomelords_draugr_defeat
+    title: "The Plague-Light Dims"
+    category: "Draugr Elite Lord"
+    trigger:
+      type: kill
+      creature: DraugrEliteLord
+    requires: [biomelords_draugr_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#C7D65E"
+        body_color: "#E8ECC9"
+        body_style: "Italic"
+        accent_color: "#5B5F26"
+        background_color: "#11120AF2"
+      topic: "The Draugr Elite Lord Falls"
+      text: >-
+        The rotted captain crumbles to bog-water and bone, {playerName}. Its plague is now
+        your shield — the Forsaken Power Plague Bearer answers your call, and poison will
+        never again be your master. Take up its Trophy and raise it where the Lords are
+        honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Mire-Lord"
+
+  - id: biomelords_draugr_serverfirst
+    title: "First Blood of the Swamp"
+    category: "Draugr Elite Lord"
+    trigger:
+      type: kill
+      creature: DraugrEliteLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Draugr Elite Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Draugr Elite Lord** — first on the server!"
+
+  - id: biomelords_draugr_blessing
+    title: "Iron Vein"
+    category: "Draugr Elite Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyDraugrEliteLord
+    requires: [biomelords_draugr_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#C7D65E"
+        body_color: "#E8ECC9"
+        accent_color: "#5B5F26"
+        background_color: "#11120AF2"
+        width: 680
+        bullet: "✦"
+        item_color: "#C7D65E"
+        items:
+          - "Blessing — Iron Vein: the Swamp's scrap-iron sometimes yields an extra piece to your pick."
+          - "Forsaken Power — Plague Bearer: immune to poison, sharpens your own venom, and quickens healing."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Draugr Elite Lord upon a Hall of the Lords to draw its
+        Blessing — Iron Vein: the muddy scrap-iron of the Swamp sometimes yields an extra
+        piece to your pick. A fitting gift as you forge toward the Iron Age. Only one Lord's
+        Blessing may burn at a time; each Trophy holds five draws. Your Forsaken Power, Plague
+        Bearer, makes you immune to poison, sharpens your own venom, and quickens your
+        healing — wield it in the foul places of the world.
+    once: true

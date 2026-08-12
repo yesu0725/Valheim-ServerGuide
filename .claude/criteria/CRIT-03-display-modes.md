@@ -2,6 +2,9 @@
 
 **File:** `src/Display/GuidanceDisplay.cs`
 
+**Every mode renders authored text in full — no display surface truncates. See CRIT-25 for the
+layout rules and for the `highlight:` system, which colours chosen words in any of these modes.**
+
 Seven modes — `raven`, `message`, `chat`, `rune`, `intro`, `conversation`, `bubble` — all using
 vanilla Unity/Valheim components. No custom assets.
 
@@ -208,15 +211,23 @@ display:
 - Opened by `NpcConversationPanel.Get().Open(entry, renderedText)`.
 - Panel is a dedicated `Canvas` (`ScreenSpaceOverlay`, `sortingOrder = 200`) kept inactive
   between conversations. Activated by `Open()`, deactivated by `Close()`.
-- **Position:** anchor Y = 0.25 (mid-point between screen centre and bottom edge), pivot
-  `(0.5, 0.5)` — the box occupies the lower-middle band of the screen.
-- **Dimensions:** 750 × 185 px, dark fill `(0.02, 0.02, 0.02, 0.97)`.
-- **Header:** `TextMeshProUGUI`, bold, gold, from `display.topic` or `entry.title`.
-- **Body:** `TextMeshProUGUI` with `enableWordWrapping = true` and `overflowMode = Ellipsis`.
-- **Choices:** `HorizontalLayoutGroup` — all buttons on a single row, equal-width flexible.
-  If `conversation.choices` is absent, a default "Dismiss" button is inserted automatically.
+- **Position:** anchored at `(0.5, 0)` with pivot `(0.5, 0)`, 110 px above the bottom edge —
+  the panel grows UPWARD from a fixed baseline as the text gets longer, so it can never slide
+  off the bottom of the screen.
+- **Dimensions:** 750 px wide; height is driven entirely by the content via
+  `VerticalLayoutGroup` + `ContentSizeFitter`. Dark fill `(0.02, 0.02, 0.02, 0.97)`.
+- **Header:** `TextMeshProUGUI`, bold, gold, from `display.topic` or `entry.title`. Wraps.
+- **Body:** `TextMeshProUGUI` inside a `ScrollRect`, `enableWordWrapping = true` and
+  `overflowMode = Overflow`. **Never `Ellipsis`** — the viewport's `preferredHeight` matches the
+  text exactly until the panel would exceed 82% of screen height, and only then clamps and lets
+  the body scroll. Text is never cut off. See CRIT-25.
+- **Choices:** a `VerticalLayoutGroup` of rows, each a `HorizontalLayoutGroup`. Up to 3 buttons
+  share a row; past 3 choices the row capacity drops to 2 so labels stay readable. Each button
+  grows to fit a label that wrapped onto extra lines. If `conversation.choices` is absent, a
+  default "Dismiss" button is inserted automatically.
 - Font is resolved lazily from `GuidanceHudTracker.FindVanillaFontStatic()` and assigned
-  before any `SetActive(true)` call (TMP Awake rule).
+  before any `SetActive(true)` call (TMP Awake rule). The panel is then activated **before**
+  the body is measured — TMP returns zero preferred sizes for an inactive hierarchy.
 - **Cursor:** freed on `Open()` (`GameCamera.m_mouseCapture = false`, `Cursor.lockState = None`,
   `Cursor.visible = true`), re-asserted every frame in `Update()`, restored on `Close()`.
 - **Input lock:** four Harmony patches gated by `NpcConversationPanel.IsOpen`:
@@ -303,9 +314,10 @@ Released by calling `GuidanceDisplay.ReleaseGhostMode()`.
 - [ ] `intro` engages ghost mode + input freeze + ESC block + music; all released when text is dismissed.
 - [ ] Ghost mode state before the display is restored exactly (if already ghost, stays ghost after release).
 - [ ] Unknown `mode` values log a warning and do nothing; they do not throw.
-- [x] `conversation` panel appears in the lower-middle band of the screen (anchor Y = 0.25).
-- [x] `conversation` body text word-wraps within the panel width.
-- [x] `conversation` choices render as a single horizontal row of equal-width buttons.
+- [x] `conversation` panel sits above the bottom edge and grows upward as its text gets longer.
+- [x] `conversation` body text word-wraps within the panel width and is never truncated —
+      it scrolls once the panel would exceed 82% of screen height (CRIT-25).
+- [x] `conversation` choices wrap onto multiple rows and grow to fit wrapped labels.
 - [x] `conversation` frees the OS cursor on open and restores it on close.
 - [x] `conversation` blocks all player input (movement, look, interact, inventory, ESC) while open.
 - [x] `conversation` fires `GuidanceDispatcher.FireById(goto)` after a choice with a `goto` is clicked.

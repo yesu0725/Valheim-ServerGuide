@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -278,8 +278,10 @@ namespace ValheimServerGuide.Display
             _titleText.fontSize           = 15f;
             _titleText.color              = ColGold;
             _titleText.alignment          = TextAlignmentOptions.Left;
-            _titleText.enableWordWrapping = false;
-            _titleText.overflowMode       = TextOverflowModes.Ellipsis;
+            // Wraps onto a second line inside the 50 px title band rather than ellipsising —
+            // the detail pane is where the player reads the full quest name.
+            _titleText.enableWordWrapping = true;
+            _titleText.overflowMode       = TextOverflowModes.Overflow;
             _titleText.raycastTarget      = false;
 
             var badgeGo = new GameObject("VSG_CodexBadge");
@@ -548,7 +550,7 @@ namespace ValheimServerGuide.Display
                 foreach (var entry in byCategory[cat])
                 {
                     var complete   = IsEntryComplete(entry, player);
-                    var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title);
+                    var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title, entry);
 
                     var rowGo = new GameObject("VSG_Row_" + entry.Id);
                     rowGo.transform.SetParent(_leftContent, false);
@@ -634,7 +636,7 @@ namespace ValheimServerGuide.Display
                 return;
             }
 
-            var title    = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title);
+            var title    = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title, entry);
             var complete = IsEntryComplete(entry, player);
 
             UpdateTrackToggle(entry, player, complete);
@@ -694,7 +696,7 @@ namespace ValheimServerGuide.Display
             // Completed chains without a summary fall back to the last step's message.
             if (complete && !string.IsNullOrEmpty(entry.Summary))
             {
-                _bodyText.text = "<color=#96F296><b>Quest Complete</b></color>\n\n" + Template(entry.Summary);
+                _bodyText.text = "<color=#96F296><b>Quest Complete</b></color>\n\n" + Template(entry.Summary, entry);
             }
             else if (entry.Steps != null && entry.Steps.Count > 0)
             {
@@ -702,20 +704,20 @@ namespace ValheimServerGuide.Display
                 if (complete)
                 {
                     displayStep = entry.Steps[entry.Steps.Count - 1];
-                    _bodyText.text = StepMessage(displayStep);
+                    _bodyText.text = StepMessage(entry, displayStep);
                 }
                 else
                 {
                     var idx = ChainState.GetStep(player, entry.Id);
                     displayStep = idx < entry.Steps.Count ? entry.Steps[idx] : null;
-                    _bodyText.text = Template(displayStep?.Description ?? "");
+                    _bodyText.text = Template(displayStep?.Description ?? "", entry, displayStep);
                 }
             }
             else
             {
                 // Non-chain entry: show its message, optionally prepended with collection progress.
                 var body = Template(!string.IsNullOrEmpty(entry.Message)
-                    ? entry.Message : entry.Display?.Text ?? "");
+                    ? entry.Message : entry.Display?.Text ?? "", entry);
 
                 var submitGoal = ItemSubmitGoal(entry);
                 if (submitGoal > 0 && !complete)
@@ -826,7 +828,7 @@ namespace ValheimServerGuide.Display
             for (var i = currentStep + 1; i < entry.Steps.Count; i++)
             {
                 var step   = entry.Steps[i];
-                var label  = "  Step " + (i + 1) + ": " + TruncateStepTitle(StepMessage(step)) + "   (locked)";
+                var label  = "  Step " + (i + 1) + ": " + TruncateStepTitle(StepMessage(entry, step)) + "   (locked)";
 
                 var rowGo = new GameObject("VSG_UpRow");
                 rowGo.transform.SetParent(_upcomingContent, false);
@@ -986,24 +988,25 @@ namespace ValheimServerGuide.Display
 
         // ── Text helpers ──────────────────────────────────────────────────────────────────────
 
-        private static string StepMessage(GuidanceStep step)
+        private static string StepMessage(GuidanceEntry entry, GuidanceStep step)
         {
             if (step == null) return "";
-            if (!string.IsNullOrEmpty(step.Message)) return Template(step.Message);
-            return Template(step.Display?.Text ?? "");
+            if (!string.IsNullOrEmpty(step.Message)) return Template(step.Message, entry, step);
+            return Template(step.Display?.Text ?? "", entry, step);
         }
 
-        /// Expand {playerName}/{player_name}/{biome}/… in any config text the Codex renders.
-        private static string Template(string text)
-            => GuidanceDispatcher.TemplateLocal(text) ?? "";
+        /// Expand {playerName}/{player_name}/{biome}/… and apply the entry's `highlight:` rules
+        /// to any config text the Codex renders.
+        private static string Template(string text, GuidanceEntry entry, GuidanceStep step = null)
+            => GuidanceDispatcher.RenderLocal(entry, text, step) ?? "";
 
         /// For the current (incomplete) step: prefer Description over Message so the Codex
         /// shows what the player needs to DO rather than the reward text that fires on completion.
-        private static string StepDescription(GuidanceStep step)
+        private static string StepDescription(GuidanceEntry entry, GuidanceStep step)
         {
             if (step == null) return "";
-            if (!string.IsNullOrEmpty(step.Description)) return Template(step.Description);
-            return StepMessage(step);
+            if (!string.IsNullOrEmpty(step.Description)) return Template(step.Description, entry, step);
+            return StepMessage(entry, step);
         }
 
         private static string TruncateStepTitle(string text)

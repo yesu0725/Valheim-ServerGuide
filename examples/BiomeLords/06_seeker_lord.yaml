@@ -1,0 +1,94 @@
+# ==========================================================================
+# BiomeLords — Tier 6: Seeker Lord (Mistlands)
+# Blessing: Refiner's Touch (SE_SeekerLordSpirit) | Forsaken Power: Hive Sight (GP_HiveSense)
+# Kill-gate (mod-owned): 20x Seeker / SeekerBrute / SeekerBrood.
+# Lord prefab: SeekerLord | Trophy: TrophySeekerLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_seeker_intro
+    title: "The Seeker Lord"
+    category: "Seeker Lord"
+    trigger:
+      type: biome
+      biome: Mistlands
+    display:
+      mode: raven
+      topic: "Queen-Class in the Mist"
+      text: >-
+        A seeker grown to queen-class stalks the Mistlands, {playerName} — the Seeker Lord,
+        violet-lit and patient, that fights harder the more it bleeds: melee at first, then
+        acid from the air, then ambush from beneath the moss. Thin the hive — 20 of the
+        Seekers, Brutes, and Brood — then sound a Lord's Horn among the spires to summon it.
+        (The Horn keeps the tally; hunt until it answers.)
+    once: true
+
+  - id: biomelords_seeker_defeat
+    title: "The Hive is Beheaded"
+    category: "Seeker Lord"
+    trigger:
+      type: kill
+      creature: SeekerLord
+    requires: [biomelords_seeker_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#C9A6F0"
+        body_color: "#ECE0F7"
+        body_style: "Italic"
+        accent_color: "#5C3E85"
+        background_color: "#0F0A16F2"
+      topic: "The Seeker Lord Falls"
+      text: >-
+        The queen-class falls and the violet light goes out, {playerName}. Its hive-sense is
+        yours now: the Forsaken Power Hive Sight will lay every hidden foe bare to your eye.
+        Claim its Trophy and raise it where the Lords are honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Hive-Bane"
+
+  - id: biomelords_seeker_serverfirst
+    title: "First Blood of the Mistlands"
+    category: "Seeker Lord"
+    trigger:
+      type: kill
+      creature: SeekerLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Seeker Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Seeker Lord** — first on the server!"
+
+  - id: biomelords_seeker_blessing
+    title: "Refiner's Touch"
+    category: "Seeker Lord"
+    trigger:
+      type: item_acquired
+      item: TrophySeekerLord
+    requires: [biomelords_seeker_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#C9A6F0"
+        body_color: "#ECE0F7"
+        accent_color: "#5C3E85"
+        background_color: "#0F0A16F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#C9A6F0"
+        items:
+          - "Blessing — Refiner's Touch: smelters, furnaces, spinning wheels, and Eitr refineries sometimes yield bonus finished work."
+          - "Forsaken Power — Hive Sight: pins every hostile within eighty paces on your map, seen through stone and mist."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Seeker Lord upon a Hall of the Lords to draw its Blessing —
+        Refiner's Touch: a smelter, blast furnace, spinning wheel, or Eitr refinery near you
+        sometimes yields a bonus of its finished work — an extra bar, thread, or measure of
+        Eitr, never the raw ore. A crafter's gift. Only one Lord's Blessing may burn at a
+        time; each Trophy holds five draws. Your Forsaken Power, Hive Sight, pins every hostile
+        within eighty paces upon your map, seen even through stone and mist.
+    once: true

@@ -1,0 +1,212 @@
+# ValheimServerGuide — server-wide text highlighting
+# 00_highlights.yaml
+#
+# A root-level `highlight:` block is MERGED ACROSS EVERY YAML FILE and applied to every
+# entry's on-screen text, so this one file gives the whole server a shared visual language.
+# Individual entries can add their own `highlight:` list; those rules run first and win any
+# overlap (a span highlighted once is never re-highlighted by a later rule).
+#
+# Where it shows up: raven, message, chat, rune, intro, conversation, bubble, the Guide Codex,
+# the HUD tracker and NPC hover text. NOT Discord — webhook posts stay plain text.
+#
+# ── The palette (four roles; resist adding a fifth) ─────────────────────────────────────────
+#   #8FD5FF  cyan   — keys and commands. The thing the player physically presses.
+#   #F0C868  gold   — named systems, places and items. The nouns a sentence is about.
+#   #FFB86B  amber  — costs, caps and limits. The numbers that decide a plan.
+#   #FF9E8A  red    — restrictions and losses. What goes wrong if this is missed.
+#
+# Highlighting is a spotlight, not a paint job. If half a sentence lights up, nothing does —
+# so these rules stay on words the reader must *act* on, and prose is left alone.
+#
+# ── Matching notes ─────────────────────────────────────────────────────────────────────────
+# A phrase that starts and ends with a letter or digit matches on word boundaries, so "Guard"
+# never lights up inside "Guardian". Anything else ("[E]", "Shift + E") matches literally.
+# Matching is case-insensitive unless `match_case: true`. Longer phrases are listed before
+# their shorter substrings so the specific rule claims the span first.
+
+highlight:
+
+  # ── Keys and commands ────────────────────────────────────────────────────────────────────
+  # Listed longest-first: "Shift + E" locks its span before the bare "E" rules can reach it.
+  - any:
+      - "Shift + E"
+      - "Left Shift"
+      - "Left Alt"
+      - "Alt+O"
+    color: "#8FD5FF"
+    style: "Bold"
+
+  - any: ["[E]", "[Y]", "[G]", "[J]", "[H]", "[K]"]
+    color: "#8FD5FF"
+    style: "Bold"
+  # Bracketed and parenthesised forms are listed FIRST so they claim the whole "[F7]" span;
+  # the bare forms below then only fire where a guide wrote "Press F4" in running prose.
+  # Single letters are far too dangerous to match alone — hence the literal "Z, V, B" phrase.
+  - any: ["[F6]", "[F7]", "(F3)", "F3", "F4", "Z, V, B"]
+    color: "#8FD5FF"
+    style: "Bold"
+
+  - any: ["/invite", "/p"]
+    color: "#8FD5FF"
+    style: "Bold"
+
+  # ── Named systems, places and items ──────────────────────────────────────────────────────
+  # The panels and screens a player is being sent to.
+  - any:
+      - "Guide Codex"
+      - "Configure panel"
+      - "Tournament panel"
+      - "Ranking board"
+      - "View Bracket"
+      - "Lock Totem"
+      - "Hall of the Lords"
+      - "Spawn Temple"
+    color: "#F0C868"
+    style: "Bold"
+  # The Fallen Lords. Full names first so "Neck Lord" never steals the span from
+  # "Greydwarf Shaman Lord" — and "Lord" alone is deliberately not a rule.
+  - any:
+      - "Greydwarf Shaman Lord"
+      - "Fallen Valkyrie Lord"
+      - "Draugr Elite Lord"
+      - "Fenring Lord"
+      - "Seeker Lord"
+      - "Neck Lord"
+      - "Lox Lord"
+      - "Fallen Lords"
+    color: "#F0C868"
+    style: "Bold"
+  # Recurring systems and key items.
+  - any:
+      - "Communion Totem"
+      - "Forsaken Power"
+      - "Protective Ward"
+      - "Surtling Core"
+      - "Duel Ladder"
+      - "Party Ladder"
+      - "Inter-server"
+      - "Network mode"
+    color: "#F0C868"
+    style: "Bold"
+  # The traders, so "go and find X" always reads as a name.
+  - any: ["Haldor", "Hildir", "Bog Witch"]
+    color: "#F0C868"
+    style: "Bold"
+
+  # The vanilla bosses, which the Fallen Lords guides constantly cross-reference when
+  # explaining which tier scales with what. "Fallen Valkyrie Lord" is listed earlier and
+  # claims its span first, so the plain "Fallen Valkyrie" here only fires on the boss.
+  - any:
+      - "Fallen Valkyrie"
+      - "Eikthyr"
+      - "Bonemass"
+      - "Moder"
+      - "Yagluth"
+      - "the Elder"
+      - "the Queen"
+    color: "#F0C868"
+    style: "Bold"
+
+  # Repeatable-quest cadence. On a Living World server the single thing a player must take
+  # away from a task list is how often it comes back around.
+  - any: ["daily", "weekly", "each dawn", "the weekend", "tomorrow"]
+    color: "#FFB86B"
+    style: "Bold"
+
+  - any: ["Proving Ground", "Compact-Keeper"]
+    color: "#F0C868"
+    style: "Bold"
+  # Every Blessing and Forsaken Power granted by the Fallen Lords. These are the payoff of the
+  # whole questline and are always buried mid-sentence in a long rune reading, so they get the
+  # name treatment wherever they appear — including the Codex recap the player re-reads later.
+  - any:
+      - "Fisher's Boon"
+      - "Quick Sprout"
+      - "Iron Vein"
+      - "Pack Whisperer"
+      - "Hearth Master"
+      - "Refiner's Touch"
+      - "Featherweight"
+      - "Tide's Grace"
+      - "Forest's Embrace"
+      - "Plague Bearer"
+      - "Howl of the Pack"
+      - "Bull Rush"
+      - "Hive Sight"
+      - "Valkyrie's Rally"
+    color: "#F0C868"
+    style: "Bold"
+  # The mods and stations a guide is teaching. Named so the player knows what to search for in
+  # the mod list, on the build hammer, or in a Discord question.
+  - any:
+      - "Balrond Shipyard Station"
+      - "Balrond Shipyard"
+      - "Scribe's Table"
+      - "Trophy panel"
+      - "ImpactfulSkills"
+      - "SlayerSkills"
+      - "TraderOverhaul"
+      - "ProtectiveWards"
+      - "AzuCraftyBoxes"
+      - "ComfyQuickSlots"
+      - "Recycle N Reclaim"
+      - "Quick Stack"
+      - "Restock"
+      - "Armoire"
+      - "Valcoins"
+    color: "#F0C868"
+    style: "Bold"
+  # New skills and statuses worth chasing. Deliberately excludes generic words like "Cooking"
+  # and "Sort", which would light up ordinary prose.
+  - any:
+      - "Knowledge Sharing"
+      - "Animal Whisper"
+      - "Blood Magic"
+      - "Slayer status"
+      - "Voyager"
+      - "Hauling"
+    color: "#F0C868"
+    style: "Bold"
+
+  # ── Costs, caps and limits ───────────────────────────────────────────────────────────────
+  # The numbers a player has to plan around. Written as phrases, not bare digits, so a stray
+  # "5" in prose never lights up.
+  - any:
+      - "150 weight cap"
+      - "8-slot"
+      - "five draws"
+      - "one at a time"
+      - "20 blocks"
+      - "20 seconds"
+      - "five minutes"
+      - "thirty seconds"
+      - "once a day"
+      - "50%"
+      - "100 Coins"
+    color: "#FFB86B"
+    style: "Bold"
+  # Skill thresholds — the level at which a perk actually switches on, which is the only
+  # number in those paragraphs a player needs to remember.
+  - any: ["level 100", "level 75", "level 50", "level 10"]
+    color: "#FFB86B"
+    style: "Bold"
+  # The Fallen Lords health floor. Comma-formatted, so these never collide with a loose digit
+  # elsewhere in a sentence.
+  - any: ["25,000", "12,500", "10,000", "7,500", "5,000", "2,500"]
+    color: "#FFB86B"
+    style: "Bold"
+
+  # ── Restrictions and losses ──────────────────────────────────────────────────────────────
+  # Kept to consequences that cost the player something real.
+  - any:
+      - "won't fight"
+      - "will not open"
+      - "crumbles to dust"
+      - "lockout"
+    color: "#FF9E8A"
+    style: "Bold"
+  # Only one Blessing at a time is the single rule players most often miss, and it sits in the
+  # middle of a long rune reading in all seven Fallen Lords guides.
+  - text: "Only one Lord's Blessing may burn at a time"
+    color: "#FF9E8A"
+    style: "Bold"

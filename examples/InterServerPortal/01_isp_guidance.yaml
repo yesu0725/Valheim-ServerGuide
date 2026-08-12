@@ -1,0 +1,301 @@
+# ==========================================================================
+# Portal Lore — InterServerPortal guidance
+# Triggered by building vanilla portals. No new prefabs, items, or NPCs
+# exist in this mod — all hooks are `build` triggers + `entry_finished` chains.
+# Raven at build time → Codex runes for deeper reference.
+# ==========================================================================
+guidances:
+
+  # ---- First wood portal: teach modes + Shift+E ----------------------------
+  - id: isp_intro
+    # The three portal colours are the whole mental model here — printed in the colour
+    # each one actually glows, so the paragraph can be skimmed and still land.
+    highlight:
+      - text: "Blue"
+        color: "#7FB2FF"
+        style: "Bold"
+      - text: "Violet"
+        color: "#C08BFF"
+        style: "Bold"
+      - text: "Cyan"
+        color: "#6FE3E1"
+        style: "Bold"
+    title: "Portals of a Different Colour"
+    category: "Portal Lore"
+    trigger:
+      type: build
+      piece: portal_wood
+    display:
+      mode: raven
+      topic: "Portals of a Different Colour"
+      text: >-
+        Not all portals glow the same colour, {playerName} — and the difference matters.
+        Blue means a vanilla tag-pair: one door, one partner, same as always.
+        Violet means Network mode: walk through and choose any other portal you have
+        set to Network — no loading screen, nearest listed first.
+        Cyan means Inter-server: a one-way door to your own local world, with a return
+        path waiting on the other side. One loading screen, same as a normal logout.
+        To set a portal's mode, hold Left Shift and press E while standing near one you
+        built. The Configure panel will open. Check your Codex for a full colour guide.
+    scope: player
+    once: true
+    rewards:
+      - type: add_codex_entry
+        entry: isp_codex_modes
+      - type: add_codex_entry
+        entry: isp_codex_configure
+
+  # ---- First stone portal: item-pass-through teaching ----------------------
+  - id: isp_stone_intro
+    title: "A Portal That Takes Everything"
+    category: "Portal Lore"
+    trigger:
+      type: build
+      piece: portal_stone
+    display:
+      mode: raven
+      topic: "A Portal That Takes Everything"
+      text: >-
+        The stone portal is a relic of the Ashlands, {playerName} — and unlike its wooden
+        kin it will carry any cargo you bear: ores, metals, everything the wood portal bars.
+        The same colour rules apply: hold Shift + E to configure its mode, and look for the
+        cyan or violet glow to know what awaits you on the other side. When you need to move
+        heavy loads between bases, a stone portal is the answer.
+    scope: player
+    once: true
+
+  # ---- Codex: colour reference (unlocked after isp_intro) ------------------
+  - id: isp_codex_modes
+    # The three portal colours are the whole mental model here — printed in the colour
+    # each one actually glows, so the paragraph can be skimmed and still land.
+    highlight:
+      - text: "Blue"
+        color: "#7FB2FF"
+        style: "Bold"
+      - text: "Violet"
+        color: "#C08BFF"
+        style: "Bold"
+      - text: "Cyan"
+        color: "#6FE3E1"
+        style: "Bold"
+    title: "Portal Colours — Quick Reference"
+    category: "Portal Lore"
+    trigger:
+      type: entry_finished
+      entry: isp_intro
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0F0"
+        header_style: "Bold Uppercase"
+        body_color: "#D8ECF5"
+        accent_color: "#5B4FE0"
+        background_color: "#080A16F2"
+        width: 700
+        bullet: "▸"
+        item_color: "#7FE0F0"
+        items:
+          - "Blue — vanilla tag-pair: one door, one partner, unchanged."
+          - "Violet — Network mode: choose any Network portal you own, nearest first, no loading screen."
+          - "Cyan — Inter-server: a one-way door to your own local world, with a return path waiting."
+          - "Inter-server always takes precedence over Network when both are set."
+      topic: "Portal Colours — Quick Reference"
+      text: >-
+        Blue: vanilla tag-pair. Both portals share the same tag; walk through one to reach
+        the other. Standard Valheim behaviour, unchanged.
+
+        Violet: Network mode. Walking through opens a list of every other portal you have set
+        to Network, sorted nearest first. Choose one and arrive with only a brief fade —
+        no loading screen. Portals built by other players are not included; the network is
+        per-player.
+
+        Cyan: Inter-server mode. Walking through takes you to one of your local single-player
+        worlds (your choice of world is set in the Configure panel). One loading screen, the
+        same as logging out normally. A return portal appears automatically in the local world
+        — walk back through it to reconnect to this server.
+
+        A portal set to Inter-server takes precedence over Network: if both flags are on,
+        Inter-server wins. The orange flame burst is always orange regardless of mode — it
+        is baked into the portal's texture and cannot change.
+    scope: player
+    once: true
+
+  # ---- Codex: configure panel deep-dive ------------------------------------
+  - id: isp_codex_configure
+    highlight:
+      # The buttons the player is being told to press, in the order they press them.
+      - any: ["Add destination", "Remove", "Clear lock", "Save & Close", "Escape"]
+        color: "#8FD5FF"
+        style: "Bold"
+      - text: "You need build access"
+        color: "#FF9E8A"
+        style: "Bold"
+    title: "Configuring a Portal"
+    category: "Portal Lore"
+    trigger:
+      type: entry_finished
+      entry: isp_intro
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0F0"
+        header_style: "Bold Uppercase"
+        body_color: "#D8ECF5"
+        accent_color: "#5B4FE0"
+        background_color: "#080A16F2"
+        width: 700
+        bullet: "▸"
+        item_color: "#7FE0F0"
+        items:
+          - "Hold Shift + E near a portal you built to open Configure (build access required)."
+          - "Toggle 1 — Inter-server mode on/off."
+          - "Toggle 2 — Network mode vs. vanilla tag-pair."
+          - "Inter-server: pick a local world from the dropdown, label it, and Add destination."
+          - "Lock — set an entry code; \"Clear lock\" removes it entirely."
+          - "Save & Close to confirm, or Escape to discard changes."
+      topic: "Configuring a Portal"
+      text: >-
+        Hold Left Shift and press E while near a portal you built to open the Configure panel.
+        You need build access — if you did not place the portal, the panel will not open.
+
+        At the top of the panel are two toggles. The first switches the portal between
+        Inter-server mode and off. The second switches between Network mode and vanilla tag-pair.
+
+        In Inter-server mode a Destinations section appears. A dropdown lists every local
+        single-player world on your machine; choose one and give it a label, then press
+        "Add destination." You can add several worlds — walking through the portal will
+        show a menu to pick which one to visit. Remove destinations you no longer need with
+        the Remove button beside each entry.
+
+        The Lock section lets you set an entry code for the portal. Anyone who walks up will
+        be prompted for it before they can travel. The code is never stored in plain text.
+        A correct code is remembered for five minutes; a wrong guess starts a brief lockout
+        that grows with each failed attempt. Press "Clear lock" to remove a code entirely.
+
+        Press "Save & Close" when done, or Escape to discard your changes.
+    scope: player
+    once: true
+    rewards:
+      - type: add_codex_entry
+        entry: isp_codex_locks
+      - type: add_codex_entry
+        entry: isp_codex_toll
+
+  # ---- Codex: lock codes ---------------------------------------------------
+  - id: isp_codex_locks
+    highlight:
+      - text: "never stored anywhere in plain text"
+        color: "#96E6A1"
+        style: "Bold"
+      - text: "you must clear it from the Configure panel and set a new one"
+        color: "#FF9E8A"
+        style: "Bold"
+    title: "Portal Lock Codes"
+    category: "Portal Lore"
+    trigger:
+      type: entry_finished
+      entry: isp_codex_configure
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0F0"
+        header_style: "Bold Uppercase"
+        body_color: "#D8ECF5"
+        accent_color: "#5B4FE0"
+        background_color: "#080A16F2"
+        width: 700
+        bullet: "▸"
+        item_color: "#7FE0F0"
+        items:
+          - "Set a lock code in Configure (Shift + E) — a lock icon appears in the tooltip."
+          - "Enter the code and press Enter to travel immediately."
+          - "A correct code is remembered for 5 minutes — no re-entry needed in that window."
+          - "A wrong guess starts a lockout that grows with each attempt, up to 30 seconds."
+          - "Codes are never stored in plain text — only a scrambled hash lives in the world data."
+      topic: "Portal Lock Codes"
+      text: >-
+        Any portal in Inter-server or Network mode can be locked with a code. Set one in the
+        Configure panel (hold Shift + E). The lock symbol appears in the portal's tooltip so
+        players know a code is required before they approach.
+
+        When you walk up to a locked portal, a prompt opens asking for the code. Enter it
+        and press Enter — if correct, travel proceeds immediately. You will not be asked again
+        for five minutes, so you can step through repeatedly during that window without
+        re-entering the code.
+
+        A wrong entry triggers a short lockout before you can try again. Each wrong guess adds
+        to the wait, up to thirty seconds. The count resets when you enter the correct code.
+
+        The code itself is never stored anywhere in plain text — only a scrambled hash lives
+        in the world data. If you forget a code you set, you must clear it from the Configure
+        panel and set a new one.
+    scope: player
+    once: true
+
+  # ---- Codex: carry toll (v0.10.0) -----------------------------------------
+  - id: isp_codex_toll
+    highlight:
+      # The tooltip string that tells a player this system is even switched on.
+      - text: "carry toll active"
+        color: "#F0C868"
+        style: "Bold"
+      # Where the fee goes, and the two rules that decide whether it is spent or refunded.
+      - text: "3×2 storage box"
+        color: "#F0C868"
+        style: "Bold"
+      - text: "The fee is consumed the moment you step through"
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "Only the player who built the portal can open its storage"
+        color: "#FF9E8A"
+        style: "Bold"
+      - text: "free"
+        color: "#96E6A1"
+        style: "Bold"
+    title: "The Carry Toll"
+    category: "Portal Lore"
+    trigger:
+      type: entry_finished
+      entry: isp_codex_configure
+    display:
+      mode: rune
+      rune:
+        header_color: "#7FE0F0"
+        header_style: "Bold Uppercase"
+        body_color: "#D8ECF5"
+        accent_color: "#5B4FE0"
+        background_color: "#080A16F2"
+        width: 700
+        bullet: "▸"
+        item_color: "#7FE0F0"
+        items:
+          - "\"carry toll active\" in the hover text means restricted cargo may cross — for a fee."
+          - "Beat the source-biome boss first, then deposit the fee in the portal's 3×2 storage box."
+          - "Open the storage with L.Shift + E (same as Configure) — drag the fee in from your inventory."
+          - "The fee is taken only when you actually cross — backing out of a destination menu costs nothing."
+          - "Only the portal's builder can open its storage; build your own if someone else placed it."
+          - "Stone portals carry everything for free and have no toll box."
+      topic: "The Carry Toll"
+      text: >-
+        If "carry toll active" appears in a wood portal's tooltip, the server has enabled
+        a system that lets otherwise-barred cargo cross for a fee, once you have earned
+        the right by defeating the right boss.
+
+        Beat the boss of the biome your cargo comes from first. Then hold Shift + E on the
+        portal to open the Configure panel — the right-hand column lists every cargo type,
+        what it costs, and a ✓ or ✗ against the boss requirement. Deposit the fee in the
+        3×2 storage box shown alongside your inventory; drag items straight across, the same
+        as filling a chest. Walk through carrying the cargo. The fee is consumed the moment
+        you step through — not before. If you open a destination menu and then cancel, the
+        storage is untouched and you owe nothing.
+
+        Only the player who built the portal can open its storage. If you did not place it,
+        build your own portal, or ask the builder to stock it for you.
+
+        Default fees (per stack carried): 1 Surtling core for copper, tin, bronze, iron,
+        silver, black metal, or flametal; 1 Crystal for a dragon egg; 1 Refined eitr for
+        Mistlands machinery (mechanical spring, Dvergr extractor); 1 Black core for
+        charred cogwheels; anything else restricted costs 1 Surtling core. Stone portals
+        carry everything for free and have no toll box — they need none.
+    scope: player
+    once: true

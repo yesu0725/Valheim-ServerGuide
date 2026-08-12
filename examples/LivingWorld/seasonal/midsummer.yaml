@@ -1,0 +1,73 @@
+# ==========================================================================
+# Living World — SEASONAL pack: Midsummer's Bounty (toggleable)
+# Drop in during the summer window, remove afterward. Daily greeting + a
+# repeatable gathering rite (turned in to the Bog Witch) with sunny-weather flair
+# + a one-time title. Admin-toggled (no calendar-date trigger in the engine).
+# ==========================================================================
+guidances:
+
+  # ---- Midsummer greeting — daily flavor while active ---------------------
+  - id: lw_midsummer_greeting
+    title: "Midsummer"
+    category: "Midsummer's Bounty"
+    trigger:
+      type: real_world_time
+      utc_hour: 9
+      utc_minute: 0
+    display:
+      mode: raven
+      topic: "The Long Day"
+      text: >-
+        The sun rides high and the land is green, {playerName}. Midsummer is the season of
+        plenty — when the old folk gathered the gifts of field and wood and gave thanks for
+        the light. Fill your baskets while the day is long.
+    scope: global
+    cooldown: 82800        # ~23h — once per day while active
+
+  # ---- The Midsummer Gathering — repeatable gather/turn-in ----------------
+  - id: lw_midsummer_gather
+    title: "The Midsummer Gathering"
+    category: "Midsummer's Bounty"
+    trigger:
+      type: npc_item_submit
+      npc: BogWitch
+      item: Mushroom
+      count: 20
+      consume: true
+    display:
+      mode: message
+      position: Center
+      text: "The summer's gifts are gathered in, {playerName}. The land gives thanks."
+    scope: player
+    cooldown: 82800        # ~23h — once per day while active
+    rewards:
+      - type: item
+        item: Coins
+        amount: 15
+      - type: buff
+        effect: SE_Rested
+        duration_override: 600
+      - type: weather
+        preset: Clear
+        duration: 600
+
+  # ---- The Sun-Blessed — one-time seasonal title --------------------------
+  - id: lw_midsummer_title
+    title: "The Sun-Blessed"
+    category: "Midsummer's Bounty"
+    trigger:
+      type: npc_item_submit
+      npc: BogWitch
+      item: Mushroom
+      count: 20
+      consume: true
+    requires: [lw_midsummer_gather]
+    display:
+      mode: message
+      position: Center
+      text: "You have kept the Midsummer rite, {playerName}. Carry the light with you."
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Sun-Blessed"

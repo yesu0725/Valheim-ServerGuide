@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 using ValheimServerGuide.Config;
@@ -122,14 +122,14 @@ namespace ValheimServerGuide.Triggers
             var eligible = NpcConversationTrigger.FindEntry(subject, player);
             if (eligible?.HoverText?.Default != null)
             {
-                __result += "\n" + GuidanceDispatcher.TemplateLocal(eligible.HoverText.Default);
+                __result += "\n" + GuidanceDispatcher.RenderLocal(eligible, eligible.HoverText.Default);
                 return;
             }
 
             var firedWithHover = FindFiredEntryWithAfterFireHover(subject, player);
             if (firedWithHover != null)
             {
-                __result += "\n" + GuidanceDispatcher.TemplateLocal(firedWithHover.HoverText.AfterFire);
+                __result += "\n" + GuidanceDispatcher.RenderLocal(firedWithHover, firedWithHover.HoverText.AfterFire);
                 return;
             }
 
@@ -212,7 +212,7 @@ namespace ValheimServerGuide.Triggers
                 {
                     var entry    = entries[0];
                     var rawText  = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-                    var rendered = GuidanceDispatcher.TemplateText(rawText, null, player.GetPlayerName());
+                    var rendered = GuidanceDispatcher.RenderDisplay(entry, null, rawText, null, player.GetPlayerName());
                     GuidanceDisplay.Show(entry, rendered);
                 }
                 else

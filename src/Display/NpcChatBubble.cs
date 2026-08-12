@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -54,6 +54,11 @@ namespace ValheimServerGuide.Display
             _text.outlineWidth = 0.2f;
             _text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
             _text.enableWordWrapping = true;
+            // Overflow, never truncate: a bubble grows extra lines rather than dropping words.
+            // The explicit rect gives wrapping a sane measure — TMP's default world rect is wide
+            // enough that a long line would stretch far past the NPC before it wrapped.
+            _text.overflowMode = TextOverflowModes.Overflow;
+            _text.rectTransform.sizeDelta = new Vector2(14f, 6f);
 
             var font = GuidanceHudTracker.FindVanillaFontStatic();
             if (font != null) _text.font = font;

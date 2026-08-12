@@ -11,7 +11,12 @@ namespace ValheimServerGuide.Rewards
         // (e.g. {companionName}/{rank}/{winSize}) to message-bearing rewards, so a
         // chat_message/discord reward reads the same trigger vars the display text
         // does. Null = only {playerName}/{player_name} is expanded (back-compat).
-        public static void Grant(List<RewardSpec> rewards, Player player, System.Func<string, string> expand = null)
+        //
+        // `highlight` (optional) applies the entry's `highlight:` rules, and is passed ONLY to
+        // chat_message — the one reward whose text is rendered in-game through TMP. The discord
+        // reward must never receive it: a webhook post would show the raw <color=…> markup.
+        public static void Grant(List<RewardSpec> rewards, Player player,
+            System.Func<string, string> expand = null, System.Func<string, string> highlight = null)
         {
             if (rewards == null || rewards.Count == 0 || player == null) return;
 
@@ -32,7 +37,7 @@ namespace ValheimServerGuide.Rewards
                     case "set_player_key":   GrantSetPlayerKey(reward, player);    break;
                     case "remove_player_key":GrantRemovePlayerKey(reward, player); break;
                     case "weather":          GrantWeather(reward);                break;
-                    case "chat_message":     GrantChatMessage(reward, player, expand); break;
+                    case "chat_message":     GrantChatMessage(reward, player, expand, highlight); break;
                     case "teleport":         GrantTeleport(reward, player);        break;
                     case "rename_player":    GrantRenamePlayer(reward, player);    break;
                     case "discord":          GrantDiscord(reward, player, expand); break;
@@ -383,7 +388,8 @@ namespace ValheimServerGuide.Rewards
                 EnvMan.instance.SetForceEnvironment("");
         }
 
-        private static void GrantChatMessage(RewardSpec reward, Player player, System.Func<string, string> expand = null)
+        private static void GrantChatMessage(RewardSpec reward, Player player,
+            System.Func<string, string> expand = null, System.Func<string, string> highlight = null)
         {
             if (string.IsNullOrEmpty(reward.Message))
             {
@@ -396,6 +402,7 @@ namespace ValheimServerGuide.Rewards
                 return;
             }
             var text = ExpandPlayerName(expand != null ? expand(reward.Message) : reward.Message, player);
+            if (highlight != null) text = highlight(text);
             Chat.instance.AddString(text);
         }
 

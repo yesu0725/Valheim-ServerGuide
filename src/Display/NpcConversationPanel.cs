@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -11,11 +11,17 @@ namespace ValheimServerGuide.Display
 {
     /// Conversation panel opened when the player holds E near a trader NPC.
     ///
-    /// Layout (750 × 185 px):
-    ///   • Top edge is anchored to screen centre — the box occupies the lower half.
-    ///   • Header (NPC name / topic) at the top in gold.
-    ///   • Word-wrapped body text below.
-    ///   • Choice buttons arranged in a single horizontal row at the bottom.
+    /// Layout — 750 px wide, height driven entirely by the content:
+    ///   • Anchored above the bottom edge with a bottom pivot, so the panel grows UPWARD as
+    ///     the text gets longer and never slides off the bottom of the screen.
+    ///   • Header (NPC name / topic) at the top in gold, wrapping if it is long.
+    ///   • Body text below, inside a scroll view.
+    ///   • Choice buttons at the bottom, wrapped onto as many rows as they need.
+    ///
+    /// Text is never truncated. The body grows to fit whatever the guide author wrote; only
+    /// once the panel would exceed MaxPanelHeightFraction of the screen does the body stop
+    /// growing and start scrolling instead, so the remaining text is a wheel-scroll away
+    /// rather than silently cut off.
     ///
     /// Vanilla Unity UI only — no custom textures. Font resolved lazily from loaded
     /// TMP assets the same way GuidanceHudTracker does.
@@ -24,15 +30,33 @@ namespace ValheimServerGuide.Display
         public static NpcConversationPanel Instance { get; private set; }
         internal static bool IsOpen => Instance != null && Instance._isOpen;
 
+        private const float PanelWidth = 750f;
+        /// Ceiling for the whole panel, as a fraction of screen height. Beyond this the body
+        /// scrolls rather than the panel continuing to grow.
+        private const float MaxPanelHeightFraction = 0.82f;
+        /// Height the chrome (header, rule, padding, choice rows) needs outside the body.
+        /// Measured after layout; this is only the starting estimate for the first frame.
+        private const float MinBodyHeight = 40f;
+
         private bool _isOpen;
         private GuidanceEntry _currentEntry;
         private List<ConversationNodeSpec> _nodes; // Phase 4 multi-node conversations
 
         private TMP_FontAsset _font;
+        private RectTransform _bgRect;
         private TMP_Text _headerText;
         private TMP_Text _bodyText;
+        private RectTransform _bodyContentRect;
+        private LayoutElement _bodyViewportLe;
+        private ScrollRect _bodyScroll;
         private GameObject _choiceContainer;
         private readonly List<TMP_Text> _choiceLabels = new List<TMP_Text>();
+        private readonly List<LayoutElement> _choiceButtonLayouts = new List<LayoutElement>();
+        // Buttons are packed into rows so a long list wraps instead of squeezing each button
+        // down to an unreadable sliver. Rebuilt on every Open/RenderNode.
+        private Transform _currentChoiceRow;
+        private int _rowCapacity = 3;
+        private int _rowCount;
 
         // ── Factory ────────────────────────────────────────────────────────────
 
@@ -59,87 +83,141 @@ namespace ValheimServerGuide.Display
         private void BuildPanel()
         {
             // ── Background ───────────────────────────────────────────────────────
-            // Anchor Y = 0.25 sits a quarter of the way up from the bottom — i.e.
-            // midway between screen centre and the lower edge. pivot (0.5, 0.5)
-            // centres the box on that point, so it occupies the lower-middle band.
+            // Bottom pivot anchored above the lower edge: a VerticalLayoutGroup +
+            // ContentSizeFitter set the height from the content, and the panel expands
+            // upward from a fixed baseline instead of overflowing off-screen.
             var bg = new GameObject("BG");
             bg.transform.SetParent(transform, false);
-            var bgRt = bg.AddComponent<RectTransform>();
-            bgRt.anchorMin        = new Vector2(0.5f, 0.25f);
-            bgRt.anchorMax        = new Vector2(0.5f, 0.25f);
-            bgRt.pivot            = new Vector2(0.5f, 0.5f);
-            bgRt.sizeDelta        = new Vector2(750f, 185f);
-            bgRt.anchoredPosition = Vector2.zero;
+            _bgRect = bg.AddComponent<RectTransform>();
+            _bgRect.anchorMin        = new Vector2(0.5f, 0f);
+            _bgRect.anchorMax        = new Vector2(0.5f, 0f);
+            _bgRect.pivot            = new Vector2(0.5f, 0f);
+            _bgRect.sizeDelta        = new Vector2(PanelWidth, 185f);
+            _bgRect.anchoredPosition = new Vector2(0f, 110f);
             var bgImg = bg.AddComponent<Image>();
             // Darker, more opaque fill so the white body text reads clearly.
             bgImg.color = new Color(0.02f, 0.02f, 0.02f, 0.97f);
 
+            var vlg = bg.AddComponent<VerticalLayoutGroup>();
+            vlg.childControlWidth      = true;
+            vlg.childForceExpandWidth   = true;
+            vlg.childControlHeight     = true;
+            vlg.childForceExpandHeight = false;
+            vlg.childAlignment         = TextAnchor.UpperLeft;
+            vlg.spacing                = 8f;
+            vlg.padding                = new RectOffset(12, 12, 8, 10);
+
+            var fitter = bg.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // width is fixed
+            fitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
+
             // ── Header ───────────────────────────────────────────────────────────
-            // Spans full width minus 24 px margins; 36 px tall; 10 px from top.
             var headerGo = new GameObject("Header");
             headerGo.transform.SetParent(bg.transform, false);
-            var headerRt = headerGo.AddComponent<RectTransform>();
-            headerRt.anchorMin        = new Vector2(0f, 1f);
-            headerRt.anchorMax        = new Vector2(1f, 1f);
-            headerRt.pivot            = new Vector2(0.5f, 1f);
-            headerRt.sizeDelta        = new Vector2(-24f, 36f);
-            headerRt.anchoredPosition = new Vector2(0f, -8f);
+            headerGo.AddComponent<RectTransform>();
             _headerText = headerGo.AddComponent<TextMeshProUGUI>();
             _headerText.fontSize  = 20f;
             _headerText.fontStyle = FontStyles.Bold;
             _headerText.alignment = TextAlignmentOptions.Left;
             _headerText.color     = new Color(0.88f, 0.75f, 0.47f); // gold
+            // A long NPC name or topic wraps onto a second line rather than being clipped.
+            _headerText.enableWordWrapping = true;
+            _headerText.overflowMode       = TextOverflowModes.Overflow;
 
             // ── Divider rule ─────────────────────────────────────────────────────
             var rule = new GameObject("Rule");
             rule.transform.SetParent(bg.transform, false);
-            var ruleRt = rule.AddComponent<RectTransform>();
-            ruleRt.anchorMin        = new Vector2(0f, 1f);
-            ruleRt.anchorMax        = new Vector2(1f, 1f);
-            ruleRt.pivot            = new Vector2(0.5f, 1f);
-            ruleRt.sizeDelta        = new Vector2(-16f, 1f);
-            ruleRt.anchoredPosition = new Vector2(0f, -48f);
+            rule.AddComponent<RectTransform>();
             var ruleImg = rule.AddComponent<Image>();
             ruleImg.color         = new Color(0.88f, 0.75f, 0.47f, 0.30f);
             ruleImg.raycastTarget = false;
+            var ruleLe = rule.AddComponent<LayoutElement>();
+            ruleLe.minHeight       = 1f;
+            ruleLe.preferredHeight = 1f;
 
-            // ── Body text (word-wrapped) ─────────────────────────────────────────
-            // Height = 82 px; sits just below the divider. Overflow is clipped with
-            // ellipsis to guard against runaway text pushing into the button row.
+            // ── Body (scrollable, never truncated) ───────────────────────────────
+            // The viewport's preferred height is set per-message in SetBody: it matches the
+            // text exactly until the panel would outgrow the screen, and only then clamps and
+            // lets the ScrollRect take over. overflowMode stays Overflow — nothing is dropped.
+            var viewportGo = new GameObject("BodyViewport");
+            viewportGo.transform.SetParent(bg.transform, false);
+            var viewportRt = viewportGo.AddComponent<RectTransform>();
+            viewportRt.pivot = new Vector2(0.5f, 1f);
+            viewportGo.AddComponent<RectMask2D>();
+            _bodyViewportLe = viewportGo.AddComponent<LayoutElement>();
+            _bodyViewportLe.minHeight       = MinBodyHeight;
+            _bodyViewportLe.preferredHeight = MinBodyHeight;
+
+            _bodyScroll = viewportGo.AddComponent<ScrollRect>();
+            _bodyScroll.horizontal          = false;
+            _bodyScroll.vertical            = true;
+            _bodyScroll.movementType        = ScrollRect.MovementType.Clamped;
+            _bodyScroll.scrollSensitivity   = 24f;
+            _bodyScroll.viewport            = viewportRt;
+
             var bodyGo = new GameObject("Body");
-            bodyGo.transform.SetParent(bg.transform, false);
-            var bodyRt = bodyGo.AddComponent<RectTransform>();
-            bodyRt.anchorMin        = new Vector2(0f, 1f);
-            bodyRt.anchorMax        = new Vector2(1f, 1f);
-            bodyRt.pivot            = new Vector2(0.5f, 1f);
-            bodyRt.sizeDelta        = new Vector2(-24f, 82f);
-            bodyRt.anchoredPosition = new Vector2(0f, -52f);
+            bodyGo.transform.SetParent(viewportGo.transform, false);
+            _bodyContentRect = bodyGo.AddComponent<RectTransform>();
+            _bodyContentRect.anchorMin = new Vector2(0f, 1f);
+            _bodyContentRect.anchorMax = new Vector2(1f, 1f);
+            _bodyContentRect.pivot     = new Vector2(0.5f, 1f);
+            _bodyContentRect.offsetMin = Vector2.zero;
+            _bodyContentRect.offsetMax = Vector2.zero;
             _bodyText = bodyGo.AddComponent<TextMeshProUGUI>();
-            _bodyText.fontSize          = 15f;
-            _bodyText.alignment         = TextAlignmentOptions.TopLeft;
-            _bodyText.color             = Color.white;
+            _bodyText.fontSize           = 15f;
+            _bodyText.alignment          = TextAlignmentOptions.TopLeft;
+            _bodyText.color              = Color.white;
             _bodyText.enableWordWrapping = true;
-            _bodyText.overflowMode      = TextOverflowModes.Ellipsis;
+            _bodyText.overflowMode       = TextOverflowModes.Overflow;
+            _bodyScroll.content = _bodyContentRect;
 
-            // ── Choice container (horizontal) ────────────────────────────────────
-            // Fixed 40 px strip anchored 10 px above the bottom edge of the panel.
-            // HorizontalLayoutGroup distributes buttons equally across full width.
+            // ── Choice rows ──────────────────────────────────────────────────────
+            // A vertical stack of horizontal rows. AddChoiceButton opens a new row once the
+            // current one is full, so five choices become three readable rows instead of five
+            // slivers. Row height follows each button's wrapped label.
             _choiceContainer = new GameObject("Choices");
             _choiceContainer.transform.SetParent(bg.transform, false);
-            var choiceRt = _choiceContainer.AddComponent<RectTransform>();
-            choiceRt.anchorMin        = new Vector2(0f, 0f);
-            choiceRt.anchorMax        = new Vector2(1f, 0f);
-            choiceRt.pivot            = new Vector2(0.5f, 0f);
-            choiceRt.sizeDelta        = new Vector2(-24f, 40f);
-            choiceRt.anchoredPosition = new Vector2(0f, 10f);
-            var hLayout = _choiceContainer.AddComponent<HorizontalLayoutGroup>();
-            hLayout.spacing              = 8f;
-            hLayout.childControlWidth    = true;
-            hLayout.childControlHeight   = true;
-            hLayout.childForceExpandWidth  = true;
-            hLayout.childForceExpandHeight = true;
-            hLayout.padding = new RectOffset(0, 0, 0, 0);
+            _choiceContainer.AddComponent<RectTransform>();
+            var rowsLayout = _choiceContainer.AddComponent<VerticalLayoutGroup>();
+            rowsLayout.spacing                = 6f;
+            rowsLayout.childControlWidth      = true;
+            rowsLayout.childControlHeight     = true;
+            rowsLayout.childForceExpandWidth  = true;
+            rowsLayout.childForceExpandHeight = false;
+            rowsLayout.padding = new RectOffset(0, 0, 2, 0);
         }
+
+        /// Sets the body text and sizes the scroll viewport to it. Grows with the content up to
+        /// the panel's screen-height ceiling, then clamps so the rest scrolls into view.
+        private void SetBody(string text)
+        {
+            _bodyText.text = text ?? "";
+
+            // The text needs a resolved width before its height means anything.
+            var innerWidth = PanelWidth - 24f; // VerticalLayoutGroup left+right padding
+            _bodyContentRect.sizeDelta = new Vector2(0f, _bodyContentRect.sizeDelta.y);
+            _bodyText.ForceMeshUpdate();
+
+            var needed = _bodyText.GetPreferredValues(_bodyText.text, innerWidth, 0f).y;
+
+            // Everything except the body: padding, header, rule, spacing, choice rows.
+            var chrome = 26f + Mathf.Max(_headerText.preferredHeight, 24f) + 1f + 24f
+                       + EstimateChoiceHeight();
+            var maxBody = Mathf.Max(MinBodyHeight, Screen.height * MaxPanelHeightFraction - chrome);
+
+            _bodyViewportLe.preferredHeight = Mathf.Clamp(needed, MinBodyHeight, maxBody);
+            _bodyContentRect.sizeDelta      = new Vector2(0f, needed);
+
+            // Scrolling only matters when the text actually overflows; park it at the top so a
+            // re-used panel never opens halfway down the previous message.
+            _bodyScroll.enabled           = needed > _bodyViewportLe.preferredHeight + 0.5f;
+            _bodyScroll.verticalNormalizedPosition = 1f;
+        }
+
+        /// Rough height of the choice block, used to budget the body's share of the screen.
+        /// Exact values are not needed — it only decides when scrolling kicks in.
+        private float EstimateChoiceHeight()
+            => _rowCount <= 0 ? 46f : _rowCount * 46f + (_rowCount - 1) * 6f;
 
         // ── Public API ─────────────────────────────────────────────────────────
 
@@ -162,18 +240,19 @@ namespace ValheimServerGuide.Display
                 if (_bodyText   != null) _bodyText.font   = _font;
             }
 
-            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "");
-            _bodyText.text   = renderedText ?? "";
+            // Activate before laying anything out. TMP's GetPreferredValues and
+            // LayoutRebuilder both return zeroes for an inactive hierarchy, which would leave
+            // the body sized to its minimum. Fonts are already assigned above, so no TMP Awake
+            // fires without one.
+            _isOpen = true;
+            gameObject.SetActive(true);
 
-            // Rebuild choice buttons — container stays inactive while rows are created
-            // so each TMP label Awakes only when _choiceContainer.SetActive(true) runs,
-            // at which point the font is already assigned (per TMP Awake memory rule).
-            _choiceContainer.SetActive(false);
-            _choiceLabels.Clear();
-            foreach (Transform child in _choiceContainer.transform)
-                Destroy(child.gameObject);
+            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "", entry);
 
+            // Choices are built BEFORE the body so SetBody can budget the body's share of the
+            // screen against the real number of button rows.
             var choices = entry.Conversation?.Choices;
+            BeginChoices(choices?.Count ?? 1);
             if (choices != null && choices.Count > 0)
             {
                 foreach (var c in choices) AddChoiceButton(c);
@@ -182,11 +261,9 @@ namespace ValheimServerGuide.Display
             {
                 AddChoiceButton(new ChoiceSpec { Text = "Dismiss" });
             }
-            _choiceContainer.SetActive(true);
-            FinalizeChoiceLayout();
+            EndChoices();
 
-            _isOpen = true;
-            gameObject.SetActive(true);
+            SetBody(renderedText ?? "");
             FreeCursor();
         }
 
@@ -205,20 +282,16 @@ namespace ValheimServerGuide.Display
                 if (_bodyText   != null) _bodyText.font   = _font;
             }
 
-            _headerText.text = npcDisplayName ?? "";
-            _bodyText.text   = "What would you like to discuss?";
-
-            _choiceContainer.SetActive(false);
-            _choiceLabels.Clear();
-            foreach (Transform child in _choiceContainer.transform)
-                Destroy(child.gameObject);
-
-            foreach (var entry in entries) AddSelectionButton(entry, npcSubject);
-            _choiceContainer.SetActive(true);
-            FinalizeChoiceLayout();
-
             _isOpen = true;
             gameObject.SetActive(true);
+
+            _headerText.text = npcDisplayName ?? "";
+
+            BeginChoices(entries?.Count ?? 0);
+            foreach (var entry in entries) AddSelectionButton(entry, npcSubject);
+            EndChoices();
+
+            SetBody("What would you like to discuss?");
             FreeCursor();
         }
 
@@ -239,10 +312,11 @@ namespace ValheimServerGuide.Display
             }
             startNode ??= _nodes[0];
 
-            RenderNode(entry, startNode);
-
+            // Active before RenderNode, for the same measuring reason as Open().
             _isOpen = true;
             gameObject.SetActive(true);
+
+            RenderNode(entry, startNode);
             FreeCursor();
         }
 
@@ -263,16 +337,11 @@ namespace ValheimServerGuide.Display
                 if (_bodyText   != null) _bodyText.font   = _font;
             }
 
-            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "");
-            _bodyText.text   = GuidanceDispatcher.TemplateText(node.Text, null, player?.GetPlayerName()) ?? "";
+            _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "", entry);
 
             if (player != null) ConversationNodeState.SetCurrentNode(player, entry.Id, node.Id);
 
-            _choiceContainer.SetActive(false);
-            _choiceLabels.Clear();
-            foreach (Transform child in _choiceContainer.transform)
-                Destroy(child.gameObject);
-
+            BeginChoices(node.Choices?.Count ?? 1);
             var anyButton = false;
             if (node.Choices != null)
             {
@@ -286,25 +355,78 @@ namespace ValheimServerGuide.Display
             }
             if (!anyButton)
                 AddChoiceButton(new ChoiceSpec { Text = "Dismiss" }, () => OnNodeConversationEnd(entry, fireGoto: null));
+            EndChoices();
 
-            _choiceContainer.SetActive(true);
-            FinalizeChoiceLayout();
+            SetBody(GuidanceDispatcher.RenderLocal(entry, node.Text) ?? "");
         }
 
-        /// Forces the choice row layout to settle (HorizontalLayoutGroup/LayoutElement widths)
-        /// and then forces each label to redo its word-wrap pass against the now-correct rect.
-        /// The labels are built while _choiceContainer is inactive (per the TMP Awake font rule),
-        /// so the button widths aren't assigned yet at build time; without this rebuild the first
-        /// wrap render can run against a stale rect width and wrap at the wrong column.
-        private void FinalizeChoiceLayout()
+        /// Clears the previous choice rows and picks how many buttons share a row. Three across
+        /// stays readable at 750 px; past that, two per row keeps each label wide enough to read
+        /// instead of squeezing every option into a sliver.
+        ///
+        /// The container stays inactive while rows are created so each TMP label Awakes only when
+        /// EndChoices reactivates it, by which point the font is assigned (TMP Awake font rule).
+        private void BeginChoices(int expectedCount)
         {
-            if (_choiceContainer == null) return;
-            LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_choiceContainer.transform);
-            foreach (var label in _choiceLabels)
+            _choiceContainer.SetActive(false);
+            _choiceLabels.Clear();
+            _choiceButtonLayouts.Clear();
+            foreach (Transform child in _choiceContainer.transform)
+                Destroy(child.gameObject);
+
+            _currentChoiceRow = null;
+            _rowCount    = 0;
+            _rowCapacity = expectedCount <= 3 ? Mathf.Max(1, expectedCount) : 2;
+        }
+
+        /// Reactivates the rows, settles the layout, then grows any button whose label wrapped
+        /// onto extra lines so no choice text is ever clipped by its own button.
+        private void EndChoices()
+        {
+            _choiceContainer.SetActive(true);
+
+            var containerRect = (RectTransform)_choiceContainer.transform;
+            LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+
+            // Labels are built against a stale rect width (the container was inactive), so the
+            // first wrap pass can break at the wrong column — redo it now that widths are real.
+            for (var i = 0; i < _choiceLabels.Count; i++)
             {
+                var label = _choiceLabels[i];
                 if (label == null) continue;
                 label.ForceMeshUpdate(true, true);
+
+                if (i >= _choiceButtonLayouts.Count) continue;
+                var le = _choiceButtonLayouts[i];
+                if (le == null) continue;
+                // 8 px of vertical breathing room around the wrapped label.
+                le.preferredHeight = Mathf.Max(40f, label.preferredHeight + 8f);
             }
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+        }
+
+        /// Returns the row a new button should join, opening another one when the current row
+        /// has reached _rowCapacity.
+        private Transform NextChoiceRow()
+        {
+            if (_currentChoiceRow != null && _currentChoiceRow.childCount < _rowCapacity)
+                return _currentChoiceRow;
+
+            var rowGo = new GameObject("Row");
+            rowGo.transform.SetParent(_choiceContainer.transform, false);
+            rowGo.AddComponent<RectTransform>();
+            var h = rowGo.AddComponent<HorizontalLayoutGroup>();
+            h.spacing                = 8f;
+            h.childControlWidth      = true;
+            h.childControlHeight     = true;
+            h.childForceExpandWidth  = true;
+            h.childForceExpandHeight = true;
+            h.padding = new RectOffset(0, 0, 0, 0);
+
+            _currentChoiceRow = rowGo.transform;
+            _rowCount++;
+            return _currentChoiceRow;
         }
 
         private void AddNodeChoiceButton(GuidanceEntry entry, NodeChoiceSpec choice, bool locked)
@@ -401,17 +523,19 @@ namespace ValheimServerGuide.Display
 
         // ── Private helpers ────────────────────────────────────────────────────
 
-        /// Expand {playerName}/{player_name}/… in the panel chrome (header topic/title and
-        /// choice labels). Node/entry body text is templated by its own call site.
-        private static string Template(string text)
-            => GuidanceDispatcher.TemplateLocal(text) ?? "";
+        /// Expand {playerName}/{player_name}/… and apply the entry's `highlight:` rules to the
+        /// panel chrome (header topic/title and choice labels). Body text is rendered by its own
+        /// call site. `entry` is null for the multi-quest picker, which has no single entry.
+        private static string Template(string text, GuidanceEntry entry)
+            => GuidanceDispatcher.RenderLocal(entry, text) ?? "";
 
         private void AddChoiceButton(ChoiceSpec choice, System.Action onClick = null, bool interactable = true)
         {
             var btnGo = new GameObject("Btn");
-            btnGo.transform.SetParent(_choiceContainer.transform, false);
+            btnGo.transform.SetParent(NextChoiceRow(), false);
 
-            // HorizontalLayoutGroup controls width; sizeDelta.y is the preferred height hint.
+            // The row's HorizontalLayoutGroup controls width; the LayoutElement below carries
+            // the height, which EndChoices raises to fit a label that wrapped onto extra lines.
             var btnRt = btnGo.AddComponent<RectTransform>();
             btnRt.sizeDelta = new Vector2(0f, 40f);
 
@@ -429,8 +553,11 @@ namespace ValheimServerGuide.Display
             btn.targetGraphic = bg;
 
             var le = btnGo.AddComponent<LayoutElement>();
-            le.flexibleWidth = 1f;
-            le.minWidth      = 60f;
+            le.flexibleWidth   = 1f;
+            le.minWidth        = 60f;
+            le.minHeight       = 40f;
+            le.preferredHeight = 40f;
+            _choiceButtonLayouts.Add(le);
 
             var labelGo = new GameObject("Label");
             labelGo.transform.SetParent(btnGo.transform, false);
@@ -442,7 +569,7 @@ namespace ValheimServerGuide.Display
 
             var label = labelGo.AddComponent<TextMeshProUGUI>();
             if (_font != null) label.font = _font;
-            label.text             = Template(choice.Text ?? "");
+            label.text             = Template(choice.Text ?? "", _currentEntry);
             label.fontSize         = 13f;
             label.alignment        = TextAlignmentOptions.Center;
             label.color            = interactable ? Color.white : new Color(1f, 1f, 1f, 0.45f);

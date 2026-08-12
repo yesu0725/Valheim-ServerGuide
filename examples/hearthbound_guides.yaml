@@ -21,6 +21,18 @@ guidances:
   # ═══════════════════════════════════════
 
   - id: inventory_chain
+
+    highlight:
+      # Favouriting is the safety catch for every one of these bulk operations.
+      - text: "Hold Alt and left-click any item to favorite it"
+        color: "#8FD5FF"
+        style: "Bold"
+      - text: "favorited items are protected"
+        color: "#96E6A1"
+        style: "Bold"
+      - any: ["Reclaim tab", "Alt+O", "20 blocks"]
+        color: "#F0C868"
+        style: "Bold"
     title: "Inventory Mods"
     category: Inventory
     version: 1
@@ -36,6 +48,19 @@ guidances:
           item: piece_chest_wood
         display:
           mode: rune
+          rune:
+            header_color: "#7FD1C4"
+            body_color: "#DDEEEA"
+            accent_color: "#2E6B60"
+            background_color: "#0A1210F0"
+            width: 680
+            bullet: "▸"
+            item_color: "#7FD1C4"
+            items:
+              - "Quick Stack — pushes non-favorited items into nearby matching chests."
+              - "Restock — refills your inventory from nearby containers."
+              - "Sort — organizes any chest or your inventory in one click."
+              - "Trash — discard or bulk-delete flagged items."
           topic: "Inventory Management"
         message: "You placed your first chest. Quick Stack Store Sort Trash Restock adds powerful inventory tools to this server: Quick Stack pushes non-favorited items into nearby matching chests, Restock refills your inventory from nearby containers, Sort organizes any chest or your inventory in one click, and the trash can lets you discard or bulk-delete flagged items. Hold Alt and left-click any item to favorite it — favorited items are protected from all of these actions."
 
@@ -44,6 +69,11 @@ guidances:
           item: HelmetLeather
         display:
           mode: rune
+          rune:
+            header_color: "#7FD1C4"
+            body_color: "#DDEEEA"
+            accent_color: "#2E6B60"
+            background_color: "#0A1210F0"
           topic: "ComfyQuickSlots"
         description: >
           Equip a Leather Helmet to unlock this tip about ComfyQuickSlots.
@@ -55,17 +85,27 @@ guidances:
           item: AxeBronze
         display:
           mode: rune
+          rune:
+            header_color: "#7FD1C4"
+            body_color: "#DDEEEA"
+            accent_color: "#2E6B60"
+            background_color: "#0A1210F0"
           topic: "Recycle N Reclaim"
         description: >
           Craft a Bronze Axe at a Forge to unlock this tip about Recycle N Reclaim.
           You need 8 Bronze and 4 Wood — smelt Bronze from Copper and Tin at a Forge first.
-        message: "Recycle N Reclaim lets you recover materials from crafted items. Open your crafting menu and look for the Reclaim tab — drag any item there to break it down and recover 50% of the resources used to make it. Higher quality items return proportionally more materials. Recycling supports an undo window of 20 seconds in case you reclaim something by mistake."
+        message: "Recycle N Reclaim lets you recover materials from crafted items. Open your crafting menu and look for the Reclaim tab — select an item from the list to break it down and recover 50% of the resources used to make it. Higher quality items return proportionally more materials. Recycling supports an undo window of 20 seconds in case you reclaim something by mistake."
 
       - trigger:
           type: build
           piece: piece_workbench
         display:
           mode: rune
+          rune:
+            header_color: "#7FD1C4"
+            body_color: "#DDEEEA"
+            accent_color: "#2E6B60"
+            background_color: "#0A1210F0"
           topic: "AzuCraftyBoxes"
         description: >
           Build a Workbench to unlock this tip about AzuCraftyBoxes.
@@ -82,6 +122,11 @@ guidances:
   # ═══════════════════════════════════════
 
   - id: groups_chain
+
+    highlight:
+      - text: "friendly fire between members is disabled"
+        color: "#96E6A1"
+        style: "Bold"
     title: "Groups — Party System"
     category: Groups
     version: 1
@@ -133,6 +178,20 @@ guidances:
           piece: guard_stone  # Verify: ProtectiveWards ward piece prefab name
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
+            width: 680
+            bullet: "▸"
+            item_color: "#E0A84E"
+            items:
+              - "Structures repair passively every 10 seconds."
+              - "Raids are blocked for players resting near active fires."
+              - "Buildings are shielded from rain damage."
+              - "Ships are protected from water damage."
+              - "Doors close automatically after inactivity."
           topic: "ProtectiveWards"
         description: >
           Build a Protective Ward to claim and secure your base.
@@ -150,6 +209,11 @@ guidances:
         progress_label: "Coins"
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
           topic: "Ward Taxi"
         description: >
           Collect 100 Coins to unlock the Valkyrie taxi to Haldor.
@@ -158,6 +222,14 @@ guidances:
         message: "You have enough coins for a Valkyrie taxi. Go to your ward and use 100 Coins as an offering — a Valkyrie will carry you directly to Haldor's location. The taxi costs 100 coins if you have not yet discovered him, or 20 for a return trip. (WARNING: DO NOT SKIP VALKYRIE FLIGHT)"
 
   - id: armoire_chain
+
+    highlight:
+      - text: "without touching your stats"
+        color: "#96E6A1"
+        style: "Bold"
+      - text: "three complete outfit configurations"
+        color: "#FFB86B"
+        style: "Bold"
     title: "Armoire — Wardrobe"
     category: Building
     version: 1
@@ -171,11 +243,28 @@ guidances:
       piece: ArmoirePiece  # Verify: Armoire wardrobe piece prefab name
     display:
       mode: rune
+      rune:
+        header_color: "#E0A84E"
+        body_color: "#EDE0C8"
+        accent_color: "#7A5A20"
+        background_color: "#120D06F0"
       topic: "Armoire Wardrobe"
     message: "You built the Armoire wardrobe. This mod lets you change how your gear looks without touching your stats — item appearances are unlocked automatically as you discover or obtain them through exploration and crafting. Open the wardrobe to browse your collection and apply any unlocked look to your equipped gear. You can save up to three complete outfit configurations and swap between them instantly. Works with both vanilla and modded equipment."
     once: true
 
   - id: shipyard_chain
+
+    highlight:
+      # A shopping list is only useful if the amounts survive a skim.
+      - any: ["30 Fine Wood", "200 Bronze Nails", "25 Coal", "10 Deer Hide", "25 Resin"]
+        color: "#FFB86B"
+        style: "Bold"
+      - any: ["Fishnet Trap", "Plan Karve: Oars"]
+        color: "#F0C868"
+        style: "Bold"
+      - text: "7 upgrade slots"
+        color: "#FFB86B"
+        style: "Bold"
     title: "Balrond Shipyard"
     category: Building
     version: 2
@@ -191,6 +280,11 @@ guidances:
           piece: Karve
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
           topic: "Balrond Shipyard"
         description: >
           Build a Karve at your Workbench to begin the Balrond Shipyard upgrade journey.
@@ -202,6 +296,11 @@ guidances:
           piece: ShipyardStation  # Verify: balrond_shipyard main piece prefab name
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
           topic: "Balrond Shipyard"
         description: >
           Build the Balrond Shipyard Station using your gathered materials:
@@ -214,6 +313,11 @@ guidances:
           piece: piece_scribetable
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
           topic: "Ship Upgrades"
         description: >
           Build the Scribe's Table to begin crafting ship schematics.
@@ -225,6 +329,18 @@ guidances:
           item: SchematicKarveOars
         display:
           mode: rune
+          rune:
+            header_color: "#E0A84E"
+            body_color: "#EDE0C8"
+            accent_color: "#7A5A20"
+            background_color: "#120D06F0"
+            width: 680
+            bullet: "▸"
+            item_color: "#E0A84E"
+            items:
+              - "Fishnet Trap — passive fishing using biome-specific bait."
+              - "Cargo holds — from 2 slots on the Raft up to 40 on the Drakkar."
+              - "Cosmetic swaps — sail color, shield pattern, and head decorations."
           topic: "Balrond Shipyard"
         description: >
           Craft a Plan Karve: Oars schematic at the Scribe's Table to install your first upgrade.
@@ -242,6 +358,17 @@ guidances:
   # SimpleMarket has no NPC. The market button sits in the tab menu and requires
   # the Resting status effect to open (must be near beds, fires, or furniture).
   - id: simplemarket_chain
+    highlight:
+      # The gate everyone trips over: the Market button only works while Rested.
+      - text: "Resting status effect"
+        color: "#FF9E8A"
+        style: "Bold"
+      - any: ["Market", "tab menu"]
+        color: "#F0C868"
+        style: "Bold"
+      - text: "neither of you needs to be online at the same time"
+        color: "#96E6A1"
+        style: "Bold"
     title: "SimpleMarket — Player Market"
     category: Trading
     version: 1
@@ -255,11 +382,27 @@ guidances:
       item: Coins
     display:
       mode: rune
+      rune:
+        header_color: "#F0C84A"
+        body_color: "#F2E6BE"
+        accent_color: "#8A6A1E"
+        background_color: "#140F05F0"
       topic: "SimpleMarket"
     message: "You have coins — perfect for the player market. Open the tab menu and press the Market button while you have the Resting status effect to access it. Post items for sale at your own price, browse other players' listings, and complete trades asynchronously — neither of you needs to be online at the same time. Sellers can offer bulk discounts on stacked quantities, and all traded items preserve their durability, quality, and crafter name. Check your transaction history in the UI to track past purchases and sales."
     once: true
 
   - id: traderoverhaul_chain
+
+    highlight:
+      - any: ["590+ items", "20 items per transaction"]
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "shared bank"
+        color: "#F0C868"
+        style: "Bold"
+      - text: "Their catalogs expand automatically as you defeat bosses"
+        color: "#96E6A1"
+        style: "Bold"
     title: "TraderOverhaul — Unified Traders"
     category: Trading
     version: 1
@@ -307,302 +450,25 @@ guidances:
     once: true
 
   # ═══════════════════════════════════════
-  # CATEGORY: Companions
-  # ═══════════════════════════════════════
-
-  # Offline Companions — companions are hired from Haldor for 2000 coins.
-  # A free starter companion also spawns automatically in new worlds.
-  - id: companions_intro
-    title: "Companions — Hire and Manage"
-    category: Companions
-    version: 1
-    requires: [haldorbounties_chain]
-    summary: >
-      You learned how to hire and manage Companions: buy one from Haldor for
-      2000 coins (a starter companion also spawns in new worlds). Tap E to open their
-      inventory and manage gear or food. Hold E to open the radial command wheel for
-      quick task assignments and point-and-click orders.
-    trigger:
-      type: biome
-      biome: BlackForest
-    display:
-      mode: raven
-      topic: "Companions"
-    description: >
-      Enter the Black Forest biome.
-    message: "Companions mod lets you hire a personal companion from Haldor for 2000 coins. Companions can fight, gather, produce, and maintain your base autonomously."
-    once: true
-
-  - id: companions_combat_tip
-    title: "Companions — Combat"
-    category: Companions
-    version: 1
-    requires: [companions_intro]    
-    trigger:
-      type: player_death
-      max_fires: 2
-    display:
-      mode: raven
-      topic: "Companions"
-    description: >
-      This tip fires when you die in combat (up to twice).
-      Make sure your companion has food, a weapon, and armour equipped — open their
-      inventory with E and slot the gear yourself if needed.
-    message: "Dying alone is rough. Companions fight alongside you in battle — they block, parry, counter-attack, and execute power attacks against staggered enemies. When their health drops below 30% they retreat to safety and recover. Hire one from Haldor for 2000 coins and bring backup into your next fight."
-
-  - id: companions_woodcutting
-    title: "Companions — Woodcutting"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions can chop trees, fallen logs, and stumps automatically.
-      Give your companion an axe, assign the woodcutting task via the radial command wheel
-      (hold E), and they will deposit materials into nearby chests when their carry weight
-      nears 300.
-    trigger:
-      type: equip
-      item: AxeIron
-    display:
-      mode: rune
-      topic: "Companion: Woodcutting"
-    description: >
-      Pick up any axe to unlock this companion woodcutting tip.
-      Give your companion an axe in their inventory, then hold E and select the
-      woodcutting task from the radial command wheel.
-    message: "Your companion can handle woodcutting. Set them to gather wood and they will chop trees, fallen logs, and stumps automatically — prioritizing fallen resources first. They equip the right tools from their inventory and stop at 298/300 carry weight, then deposit materials into nearby chests. Use the radial command wheel by holding E to assign the task."
-    once: true
-
-  - id: companions_mining
-    title: "Companions — Mining"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions mine rock formations and ore deposits using tools from
-      their inventory. Assign the mining task via the radial command wheel (hold E) and
-      they will stop automatically at 298/300 carry weight and deposit everything into
-      nearby chests.
-    trigger:
-      type: Equip
-      item: PickaxeIron
-    display:
-      mode: rune
-      topic: "Companion: Mining"
-    description: >
-      Pick up any pickaxe to unlock this companion mining tip.
-      Give your companion a pickaxe in their inventory, then assign the mining task
-      via the radial command wheel (hold E).
-    message: "Companions can mine so you do not have to. Assign them to stone and ore gathering and they will work rock formations and ore deposits using tools from their inventory. They stop automatically at 298/300 carry weight and deposit everything into nearby chests."
-    once: true
-
-  - id: companions_foraging
-    title: "Companions — Foraging"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions forage berries, mushrooms, flowers, and branches without
-      any tools. Assign the foraging task via the radial command wheel (hold E) to passively
-      stock up on ingredients while you explore or work on other tasks.
-    trigger:
-      type: item_acquired
-      item: Raspberry
-    display:
-      mode: rune
-      topic: "Companion: Foraging"
-    description: >
-      Pick up a Raspberry to unlock this companion foraging tip.
-      No tools needed — assign the foraging task from the radial command wheel
-      (hold E on your companion) and they will gather immediately.
-    message: "Your companion can forage on their own. Send them on a foraging task and they will collect berries, mushrooms, flowers, and branches without needing any tools. A great way to passively stock up on ingredients while you explore or work on other tasks."
-    once: true
-
-  - id: companions_smelting
-    title: "Companions — Smelting"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions manage the full smelting chain within 25 metres: refilling
-      kilns and furnaces, collecting finished bars, and depositing them into nearby chests.
-      They intelligently prioritise ore when fuel is adequate and switch to fueling when
-      stocks run critically low.
-    trigger:
-      type: build
-      piece: charcoal_kiln
-    display:
-      mode: rune
-      topic: "Companion: Smelting"
-    description: >
-      Build a Charcoal Kiln to unlock this companion smelting tip.
-      Place ore and fuel in nearby chests within 25 metres of the kiln and furnace,
-      then assign the smelting task from the radial command wheel (hold E).
-    message: "A companion can manage your entire smelting chain. Assign them to smelting and they will refill kilns and furnaces within 25 meters, collect finished bars, and deposit them into nearby chests. They intelligently prioritize ore when fuel is adequate and switch to fueling when stocks run critically low."
-    once: true
-
-  - id: companions_farming
-    title: "Companions — Farming"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions run your farm: harvesting ripe crops, replanting seeds
-      in grid layouts, and depositing produce into chests automatically. Define Farm Zones
-      to designate planting areas and crop types — those assignments persist across sessions.
-    trigger:
-      type: equip
-      item: Cultivator
-    display:
-      mode: rune
-      topic: "Companion: Farming"
-    description: >
-      Equip a Cultivator to unlock this companion farming tip.
-      Give your companion seeds and the cultivator, then assign the farming task
-      from the radial command wheel (hold E). Define Farm Zones to set planting areas.
-    message: "Companions can run your farm. Assign one to farming and they will harvest ripe crops, replant seeds in grid layouts, and deposit produce into chests automatically. Define Farm Zones to designate exactly which areas to plant and which crops to grow — those assignments persist across sessions."
-    once: true
-
-  - id: companions_fishing
-    title: "Companions — Fishing"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions fish automatically: they cast for 15–20 seconds, hook
-      with an 85% success rate, and reel in over 4–6 seconds. Stock their inventory with
-      the right bait — different baits attract different species using vanilla probability tables.
-    trigger:
-      type: equip
-      item: FishingRod
-    display:
-      mode: rune
-      topic: "Companion: Fishing"
-    description: >
-      Equip a Fishing Rod to unlock this companion fishing tip.
-      Stock your companion's inventory with bait, then assign the fishing task
-      from the radial command wheel (hold E). Position them near a body of water.
-    message: "Let your companion fish while you do other things. They cast for 15–20 seconds, hook fish with an 85% success rate, and reel in over 4–6 seconds. Stock their inventory with the right bait — different baits attract different species using vanilla probability tables."
-    once: true
-
-  - id: companions_hunting
-    title: "Companions — Hunting"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions hunt passive wildlife — boars, deer, chickens, and hares —
-      using a bow from a safe standoff distance to avoid spooking prey. Give your companion
-      a bow and arrows via the radial command wheel (hold E) to assign the hunting task.
-    trigger:
-      type: equip
-      item: BowDraugrFang
-    display:
-      mode: rune
-      topic: "Companion: Hunting"
-    description: >
-      Pick up any bow to unlock this companion hunting tip.
-      Give your companion a bow and a stack of arrows in their inventory, then
-      assign the hunting task from the radial command wheel (hold E).
-    message: "A companion with a bow can hunt for you. Assign them to hunting and they will track and kill passive wildlife — boars, deer, chickens, and hares — using ranged weapons while maintaining a safe standoff distance to avoid spooking prey. Make sure their inventory has a bow and arrows."
-    once: true
-
-  - id: companions_cooking
-    title: "Companions — Cooking"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions manage the full kitchen and brewery: crafting meals at
-      cauldrons, brewing mead bases, filling fermenters, and tapping finished meads into
-      storage — all from ingredients in nearby chests without any intervention needed.
-    trigger:
-      type: build
-      piece: piece_cauldron
-    display:
-      mode: rune
-      topic: "Companion: Cooking"
-    description: >
-      Build a Cooking Station to unlock this companion cooking tip.
-      Stock nearby chests with ingredients, then assign the cooking task from
-      the radial command wheel (hold E). A Cauldron is needed for advanced meals.
-    message: "Companions can run your kitchen and brewery. Assign one to cooking and they will craft meals at cauldrons using ingredients from nearby chests, brew mead bases, fill fermenters, and tap finished meads into storage — managing the full production chain on their own."
-    once: true
-
-  - id: companions_base
-    title: "Companions — Base Maintenance"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned about Stay Home mode: every 60 seconds your companion repairs damaged
-      structures within 40 metres, refuels fires below 30% capacity, and consolidates items
-      across chests. Enable Wander and they will also patrol a 50-metre radius around base.
-    trigger:
-      type: build
-      piece: piece_bed02
-    display:
-      mode: rune
-      topic: "Companion: Stay Home"
-    description: >
-      Build a Bed to unlock this companion base maintenance tip.
-      Set your companion to Stay Home mode via the radial command wheel (hold E)
-      before leaving base — they will repair, refuel, and consolidate automatically.
-    message: "Set your companion to Stay Home and they will maintain your base while you are away. Every 60 seconds they rotate through tasks: repairing damaged structures within 40 meters, refueling campfires, hearths, and torches below 30% capacity, and consolidating items across chests. Enable the Wander setting and they will patrol a 50-meter radius around the base."
-    once: true
-
-  - id: companions_portal
-    title: "Companions — Portal Travel"
-    category: Companions
-    version: 1
-    requires: [companions_intro]
-    summary: >
-      You learned that companions follow you through portals and dungeon entrances
-      automatically — just step through and they teleport alongside you. The only exception
-      is Stay Home mode: companions set to guard the base will remain there.
-    trigger:
-      type: build
-      piece: portal_wood
-    display:
-      mode: rune
-      topic: "Companion: Portals"
-    description: >
-      Build a portal to unlock this companion portal travel tip.
-      Make sure your companion is not in Stay Home mode — set them to Follow
-      via the radial command wheel (hold E) before stepping through.
-    message: "Companions follow you through portals and dungeon entrances automatically — just step through and they teleport alongside you. The only exception is Stay Home mode: companions set to guard the base will remain there rather than follow you through."
-    once: true
-
-  # Wandering Companions has no tameable NPC creature. Wanderers are hostile humanoids
-  # that roam the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands.
-  # They are optional challenge encounters — not friendly or hireable on encounter.
-  - id: wandering_companions_chain
-    title: "Wanderers — Dangerous Encounters"
-    category: Companions
-    version: 1
-    requires: [companions_combat_tip]
-    summary: >
-      You were warned about hostile wandering humanoids patrolling six biomes: Black Forest,
-      Mountains, Swamps, Plains, Mistlands, and Ashlands. After defeating Eikthyr and
-      The Elder you received further warnings as their territory expanded. These are
-      optional challenge encounters — block, parry, and know when to retreat.
-    trigger:
-      type: biome
-      biome: BlackForest
-    display:
-      mode: raven
-      topic: "Wandering Companions"
-    description: >
-      This warning fires on your very first login.
-      Wanderers are hostile humanoid NPCs patrolling six biomes.
-      Do not engage them until your gear and combat skills are ready.
-    message: "Warning! Dangerous wanderers roam this world — in the Black Forest, Mountains, Swamps, Plains, Mistlands, and Ashlands. They are not friendly. If you are looking for a real challenge, seek them out."
-
-  # ═══════════════════════════════════════
   # CATEGORY: Skills
   # ═══════════════════════════════════════
 
   - id: slayerskills_chain
+
+    highlight:
+      # The four multiplayer credit modes, and the payoff for hitting the cap.
+      - any: ["Random", "All", "Distribute", "Killing Blow"]
+        color: "#F0C868"
+        style: "Bold"
+        # Case-sensitive: without this, "All" would also match "all damage
+        # categories" in the neighbouring step.
+        match_case: true
+      - text: "can no longer be lost on death"
+        color: "#96E6A1"
+        style: "Bold"
+      - text: "Starred creatures"
+        color: "#FFB86B"
+        style: "Bold"
     title: "SlayerSkills — Trophy Hunter"
     category: Skills
     version: 1
@@ -618,6 +484,11 @@ guidances:
           item: "Trophy*"
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
           topic: "SlayerSkills"
         description: >
           Kill creatures that drop trophies to start building SlayerSkills experience.
@@ -635,6 +506,11 @@ guidances:
         progress_label: "Trophies"
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
           topic: "Trophy Collector"
         description: >
           Collect 5 trophies total to reach this milestone. Specialise in one creature
@@ -647,6 +523,11 @@ guidances:
           creature: Eikthyr
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
           topic: "Boss Slayer"
         description: >
           Defeat Eikthyr, the first boss, to advance the slayer chain.
@@ -664,6 +545,11 @@ guidances:
         progress_label: "Trophies"
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
           topic: "True Slayer"
         description: >
           Hunt to 20 trophies total to reach True Slayer status.
@@ -694,6 +580,18 @@ guidances:
       level: 25
     display:
       mode: rune
+      rune:
+        header_color: "#B98EE0"
+        body_color: "#E6DAF2"
+        accent_color: "#5C3E85"
+        background_color: "#0D0916F0"
+        width: 680
+        bullet: "▸"
+        item_color: "#B98EE0"
+        items:
+          - "Running — increases movement speed beyond the standard stamina reduction."
+          - "Jump — improves height, distance, and safe fall range; reduces fall damage."
+          - "Sneak — boosts movement speed; unlocks noise reduction at level 50."
       topic: "ImpactfulSkills"
     message: "Your Run skill is growing. ImpactfulSkills adds distinct, meaningful perks to every skill as you level — not just stat bumps, but real changes to how you play. Running increases your movement speed beyond the standard stamina reduction. Jump improves your jump height and distance, raises your safe fall distance, and reduces fall damage. Sneaking improves movement speed and at level 50 begins reducing noise generation, similar to troll armor."
     once: true
@@ -713,11 +611,31 @@ guidances:
       level: 25
     display:
       mode: rune
+      rune:
+        header_color: "#B98EE0"
+        body_color: "#E6DAF2"
+        accent_color: "#5C3E85"
+        background_color: "#0D0916F0"
+        width: 680
+        bullet: "▸"
+        item_color: "#B98EE0"
+        items:
+          - "Woodcutting — boosts wood, seed, and resin yields plus chop damage."
+          - "Pickaxes — improve ore and stone yields; AOE mining unlocks at level 50."
+          - "Farming — boosts harvest quantities and scythe range; AOE harvesting at level 50."
       topic: "Gathering Skills"
     message: "Your Woodcutting skill is paying off. ImpactfulSkills boosts wood, seed, and resin yields as Woodcutting levels, and increases chop damage for faster tree felling. Pickaxes improve ore and stone collection and unlock an expanding AOE mining effect at level 50. Farming boosts harvest quantities and scythe range, and also unlocks AOE harvesting at level 50 that grows wider with skill."
     once: true
 
   - id: impactfulskills_chain
+
+    highlight:
+      - any: ["up to 50% reduction at level 100", "level 75"]
+        color: "#FFB86B"
+        style: "Bold"
+      - text: "immune to collision impact damage"
+        color: "#96E6A1"
+        style: "Bold"
     title: "ImpactfulSkills — Sword Milestones"
     category: Skills
     version: 1
@@ -734,6 +652,11 @@ guidances:
           level: 25
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
           topic: "Combat Skills"
         description: >
           Raise your Swords skill to level 25 by fighting enemies with a sword.
@@ -747,12 +670,26 @@ guidances:
           level: 50
         display:
           mode: rune
+          rune:
+            header_color: "#B98EE0"
+            body_color: "#E6DAF2"
+            accent_color: "#5C3E85"
+            background_color: "#0D0916F0"
+            width: 680
+            bullet: "▸"
+            item_color: "#B98EE0"
+            items:
+              - "Voyager — sailing bonuses; boats become collision-immune at level 75."
+              - "Hauling — increases carry weight."
+              - "Animal Whisper — reduces taming time and improves tamed-creature drops."
+              - "Cooking — extends food buff duration."
+              - "Knowledge Sharing — progress in one skill accelerates related skills."
           topic: "New Skills"
         description: >
           Raise your Swords skill to level 50 to unlock this milestone tip.
           Continue fighting with swords — stamina cost reductions keep improving toward
           the 50% cap at level 100. New skill types are now visible in your skills panel.
-        message: "ImpactfulSkills also introduces three new skill types alongside the vanilla set. Voyager grants sailing bonuses including paddle speed, close-hauling, and boat durability — at level 75 your vessel becomes immune to collision impact damage. Hauling increases your carry weight. Animal Whisper reduces taming time and improves drops from tamed creatures. Cooking extends food buff duration so your meals decay slower. Finally, Knowledge Sharing lets progress in one skill accelerate learning across related skills, easing specialization for the whole party."
+        message: "ImpactfulSkills introduces three new skill types alongside the vanilla set. Voyager grants sailing bonuses including paddle speed, close-hauling, and boat durability — at level 75 your vessel becomes immune to collision impact damage. Hauling increases your carry weight. Animal Whisper reduces taming time and improves drops from tamed creatures. Cooking extends food buff duration so your meals decay slower. Finally, Knowledge Sharing lets progress in one skill accelerate learning across related skills, easing specialization for the whole party."
         rewards:
           - type: buff
             effect: SE_Rested
@@ -766,7 +703,7 @@ guidances:
   # ═══════════════════════════════════════
 
   - id: more_world_locations_1
-    title: "More World Locations AIO"
+    title: "More World Locations"
     category: Exploration
     version: 1
     summary: >
@@ -775,7 +712,7 @@ guidances:
       sites, and special traders — scattered throughout the world waiting to be explored.
     trigger:
       type: location_entered
-      location: "MWL_*"
+      location: "MWL_Meadows*"
     display:
       mode: raven
       topic: "World Locations"
@@ -783,7 +720,7 @@ guidances:
     once: true
 
   - id: more_world_locations_2
-    title: "More World Locations AIO"
+    title: "More World Locations"
     category: Exploration
     version: 1
     requires: [more_world_locations_1]
@@ -793,19 +730,19 @@ guidances:
       boss-tier enemies and unique drops. Check your map for unfamiliar markers.
     trigger:
       type: location_entered
-      location: "MWL_*"
+      location: "MWL_Forest*"
     display:
       mode: raven
       topic: "World Locations"
     description: >
-      Discover a second More World Locations site by exploring any biome.
+      Discover a second More World Locations site by exploring any the BlackForest.
       Watch for map markers with unfamiliar names — MWL locations appear automatically
       when you enter their detection radius.
     message: "Location types vary widely: coastal ports offer trade goods, ancient shrines grant temporary blessings, and hidden dungeons contain boss-tier enemies with unique drops."
     once: true
 
   - id: more_world_locations_3
-    title: "More World Locations AIO"
+    title: "More World Locations"
     category: Exploration
     version: 1
     requires: [more_world_locations_2]
@@ -814,14 +751,14 @@ guidances:
       stock and puzzle rooms with environment-based rewards. Review your map markers
       carefully — distinctive icons mark trader and puzzle locations worth a dedicated visit.
     trigger:
-      type: timed
-      interval: "60"
+      type: location_entered
+      location: "MWL_Swamp*"
       id: mwl_reward_tip
     display:
       mode: raven
       topic: "World Locations"
     description: >
-      This tip fires automatically 1 minute after discovering your second MWL location.
+      This tip fires automatically after discovering specific MWL location in the Swamp.
       Open your map and review any recently added markers — trader and puzzle locations
       show distinctive icons and are worth a dedicated visit.
     message: "Some locations contain special traders with rare stock and puzzle rooms with environment-based rewards. Check your map markers carefully for hidden points of interest."
@@ -844,6 +781,11 @@ guidances:
       item: TrophyEikthyr
     display:
       mode: rune
+      rune:
+        header_color: "#8FD16A"
+        body_color: "#E2F0D0"
+        accent_color: "#3E5B22"
+        background_color: "#0A1006F0"
       topic: "Boss Stone"
     message: "You have slain Eikthyr and claimed his trophy. Return to the Spawn Temple and sacrifice the trophy at your personal Boss Stone — the stone tracks your boss victories and yours alone. Each sacrifice unlocks powerful boss items exclusive to that victory. The Boss Stone is waiting at the Spawn Temple."
     once: true

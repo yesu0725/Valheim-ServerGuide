@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 using ValheimServerGuide.Config;
@@ -95,7 +95,7 @@ namespace ValheimServerGuide.Triggers
                 // Player scope — local display + state.
                 Plugin.Log.LogInfo($"[dispatch] firing '{entry.Id}' via mode '{entry.Display?.Mode}'.");
                 var rawText = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-                var rendered = TemplateText(rawText, evt, player.GetPlayerName());
+                var rendered = RenderDisplay(entry, null, rawText, evt, player.GetPlayerName());
                 GuidanceDisplay.Show(entry, rendered);
 
                 if (entry.Once) SeenTracker.MarkFired(player, entry.Id, entry.Scope);
@@ -111,7 +111,9 @@ namespace ValheimServerGuide.Triggers
                     GuidanceSync.SendCompleteAnnounce(entry.Id, player.GetPlayerName());
 
                 if (entry.Rewards != null && entry.Rewards.Count > 0)
-                    RewardDispatcher.Grant(entry.Rewards, player, s => TemplateText(s, evt, player.GetPlayerName()));
+                    RewardDispatcher.Grant(entry.Rewards, player,
+                        s => TemplateText(s, evt, player.GetPlayerName()),
+                        s => TextHighlighter.Apply(s, entry));
 
                 completedIds.Add(entry.Id);
                 fired++;
@@ -238,8 +240,8 @@ namespace ValheimServerGuide.Triggers
         {
             var effectiveDisplay = step.Display ?? entry.Display ?? new DisplaySpec();
             var rawText = !string.IsNullOrEmpty(step.Message) ? step.Message : effectiveDisplay.Text;
-            var rendered = TemplateText(rawText, evt, player.GetPlayerName(),
-                step: stepIndex + 1, total: entry.Steps.Count);
+            var rendered = RenderDisplay(entry, step, rawText, evt, player.GetPlayerName(),
+                stepNum: stepIndex + 1, total: entry.Steps.Count);
 
             // Each step uses a unique key so raven Tutorial.m_texts entries don't collide.
             var stepKey = entry.Id + "_s" + stepIndex;
@@ -300,7 +302,7 @@ namespace ValheimServerGuide.Triggers
 
             Plugin.Log.LogInfo($"[global] showing '{entryId}' (triggered by {sourcePlayerName}).");
             var rawText = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-            var rendered = TemplateText(rawText, evt: null, playerName: sourcePlayerName);
+            var rendered = RenderDisplay(entry, null, rawText, evt: null, playerName: sourcePlayerName);
             GuidanceDisplay.Show(entry, rendered);
             if (Player.m_localPlayer != null)
                 DebugFireLog.Record(Player.m_localPlayer.GetPlayerName(), entry.Id);
@@ -344,7 +346,7 @@ namespace ValheimServerGuide.Triggers
 
             Plugin.Log.LogInfo($"[dispatch] FireById firing '{entryId}'.");
             var rawText = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-            var rendered = TemplateText(rawText, null, player.GetPlayerName());
+            var rendered = RenderDisplay(entry, null, rawText, null, player.GetPlayerName());
             GuidanceDisplay.Show(entry, rendered);
 
             if (entry.Once) SeenTracker.MarkFired(player, entry.Id, entry.Scope);
@@ -378,7 +380,7 @@ namespace ValheimServerGuide.Triggers
 
             Plugin.Log.LogInfo($"[dispatch] FireEntry firing '{entry.Id}' via mode '{entry.Display?.Mode}'.");
             var rawText = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-            var rendered = TemplateText(rawText, evt, player.GetPlayerName());
+            var rendered = RenderDisplay(entry, null, rawText, evt, player.GetPlayerName());
             GuidanceDisplay.Show(entry, rendered);
 
             if (entry.Once) SeenTracker.MarkFired(player, entry.Id, entry.Scope);
@@ -394,7 +396,9 @@ namespace ValheimServerGuide.Triggers
                 GuidanceSync.SendCompleteAnnounce(entry.Id, player.GetPlayerName());
 
             if (entry.Rewards != null && entry.Rewards.Count > 0)
-                RewardDispatcher.Grant(entry.Rewards, player, s => TemplateText(s, evt, player.GetPlayerName()));
+                RewardDispatcher.Grant(entry.Rewards, player,
+                        s => TemplateText(s, evt, player.GetPlayerName()),
+                        s => TextHighlighter.Apply(s, entry));
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entry.Id });
         }
@@ -601,6 +605,21 @@ namespace ValheimServerGuide.Triggers
             return result;
         }
 
+        /// Template + highlight, in that order: the display pipeline for anything shown on
+        /// screen. Highlighting runs last so `highlight:` rules can match text that a token
+        /// produced (a player name, a creature name) and never see the tokens themselves.
+        ///
+        /// Discord paths deliberately call TemplateText directly instead — a webhook post must
+        /// not carry TMP `&lt;color&gt;` markup (CRIT-08).
+        internal static string RenderDisplay(GuidanceEntry entry, GuidanceStep step, string template,
+            TriggerEvent evt, string playerName, int stepNum = -1, int total = -1)
+            => TextHighlighter.Apply(TemplateText(template, evt, playerName, stepNum, total), entry, step);
+
+        /// RenderDisplay for the UI surfaces that render outside a fire path — same highlight
+        /// rules, but only the event-free tokens (see TemplateLocal).
+        internal static string RenderLocal(GuidanceEntry entry, string template, GuidanceStep step = null)
+            => TextHighlighter.Apply(TemplateLocal(template), entry, step);
+
         /// Expand the variables that are knowable without a trigger event, for UI surfaces that
         /// render config text outside a fire path (Guide Codex, HUD tracker, conversation
         /// chrome, raven topic/label, hover text). Without this they print a raw
@@ -647,7 +666,7 @@ namespace ValheimServerGuide.Triggers
                 var lastStep = entry.Steps[entry.Steps.Count - 1];
                 var rawText = !string.IsNullOrEmpty(lastStep.Message) ? lastStep.Message
                     : lastStep.Display?.Text ?? entry.Title ?? entry.Id;
-                var rendered = TemplateText(rawText, null, player.GetPlayerName());
+                var rendered = RenderDisplay(entry, lastStep, rawText, null, player.GetPlayerName());
 
                 if (MessageHud.instance != null)
                     MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, rendered);

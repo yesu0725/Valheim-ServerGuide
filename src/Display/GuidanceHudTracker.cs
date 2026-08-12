@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using TMPro;
 using UnityEngine;
@@ -290,11 +290,11 @@ namespace ValheimServerGuide.Display
             if (_tooltipText != null) _tooltipText.font = font;
         }
 
-        /// Expand {playerName}/{player_name}/{biome}/… in the titles and step descriptions the
-        /// tracker renders — these come straight from YAML and are never run through the
-        /// dispatcher's fire-path templating.
-        private static string Template(string text)
-            => GuidanceDispatcher.TemplateLocal(text) ?? "";
+        /// Expand {playerName}/{player_name}/{biome}/… and apply `highlight:` rules to the
+        /// titles and step descriptions the tracker renders — these come straight from YAML and
+        /// are never run through the dispatcher's fire-path templating.
+        private static string Template(string text, GuidanceEntry entry, GuidanceStep step = null)
+            => GuidanceDispatcher.RenderLocal(entry, text, step) ?? "";
 
         /// Fixed-width "ghost bar" progress indicator using TMP rich-text color tags so the
         /// bracket width never changes as the counter advances (plain space-padding looks
@@ -566,8 +566,8 @@ namespace ValheimServerGuide.Display
                     progress = ProgressBar(stepIdx, entry.Steps.Count);
                 }
 
-                rows.Add(RowPrefix + Template(entry.Title) + "   " + progress);
-                descs.Add(Template(step?.Description));
+                rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + progress);
+                descs.Add(Template(step?.Description, entry, step));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -587,7 +587,7 @@ namespace ValheimServerGuide.Display
                 var cur = SubmitState.Get(player, entry.Id);
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
-                rows.Add(RowPrefix + Template(entry.Title) + "   " + ProgressBar(cur, goal));
+                rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + ProgressBar(cur, goal));
                 descs.Add(null);
                 rowChainIds.Add(entry.Id);
             }
@@ -609,7 +609,7 @@ namespace ValheimServerGuide.Display
                 var cur = KillCountState.Get(player, entry.Id);
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
-                rows.Add(RowPrefix + Template(entry.Title) + "   " + ProgressBar(cur, goal));
+                rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + ProgressBar(cur, goal));
                 descs.Add(null);
                 rowChainIds.Add(entry.Id);
             }
@@ -654,7 +654,7 @@ namespace ValheimServerGuide.Display
                     progress = ProgressBar(completedGoals, goals.Count) + " goals";
                 }
 
-                rows.Add(RowPrefix + Template(entry.Title) + "   " + progress);
+                rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + progress);
                 descs.Add(ItemAcquiredTrigger.BuildGoalProgressText(player, goals));
                 rowChainIds.Add(entry.Id);
             }

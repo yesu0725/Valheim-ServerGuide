@@ -1,0 +1,95 @@
+# ==========================================================================
+# BiomeLords — Tier 4: Fenring Lord (Mountain)
+# Blessing: Pack Whisperer (SE_FenringLordSpirit) | Forsaken Power: Howl of the Pack (GP_HowlOfThePack)
+# Kill-gate (mod-owned): 20x Wolf / Fenring / Fenring_Cultist.
+# Lord prefab: FenringLord | Trophy: TrophyFenringLord
+# ==========================================================================
+guidances:
+
+  - id: biomelords_fenring_intro
+    title: "The Fenring Lord"
+    category: "Fenring Lord"
+    trigger:
+      type: biome
+      biome: Mountain
+    display:
+      mode: raven
+      topic: "Howls on the Wind"
+      text: >-
+        Something hunts the hunters on these peaks, {playerName} — the Fenring Lord, a
+        blood-mad beast that drinks the wounds it deals, calls bats from the dark, and fades
+        from sight to strike anew. Cull the highland packs — 20 of the Wolves, Fenrings, and
+        Cultists — then sound a Lord's Horn among the snow to summon it. (The Horn keeps the
+        tally; hunt until it answers.)
+    once: true
+
+  - id: biomelords_fenring_defeat
+    title: "The Pack Falls Silent"
+    category: "Fenring Lord"
+    trigger:
+      type: kill
+      creature: FenringLord
+    requires: [biomelords_fenring_intro]
+    display:
+      mode: rune
+      rune:
+        header_color: "#BFE3F5"
+        body_color: "#E7F5FB"
+        body_style: "Italic"
+        accent_color: "#3E6B85"
+        background_color: "#0A1218F2"
+      topic: "The Fenring Lord Falls"
+      text: >-
+        The blood-frenzy ends, {playerName} — the beast lies still in the snow. Its pack-bond
+        passes to you: the Forsaken Power Howl of the Pack will call spectral wolves to your
+        side. Claim its Trophy and raise it where the Lords are honoured.
+    scope: player
+    once: true
+    rewards:
+      - type: rename_player
+        suffix: "the Pack-Render"
+
+  - id: biomelords_fenring_serverfirst
+    title: "First Blood of the Mountains"
+    category: "Fenring Lord"
+    trigger:
+      type: kill
+      creature: FenringLord
+    display:
+      mode: chat
+      text: "{playerName} is the first to fell the Fenring Lord upon this world!"
+    scope: global
+    once: true
+    announce:
+      discord: "**{playerName}** has felled the **Fenring Lord** — first on the server!"
+
+  - id: biomelords_fenring_blessing
+    title: "Pack Whisperer"
+    category: "Fenring Lord"
+    trigger:
+      type: item_acquired
+      item: TrophyFenringLord
+    requires: [biomelords_fenring_defeat]
+    display:
+      mode: rune
+      rune:
+        header_color: "#BFE3F5"
+        body_color: "#E7F5FB"
+        accent_color: "#3E6B85"
+        background_color: "#0A1218F2"
+        width: 680
+        bullet: "✦"
+        item_color: "#BFE3F5"
+        items:
+          - "Blessing — Pack Whisperer: tamed wolves take half harm near you; taming and breeding run at twice the pace."
+          - "Forsaken Power — Howl of the Pack: rouses your wolves to greater fury and summons phantom wolves to your side."
+      topic: "Claim the Blessing"
+      text: >-
+        Mount the Trophy of the Fenring Lord upon a Hall of the Lords to draw its Blessing —
+        Pack Whisperer: your tamed wolves take half the harm while you stand near, and beasts
+        tame and breed at twice the pace. (It guards and grows your pack — it does not sharpen
+        their teeth; that gift belongs to the Forsaken Power.) Only one Lord's Blessing may
+        burn at a time; each Trophy holds five draws. Your Forsaken Power, Howl of the Pack,
+        rouses your wolves to greater fury and summons phantom wolves to fight beside you — and
+        wielded with this Blessing it grows stronger still.
+    once: true

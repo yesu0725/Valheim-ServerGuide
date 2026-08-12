@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.9.1` |
+| Version | `0.10.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -22,7 +22,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 src/
 ├── Plugin.cs                        BepInEx entry, config, loader lifecycle
 ├── Config/
-│   ├── GuidanceConfig.cs            YAML data model (GuidanceEntry, TriggerSpec, DisplaySpec, RewardSpec, HoverTextSpec, …)
+│   ├── GuidanceConfig.cs            YAML data model (GuidanceEntry, TriggerSpec, DisplaySpec, RewardSpec, HoverTextSpec, HighlightSpec, …)
 │   └── GuidanceConfigLoader.cs      FileSystemWatcher + debounce + starter YAML; recursively merges every *.yaml/*.yml under the config folder (all subfolders)
 ├── State/                           m_customData buckets (one class per VSG.* prefix)
 │   ├── SeenTracker.cs               Fire state + cooldown + max_fires (VSG.fired / VSG.fc.*)
@@ -46,8 +46,9 @@ src/
 │   ├── RunePanel.cs                 Custom themed rune-reading panel (header/body/list, configurable fonts/colors; CRIT-03)
 │   ├── GuidanceHudTracker.cs        Progress panel (F10): Codex-pinned quests only, drag-to-move, no input lock
 │   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); per-quest "Show on Tracker" pin toggle
-│   ├── NpcConversationPanel.cs      Hold-E conversation panel; multi-node trees (CRIT-17/22)
-│   └── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)
+│   ├── NpcConversationPanel.cs      Hold-E conversation panel; content-sized + scrolling, wrapped choice rows (CRIT-17/22/25)
+│   ├── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)
+│   └── TextHighlighter.cs           `highlight:` rules -> TMP rich text; never applied to Discord (CRIT-25)
 ├── Rewards/
 │   ├── RewardDispatcher.cs          17 reward types (CRIT-18 base + CRIT-23 enhanced)
 │   └── RewardNotification.cs        MessageHud "Received: …" summary
@@ -95,6 +96,7 @@ Each feature area has its own detailed spec in `.claude/criteria/`.
 | [CRIT-22](/.claude/criteria/CRIT-22-phase4-conversation-sequencing.md) | Phase 4 — Multi-node dialogue trees |
 | [CRIT-23](/.claude/criteria/CRIT-23-phase5-enhanced-rewards.md) | Phase 5 — Enhanced reward types |
 | [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md) | Phase 6 — System polish (bubble, vsg_debug, hover_text, kill-share) |
+| [CRIT-25](/.claude/criteria/CRIT-25-text-highlighting.md) | Text highlighting + no-truncation layout rules |
 
 The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATURE_ROADMAP.md) (Phases 1–6 all `done`).
 
@@ -106,3 +108,5 @@ The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATU
 4. **Raven mode has its own toggle** — `RavenEnabled` BepInEx config, independent of the vanilla "Tutorials" game setting. See CRIT-11.
 5. **YamlDotNet.dll is NOT deployed** — Jötunn's transitive dep provides it at runtime. See CRIT-10.
 6. **RPC names are registered exactly once** — `_rpcsBound` guard in GuidanceSync; reset in ZNet.OnDestroy. See CRIT-06.
+7. **No display surface truncates authored text** — panels size to their content and scroll past a screen-height cap; `Ellipsis`/`Truncate` overflow is banned on body text. See CRIT-25.
+8. **Highlight markup never reaches Discord** — `TextHighlighter` runs on display paths only; webhook templating stays on the raw text. See CRIT-08/CRIT-25.
