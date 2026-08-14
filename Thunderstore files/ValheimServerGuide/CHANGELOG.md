@@ -1,4 +1,12 @@
 # Changelog
+## 0.11.1
+
+Republish of 0.11.0. **No functional changes** — same code, rebuilt and repackaged.
+
+If your game reported `0.10.0` after updating to 0.11.0, that was a stale DLL left behind in your own plugin folder, not a problem with the release. Installing this version guarantees a clean overwrite. Everything in 0.11.0 below — the paged Codex list, hiding guides, and `vsg_refresh` — is unchanged and included.
+
+Note that a running game or dedicated server keeps the old assembly loaded, so restart it after updating rather than reloading in place.
+
 ## 0.11.0
 
 ### The Guide Codex list no longer breaks on a large server

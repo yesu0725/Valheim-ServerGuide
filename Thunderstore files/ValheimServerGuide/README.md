@@ -120,5 +120,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.11.0
+**Version:** 0.11.1
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide
