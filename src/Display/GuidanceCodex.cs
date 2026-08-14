@@ -28,16 +28,49 @@ namespace ValheimServerGuide.Display
             = new List<(GuidanceEntry, GameObject, TMP_Text)>();
         private GuidanceEntry _selected;
 
+        // ── Left panel paging ─────────────────────────────────────────────────────────────────
+        // Row metrics; PaginateItems uses these to decide how much fits on one page. They must
+        // match the LayoutElement heights set in PopulatePanel or a page can overflow.
+        private const float CatRowHeight   = 22f;
+        private const float QuestRowHeight = 20f;
+        private const float RowSpacing     = 1f;
+        private const float FooterHeight   = 48f;
+        // Used only if the list rect has not resolved yet (panel height 520 - 36 header
+        // - 26 CATEGORIES - 48 footer - 8 padding).
+        private const float FallbackListHeight = 402f;
+
+        private TMP_Text _pageLabelText;
+        private TMP_Text _prevPageText;
+        private TMP_Text _nextPageText;
+        private TMP_Text _showHiddenText;
+        private int  _page;         // current page index into _pages
+        private bool _showHidden;   // when true, hidden quests are listed (dimmed) so they can be unhidden
+        private readonly List<List<PageItem>> _pages = new List<List<PageItem>>();
+
+        /// One rendered row on a page: either a category header or a quest row.
+        private struct PageItem
+        {
+            public bool Category;
+            public string CategoryName;
+            public GuidanceEntry Entry;
+            public bool Hidden;
+        }
+
         // ── Right panel ───────────────────────────────────────────────────────────────────────
         private TMP_Text _titleText;
         private TMP_Text _badgeText;
         private TMP_Text _bodyText;
         private RectTransform _bodyContentRect;
+        private ScrollRect _upcomingScroll;
         private Transform _upcomingContent;
 
         // ── Tracker pin toggle (in-progress quests only) ──────────────────────────────────────
         private GameObject _trackToggleGo;
         private TMP_Text _trackToggleText;
+
+        // ── Hide-from-list toggle (any selected quest) ────────────────────────────────────────
+        private GameObject _hideToggleGo;
+        private TMP_Text _hideToggleText;
 
         // ── Font (lazy resolution, same pattern as GuidanceHudTracker) ───────────────────────
         private TMP_FontAsset _font;
@@ -219,29 +252,139 @@ namespace ValheimServerGuide.Display
             catHdrTmp.alignment        = TextAlignmentOptions.Center;
             catHdrTmp.raycastTarget    = false;
 
-            // Guide list container, filling the space below the header. A plain top-anchored
-            // VerticalLayoutGroup (same pattern as the working header area) — no ScrollRect /
-            // ContentSizeFitter, which previously produced zero-size rows. The list is short.
+            // Footer: page arrows + the "show hidden" toggle. Built before the list so the list
+            // can anchor above it.
+            BuildLeftFooter(leftGo.transform);
+
+            // Guide list, between the CATEGORIES header and the footer. There is no scrolling
+            // here by design — the list is PAGED, and PaginateItems only ever puts as many rows
+            // on a page as the measured height can hold, so the container never overflows.
+            //
+            // That constraint matters: a VerticalLayoutGroup does not spill past a fixed-height
+            // container, it *compresses* its children toward LayoutElement.minHeight. Rows that
+            // leave min unset (i.e. 0) collapse to invisible slivers while category headers hold
+            // their size — which is exactly how this list broke before. Rows now pin min AND
+            // preferred, and pagination keeps the total under the container height. The
+            // RectMask2D is belt-and-braces: if a page ever did overshoot, it clips instead of
+            // painting over the footer.
+            var listGo = new GameObject("VSG_LeftList");
+            listGo.transform.SetParent(leftGo.transform, false);
+            var listRect = listGo.AddComponent<RectTransform>();
+            listRect.anchorMin = new Vector2(0f, 0f);
+            listRect.anchorMax = new Vector2(1f, 1f);
+            listRect.offsetMin = new Vector2(0f, FooterHeight);
+            listRect.offsetMax = new Vector2(0f, -26f); // below the 26px CATEGORIES header
+            listGo.AddComponent<RectMask2D>();
+
             var contentGo = new GameObject("VSG_LeftContent");
-            contentGo.transform.SetParent(leftGo.transform, false);
+            contentGo.transform.SetParent(listGo.transform, false);
             // Capture the RectTransform RETURNED by AddComponent. Adding a RectTransform to a GO
             // that has a plain Transform replaces the transform, so a reference cached from
             // `.transform` BEFORE this call would dangle (and `as RectTransform` would be null,
             // leaving the VerticalLayoutGroup unable to lay out children).
             var cRect = contentGo.AddComponent<RectTransform>();
             _leftContent = cRect;
-            cRect.anchorMin = new Vector2(0f, 0f);
-            cRect.anchorMax = new Vector2(1f, 1f);
-            cRect.offsetMin = new Vector2(0f, 0f);
-            cRect.offsetMax = new Vector2(0f, -26f); // below the 26px CATEGORIES header
+            cRect.anchorMin = Vector2.zero;
+            cRect.anchorMax = Vector2.one;
+            cRect.offsetMin = Vector2.zero;
+            cRect.offsetMax = Vector2.zero;
+
             var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
             vlg.childControlWidth      = true;
             vlg.childForceExpandWidth  = true;
             vlg.childControlHeight     = true;
             vlg.childForceExpandHeight = false;
             vlg.childAlignment         = TextAnchor.UpperLeft;
-            vlg.spacing                = 1f;
+            vlg.spacing                = RowSpacing;
             vlg.padding                = new RectOffset(4, 4, 4, 4);
+        }
+
+        /// Page navigation ("[<]  Page 1 / 4  [>]") plus the hidden-quest toggle, pinned to the
+        /// bottom of the left pane.
+        private void BuildLeftFooter(Transform leftGo)
+        {
+            var footerGo = new GameObject("VSG_LeftFooter");
+            footerGo.transform.SetParent(leftGo, false);
+            var footerRect = footerGo.AddComponent<RectTransform>();
+            footerRect.anchorMin        = new Vector2(0f, 0f);
+            footerRect.anchorMax        = new Vector2(1f, 0f);
+            footerRect.pivot            = new Vector2(0.5f, 0f);
+            footerRect.sizeDelta        = new Vector2(0f, FooterHeight);
+            footerRect.anchoredPosition = Vector2.zero;
+
+            // Divider along the top edge of the footer.
+            var divGo = new GameObject("VSG_LeftFooterDiv");
+            divGo.transform.SetParent(footerGo.transform, false);
+            var divRect = divGo.AddComponent<RectTransform>();
+            divRect.anchorMin        = new Vector2(0f, 1f);
+            divRect.anchorMax        = new Vector2(1f, 1f);
+            divRect.pivot            = new Vector2(0.5f, 1f);
+            divRect.sizeDelta        = new Vector2(-8f, 1f);
+            divRect.anchoredPosition = Vector2.zero;
+            divGo.AddComponent<Image>().color = ColDivider;
+
+            // ── Row 1: [<]  Page N / M  [>] ───────────────────────────────────────────────────
+            _prevPageText = BuildFooterButton(footerGo.transform, "VSG_PrevPage", "[<]",
+                new Vector2(0f, 1f), new Vector2(0.22f, 1f), new Vector2(4f, -24f),
+                new Vector2(0f, -2f), TextAlignmentOptions.Left, () => ChangePage(-1));
+
+            _nextPageText = BuildFooterButton(footerGo.transform, "VSG_NextPage", "[>]",
+                new Vector2(0.78f, 1f), new Vector2(1f, 1f), new Vector2(0f, -24f),
+                new Vector2(-4f, -2f), TextAlignmentOptions.Right, () => ChangePage(1));
+
+            var pageGo = new GameObject("VSG_PageLabel");
+            pageGo.transform.SetParent(footerGo.transform, false);
+            var pageRect = pageGo.AddComponent<RectTransform>();
+            pageRect.anchorMin = new Vector2(0.22f, 1f);
+            pageRect.anchorMax = new Vector2(0.78f, 1f);
+            pageRect.offsetMin = new Vector2(0f, -24f);
+            pageRect.offsetMax = new Vector2(0f, -2f);
+            _pageLabelText = pageGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(_pageLabelText);
+            _pageLabelText.text               = "";
+            _pageLabelText.fontSize           = 11f;
+            _pageLabelText.color              = ColText;
+            _pageLabelText.alignment          = TextAlignmentOptions.Center;
+            _pageLabelText.enableWordWrapping = false;
+            _pageLabelText.overflowMode       = TextOverflowModes.Overflow;
+            _pageLabelText.raycastTarget      = false;
+
+            // ── Row 2: hidden-quest toggle ────────────────────────────────────────────────────
+            _showHiddenText = BuildFooterButton(footerGo.transform, "VSG_ShowHidden", "",
+                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(4f, -44f),
+                new Vector2(-4f, -26f), TextAlignmentOptions.Center, ToggleShowHidden);
+        }
+
+        /// Small clickable TMP label used for the footer controls. Returns the text component so
+        /// callers can restyle it later (dimming a dead arrow, relabelling the toggle).
+        private TMP_Text BuildFooterButton(Transform parent, string name, string label,
+            Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax,
+            TextAlignmentOptions align, UnityEngine.Events.UnityAction onClick)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            ApplyFont(tmp);
+            tmp.text               = label;
+            tmp.fontStyle          = FontStyles.Bold;
+            tmp.fontSize           = 11f;
+            tmp.color              = ColText;
+            tmp.alignment          = align;
+            tmp.enableWordWrapping = false;
+            tmp.overflowMode       = TextOverflowModes.Overflow;
+            tmp.raycastTarget      = true;
+
+            var btn = go.AddComponent<Button>();
+            btn.transition    = Selectable.Transition.None;
+            btn.targetGraphic = tmp;
+            btn.onClick.AddListener(onClick);
+            return tmp;
         }
 
         private void BuildRightPanel(Transform parent)
@@ -330,11 +473,12 @@ namespace ValheimServerGuide.Display
             _trackToggleGo = new GameObject("VSG_CodexTrackToggle");
             _trackToggleGo.transform.SetParent(rightGo, false);
             var rect = _trackToggleGo.AddComponent<RectTransform>();
-            rect.anchorMin        = new Vector2(0f, 1f);
-            rect.anchorMax        = new Vector2(1f, 1f);
-            rect.pivot            = new Vector2(0.5f, 1f);
-            rect.sizeDelta        = new Vector2(-16f, 22f);
-            rect.anchoredPosition = new Vector2(0f, -54f);
+            // Left ~62% of the bar; the hide pill takes the right side.
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0.62f, 1f);
+            rect.pivot     = new Vector2(0.5f, 1f);
+            rect.offsetMin = new Vector2(8f, -76f);
+            rect.offsetMax = new Vector2(-3f, -54f);
 
             var img = _trackToggleGo.AddComponent<Image>();
             img.color = ColRowSel;
@@ -360,6 +504,49 @@ namespace ValheimServerGuide.Display
             _trackToggleText.alignment          = TextAlignmentOptions.Center;
             _trackToggleText.enableWordWrapping = false;
             _trackToggleText.raycastTarget      = false;
+
+            BuildHideToggle(rightGo);
+        }
+
+        /// "Hide from list" pill, sharing the toggle bar with the tracker pin. Always available
+        /// (unlike the pin, which is in-progress only) — a finished guide is the most likely
+        /// thing a player wants out of the list.
+        private void BuildHideToggle(Transform rightGo)
+        {
+            _hideToggleGo = new GameObject("VSG_CodexHideToggle");
+            _hideToggleGo.transform.SetParent(rightGo, false);
+            var rect = _hideToggleGo.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.62f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot     = new Vector2(0.5f, 1f);
+            rect.offsetMin = new Vector2(3f, -76f);
+            rect.offsetMax = new Vector2(-8f, -54f);
+
+            var img = _hideToggleGo.AddComponent<Image>();
+            img.color = ColRowSel;
+
+            var btn = _hideToggleGo.AddComponent<Button>();
+            btn.transition    = Selectable.Transition.None;
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(ToggleHideSelected);
+
+            var labelGo = new GameObject("VSG_HideToggleLabel");
+            labelGo.transform.SetParent(_hideToggleGo.transform, false);
+            var labelRect = labelGo.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(6f, 0f);
+            labelRect.offsetMax = new Vector2(-6f, 0f);
+            _hideToggleText = labelGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(_hideToggleText);
+            _hideToggleText.text               = "";
+            _hideToggleText.fontStyle          = FontStyles.Bold;
+            _hideToggleText.fontSize           = 12f;
+            _hideToggleText.color              = ColText;
+            _hideToggleText.alignment          = TextAlignmentOptions.Center;
+            _hideToggleText.enableWordWrapping = false;
+            _hideToggleText.overflowMode       = TextOverflowModes.Overflow;
+            _hideToggleText.raycastTarget      = false;
         }
 
         private void BuildBodyScroll(Transform rightGo)
@@ -455,51 +642,94 @@ namespace ValheimServerGuide.Display
             divRect.anchoredPosition = new Vector2(0f, -20f);
             divGo.AddComponent<Image>().color = ColDivider;
 
-            // Content container for upcoming step rows.
+            // Scroll view for the upcoming step rows — a chain with more than ~7 remaining steps
+            // does not fit the 155px section, and the rows now hold their height instead of
+            // compressing, so the overflow has to be scrollable and clipped.
+            var scrollGo = new GameObject("VSG_UpScroll");
+            scrollGo.transform.SetParent(upGo.transform, false);
+            var scrollRect = scrollGo.AddComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0f, 0f);
+            scrollRect.anchorMax = new Vector2(1f, 1f);
+            scrollRect.offsetMin = Vector2.zero;
+            scrollRect.offsetMax = new Vector2(0f, -22f);
+            scrollGo.AddComponent<RectMask2D>();
+
+            _upcomingScroll = scrollGo.AddComponent<ScrollRect>();
+            _upcomingScroll.horizontal        = false;
+            _upcomingScroll.vertical          = true;
+            _upcomingScroll.scrollSensitivity = 20f;
+            _upcomingScroll.movementType      = ScrollRect.MovementType.Clamped;
+
+            var vpGo = new GameObject("VSG_UpVp");
+            vpGo.transform.SetParent(scrollGo.transform, false);
+            var vpRect = vpGo.AddComponent<RectTransform>();
+            vpRect.anchorMin = Vector2.zero;
+            vpRect.anchorMax = Vector2.one;
+            vpRect.offsetMin = Vector2.zero;
+            vpRect.offsetMax = Vector2.zero;
+
             var contentGo = new GameObject("VSG_UpContent");
-            contentGo.transform.SetParent(upGo.transform, false);
+            contentGo.transform.SetParent(vpGo.transform, false);
             // Capture the RETURNED RectTransform (see note in BuildLeftPanel) — caching
             // `.transform` before this call would leave the VLG without a usable RectTransform.
             var cRect = contentGo.AddComponent<RectTransform>();
             _upcomingContent = cRect;
-            cRect.anchorMin = new Vector2(0f, 0f);
+            cRect.anchorMin = new Vector2(0f, 1f);
             cRect.anchorMax = new Vector2(1f, 1f);
+            cRect.pivot     = new Vector2(0.5f, 1f);
             cRect.offsetMin = Vector2.zero;
-            cRect.offsetMax = new Vector2(0f, -22f);
+            cRect.offsetMax = Vector2.zero;
+
             var vlg = contentGo.AddComponent<VerticalLayoutGroup>();
             vlg.childControlWidth      = true;
             vlg.childForceExpandWidth  = true;
             vlg.childControlHeight     = true;
             vlg.childForceExpandHeight = false;
             vlg.spacing                = 2f;
+
+            var fitter = contentGo.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            _upcomingScroll.viewport = vpRect;
+            _upcomingScroll.content  = cRect;
         }
 
         // ── Data population ───────────────────────────────────────────────────────────────────
 
-        private void PopulatePanel()
+        /// Rebuild the page model from the current config + player state and render the current
+        /// page. `keepSelection` preserves the highlighted quest when it is still listed (used
+        /// after hiding/unhiding or a config push); a fresh Open() drops it.
+        private void PopulatePanel(bool keepSelection = false)
         {
             EnsureFont();
 
             var player = Player.m_localPlayer;
             var config = Plugin.CurrentConfig;
 
-            // Clear left panel.
+            var previous = keepSelection ? _selected : null;
+
             ClearChildren(_leftContent);
             _guideRows.Clear();
             _selected = null;
+            _pages.Clear();
 
             if (config?.Guidances == null || player == null)
             {
+                _page = 0;
+                UpdateFooter(player);
                 ShowEntry(null, null);
                 return;
             }
 
-            // Group visible guides by category, preserving YAML order.
+            // Group listable guides by category, preserving YAML order.
             var catOrder = new List<string>();
             var byCategory = new Dictionary<string, List<GuidanceEntry>>();
             foreach (var entry in config.Guidances)
             {
                 if (!IsVisible(entry, player)) continue;
+                // Hidden quests are dropped from the list entirely unless the player has flipped
+                // the footer toggle, which brings them back (dimmed) so they can be unhidden.
+                if (!_showHidden && HiddenQuestState.IsHidden(player, entry.Id)) continue;
                 var cat = string.IsNullOrEmpty(entry.Category) ? "General" : entry.Category;
                 if (!byCategory.ContainsKey(cat))
                 {
@@ -509,82 +739,104 @@ namespace ValheimServerGuide.Display
                 byCategory[cat].Add(entry);
             }
 
+            PaginateItems(catOrder, byCategory, player);
+
+            if (_page >= _pages.Count) _page = _pages.Count - 1;
+            if (_page < 0) _page = 0;
+
+            RenderPage(player);
+            UpdateFooter(player);
+
+            // Restore the previous selection when it survived the repopulate, otherwise fall back
+            // to the first quest on this page.
+            GuidanceEntry toSelect = null;
+            if (previous != null)
+                foreach (var (entry, _, _) in _guideRows)
+                    if (entry == previous) { toSelect = entry; break; }
+            if (toSelect == null && _guideRows.Count > 0) toSelect = _guideRows[0].entry;
+
+            if (toSelect != null)
+            {
+                _selected = toSelect;
+                HighlightRow(_selected);
+                ShowEntry(_selected, player);
+            }
+            else
+            {
+                ShowEntry(null, null);
+            }
+        }
+
+        /// Split the grouped entries into pages that each fit the measured list height. A
+        /// category spanning a page break repeats its header on the next page so no row is ever
+        /// orphaned under the wrong heading.
+        private void PaginateItems(List<string> catOrder,
+            Dictionary<string, List<GuidanceEntry>> byCategory, Player player)
+        {
+            var capacity = FallbackListHeight;
+            if (_leftContent is RectTransform lcRect)
+            {
+                // 8 = the VerticalLayoutGroup's 4px top + bottom padding.
+                var measured = lcRect.rect.height - 8f;
+                if (measured > CatRowHeight + QuestRowHeight) capacity = measured;
+            }
+
+            var current = new List<PageItem>();
+            var used    = 0f;
+
+            foreach (var cat in catOrder)
+            {
+                var headerOnPage = false;
+                foreach (var entry in byCategory[cat])
+                {
+                    var headerCost = headerOnPage ? 0f : CatRowHeight + RowSpacing;
+                    var rowCost    = QuestRowHeight + RowSpacing;
+
+                    // Start a new page when this row (plus its header, if the category has not
+                    // appeared on this page yet) no longer fits. Never emit an empty page.
+                    if (used + headerCost + rowCost > capacity && current.Count > 0)
+                    {
+                        _pages.Add(current);
+                        current      = new List<PageItem>();
+                        used         = 0f;
+                        headerOnPage = false;
+                        headerCost   = CatRowHeight + RowSpacing;
+                    }
+
+                    if (!headerOnPage)
+                    {
+                        current.Add(new PageItem { Category = true, CategoryName = cat });
+                        used += headerCost;
+                        headerOnPage = true;
+                    }
+
+                    current.Add(new PageItem
+                    {
+                        Category = false,
+                        Entry    = entry,
+                        Hidden   = HiddenQuestState.IsHidden(player, entry.Id),
+                    });
+                    used += rowCost;
+                }
+            }
+
+            if (current.Count > 0) _pages.Add(current);
+        }
+
+        /// Instantiate the rows for `_page`.
+        private void RenderPage(Player player)
+        {
+            if (_pages.Count == 0) return;
+
             // Build the rows with the container inactive so each TextMeshProUGUI's Awake (which
             // logs "LiberationSans SDF Font Asset was not found" when m_fontAsset is null) is
             // deferred until after ApplyFont has assigned the vanilla font. Reactivated below.
             _leftContent.gameObject.SetActive(false);
 
-            foreach (var cat in catOrder)
+            foreach (var item in _pages[_page])
             {
-                // Category header row.
-                // TMP is on a child GO (not directly on catGo) so the VLG only sees
-                // LayoutElement when computing the row height — avoids TMP.preferredHeight
-                // (which can be 0 during ForceRebuildLayoutImmediate if the font geometry
-                // hasn't been computed yet) collapsing the row to zero height.
-                var catGo = new GameObject("VSG_Cat_" + cat);
-                catGo.transform.SetParent(_leftContent, false);
-                var catImg = catGo.AddComponent<Image>();
-                catImg.color = new Color(0f, 0f, 0f, 0f);
-                var catLe = catGo.AddComponent<LayoutElement>();
-                catLe.minHeight       = 22f;
-                catLe.preferredHeight = 22f;
-
-                var catLabelGo = new GameObject("VSG_CatLabel");
-                catLabelGo.transform.SetParent(catGo.transform, false);
-                var catLabelRect = catLabelGo.AddComponent<RectTransform>();
-                catLabelRect.anchorMin = Vector2.zero;
-                catLabelRect.anchorMax = Vector2.one;
-                catLabelRect.offsetMin = new Vector2(4f, 0f);
-                catLabelRect.offsetMax = Vector2.zero;
-                var catTmp = catLabelGo.AddComponent<TextMeshProUGUI>();
-                ApplyFont(catTmp);
-                catTmp.text               = cat.ToUpper();
-                catTmp.fontStyle          = FontStyles.Bold;
-                catTmp.fontSize           = 11f;
-                catTmp.color              = ColGold;
-                catTmp.alignment          = TextAlignmentOptions.Left;
-                catTmp.enableWordWrapping = false;
-                catTmp.overflowMode       = TextOverflowModes.Overflow;
-                catTmp.raycastTarget      = false;
-
-                foreach (var entry in byCategory[cat])
-                {
-                    var complete   = IsEntryComplete(entry, player);
-                    var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title, entry);
-
-                    var rowGo = new GameObject("VSG_Row_" + entry.Id);
-                    rowGo.transform.SetParent(_leftContent, false);
-                    var rowImg = rowGo.AddComponent<Image>();
-                    rowImg.color = new Color(0f, 0f, 0f, 0f);
-                    var rowLe = rowGo.AddComponent<LayoutElement>();
-                    rowLe.preferredHeight = 20f;
-
-                    var rowBtn = rowGo.AddComponent<Button>();
-                    rowBtn.transition    = Selectable.Transition.None;
-                    rowBtn.targetGraphic = rowImg;
-                    var captured = entry;
-                    rowBtn.onClick.AddListener(() => SelectGuide(captured));
-
-                    var labelGo = new GameObject("VSG_RowLabel");
-                    labelGo.transform.SetParent(rowGo.transform, false);
-                    var labelRect = labelGo.AddComponent<RectTransform>();
-                    labelRect.anchorMin = Vector2.zero;
-                    labelRect.anchorMax = Vector2.one;
-                    labelRect.offsetMin = new Vector2(10f, 0f);
-                    labelRect.offsetMax = Vector2.zero;
-                    var labelTmp = labelGo.AddComponent<TextMeshProUGUI>();
-                    ApplyFont(labelTmp);
-                    labelTmp.text               = (complete ? "[+] " : "  ") + entryTitle;
-                    labelTmp.fontStyle          = FontStyles.Normal;
-                    labelTmp.fontSize           = 12f;
-                    labelTmp.color              = complete ? ColGreen : ColText;
-                    labelTmp.alignment          = TextAlignmentOptions.Left;
-                    labelTmp.enableWordWrapping = false;
-                    labelTmp.overflowMode       = TextOverflowModes.Ellipsis;
-                    labelTmp.raycastTarget      = false;
-
-                    _guideRows.Add((entry, rowGo, labelTmp));
-                }
+                if (item.Category) BuildCategoryRow(item.CategoryName);
+                else               BuildQuestRow(item, player);
             }
 
             // Reactivate now that every row has its font — Awake fires here without warning.
@@ -594,17 +846,160 @@ namespace ValheimServerGuide.Display
             if (_leftContent is RectTransform lcRect)
                 LayoutRebuilder.ForceRebuildLayoutImmediate(lcRect);
 
-            // Auto-select first visible guide.
-            if (_guideRows.Count > 0)
+            // A TMP built inside an inactive container caches an empty mesh; the layout rebuild
+            // above fixes the rects but does NOT regenerate that geometry. Push a mesh update
+            // on every label so each row draws with the width it was just given.
+            ForceMeshUpdateIn(_leftContent);
+        }
+
+        /// Category header row. TMP lives on a child GO (not directly on catGo) so the VLG only
+        /// sees LayoutElement when computing the row height — avoids TMP.preferredHeight (which
+        /// can be 0 during ForceRebuildLayoutImmediate if the font geometry hasn't been computed
+        /// yet) collapsing the row to zero height.
+        private void BuildCategoryRow(string cat)
+        {
+            var catGo = new GameObject("VSG_Cat_" + cat);
+            catGo.transform.SetParent(_leftContent, false);
+            var catImg = catGo.AddComponent<Image>();
+            catImg.color = new Color(0f, 0f, 0f, 0f);
+            var catLe = catGo.AddComponent<LayoutElement>();
+            catLe.minHeight       = CatRowHeight;
+            catLe.preferredHeight = CatRowHeight;
+
+            var catLabelGo = new GameObject("VSG_CatLabel");
+            catLabelGo.transform.SetParent(catGo.transform, false);
+            var catLabelRect = catLabelGo.AddComponent<RectTransform>();
+            catLabelRect.anchorMin = Vector2.zero;
+            catLabelRect.anchorMax = Vector2.one;
+            catLabelRect.offsetMin = new Vector2(4f, 0f);
+            catLabelRect.offsetMax = Vector2.zero;
+            var catTmp = catLabelGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(catTmp);
+            catTmp.text               = cat.ToUpper();
+            catTmp.fontStyle          = FontStyles.Bold;
+            catTmp.fontSize           = 11f;
+            catTmp.color              = ColGold;
+            catTmp.alignment          = TextAlignmentOptions.Left;
+            catTmp.enableWordWrapping = false;
+            catTmp.overflowMode       = TextOverflowModes.Overflow;
+            catTmp.raycastTarget      = false;
+        }
+
+        private void BuildQuestRow(PageItem item, Player player)
+        {
+            var entry      = item.Entry;
+            var complete   = IsEntryComplete(entry, player);
+            var entryTitle = string.IsNullOrEmpty(entry.Title) ? entry.Id : Template(entry.Title, entry);
+
+            var rowGo = new GameObject("VSG_Row_" + entry.Id);
+            rowGo.transform.SetParent(_leftContent, false);
+            var rowImg = rowGo.AddComponent<Image>();
+            rowImg.color = new Color(0f, 0f, 0f, 0f);
+            var rowLe = rowGo.AddComponent<LayoutElement>();
+            // minHeight matters as much as preferredHeight: a VerticalLayoutGroup that runs out
+            // of room shrinks children down to their MIN, and an unset min (0) let quest rows
+            // collapse to invisible slivers while the category headers (min 22) held their size.
+            // Pagination keeps the page under capacity; these pin the row size regardless.
+            rowLe.minHeight       = QuestRowHeight;
+            rowLe.preferredHeight = QuestRowHeight;
+
+            var rowBtn = rowGo.AddComponent<Button>();
+            rowBtn.transition    = Selectable.Transition.None;
+            rowBtn.targetGraphic = rowImg;
+            var captured = entry;
+            rowBtn.onClick.AddListener(() => SelectGuide(captured));
+
+            var labelGo = new GameObject("VSG_RowLabel");
+            labelGo.transform.SetParent(rowGo.transform, false);
+            var labelRect = labelGo.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(10f, 0f);
+            labelRect.offsetMax = Vector2.zero;
+            var labelTmp = labelGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(labelTmp);
+            var prefix = item.Hidden ? "[-] " : complete ? "[+] " : "  ";
+            labelTmp.text               = prefix + entryTitle;
+            labelTmp.fontStyle          = item.Hidden ? FontStyles.Italic : FontStyles.Normal;
+            labelTmp.fontSize           = 12f;
+            labelTmp.color              = item.Hidden ? ColLocked : complete ? ColGreen : ColText;
+            labelTmp.alignment          = TextAlignmentOptions.Left;
+            labelTmp.enableWordWrapping = false;
+            labelTmp.overflowMode       = TextOverflowModes.Ellipsis;
+            labelTmp.raycastTarget      = false;
+
+            _guideRows.Add((entry, rowGo, labelTmp));
+        }
+
+        // ── Paging + hidden-quest controls ────────────────────────────────────────────────────
+
+        /// Refresh the footer: page counter, arrow dimming, and the hidden-quest toggle label.
+        private void UpdateFooter(Player player)
+        {
+            var pageCount = _pages.Count;
+            if (_pageLabelText != null)
+                _pageLabelText.text = pageCount <= 0
+                    ? "no guides"
+                    : "Page " + (_page + 1) + " / " + pageCount;
+
+            // Arrows stay clickable but grey out when they would do nothing, so the control
+            // never appears to be broken.
+            if (_prevPageText != null) _prevPageText.color = _page > 0 ? ColGold : ColLocked;
+            if (_nextPageText != null) _nextPageText.color = _page < pageCount - 1 ? ColGold : ColLocked;
+
+            if (_showHiddenText != null)
             {
-                _selected = _guideRows[0].entry;
-                HighlightRow(_selected);
-                ShowEntry(_selected, player);
+                var hiddenCount = HiddenQuestState.Count(player);
+                _showHiddenText.text = _showHidden
+                    ? "[x] Showing hidden (" + hiddenCount + ")"
+                    : "[ ] Show hidden (" + hiddenCount + ")";
+                _showHiddenText.color = _showHidden ? ColGreen
+                    : hiddenCount > 0 ? ColText : ColLocked;
             }
-            else
-            {
-                ShowEntry(null, null);
-            }
+        }
+
+        private void ChangePage(int delta)
+        {
+            if (_pages.Count <= 1) return;
+            var next = _page + delta;
+            if (next < 0 || next >= _pages.Count) return;
+            _page = next;
+
+            var player = Player.m_localPlayer;
+            ClearChildren(_leftContent);
+            _guideRows.Clear();
+            RenderPage(player);
+            UpdateFooter(player);
+
+            // Keep the detail pane in sync: if the selected quest is not on this page, move the
+            // selection to the first quest that is.
+            var stillListed = false;
+            foreach (var (entry, _, _) in _guideRows)
+                if (entry == _selected) { stillListed = true; break; }
+            if (!stillListed && _guideRows.Count > 0) SelectGuide(_guideRows[0].entry);
+            else HighlightRow(_selected);
+        }
+
+        private void ToggleShowHidden()
+        {
+            _showHidden = !_showHidden;
+            // The listed set changes size, so page indices no longer mean the same thing.
+            _page = 0;
+            PopulatePanel(keepSelection: true);
+        }
+
+        /// Click handler for the detail-pane "Hide from list" pill.
+        private void ToggleHideSelected()
+        {
+            var player = Player.m_localPlayer;
+            if (_selected == null || player == null) return;
+
+            var nowHidden = !HiddenQuestState.IsHidden(player, _selected.Id);
+            HiddenQuestState.SetHidden(player, _selected.Id, nowHidden);
+
+            // Hiding the selected quest while hidden quests are not being shown drops it from the
+            // list, so the selection cannot survive — PopulatePanel falls back to the first row.
+            PopulatePanel(keepSelection: true);
         }
 
         private void SelectGuide(GuidanceEntry entry)
@@ -762,6 +1157,8 @@ namespace ValheimServerGuide.Display
         /// quests and for entries that never appear on the tracker (no title / non-progress type).
         private void UpdateTrackToggle(GuidanceEntry entry, Player player, bool complete)
         {
+            UpdateHideToggle(entry, player);
+
             if (_trackToggleGo == null) return;
             if (entry == null || player == null || complete || !IsTrackable(entry, player))
             {
@@ -776,6 +1173,25 @@ namespace ValheimServerGuide.Display
                 _trackToggleText.text  = on ? "[x] Pinned to Tracker  (click to unpin)"
                                             : "[ ] Show on Tracker  (click to pin)";
                 _trackToggleText.color = on ? ColGreen : ColText;
+            }
+        }
+
+        /// Show/refresh the "Hide from list" pill. Hidden only when there is nothing selected.
+        private void UpdateHideToggle(GuidanceEntry entry, Player player)
+        {
+            if (_hideToggleGo == null) return;
+            if (entry == null || player == null)
+            {
+                _hideToggleGo.SetActive(false);
+                return;
+            }
+
+            _hideToggleGo.SetActive(true);
+            var hidden = HiddenQuestState.IsHidden(player, entry.Id);
+            if (_hideToggleText != null)
+            {
+                _hideToggleText.text  = hidden ? "[x] Hidden — unhide" : "[ ] Hide from list";
+                _hideToggleText.color = hidden ? ColLocked : ColText;
             }
         }
 
@@ -833,6 +1249,9 @@ namespace ValheimServerGuide.Display
                 var rowGo = new GameObject("VSG_UpRow");
                 rowGo.transform.SetParent(_upcomingContent, false);
                 var rowLe = rowGo.AddComponent<LayoutElement>();
+                // Pin the min too — a long chain overflows the 155px section and would otherwise
+                // compress every step row to nothing (same failure as the guide list).
+                rowLe.minHeight       = 18f;
                 rowLe.preferredHeight = 18f;
                 var rowTmp = rowGo.AddComponent<TextMeshProUGUI>();
                 ApplyFont(rowTmp);
@@ -847,6 +1266,26 @@ namespace ValheimServerGuide.Display
             }
 
             _upcomingContent.gameObject.SetActive(true);
+
+            // Same inactive-build caveat as the guide list — regenerate the row meshes.
+            if (_upcomingContent is RectTransform upRect)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(upRect);
+            ForceMeshUpdateIn(_upcomingContent);
+            if (_upcomingScroll != null) _upcomingScroll.verticalNormalizedPosition = 1f;
+        }
+
+        /// Regenerate the text geometry of every TMP under a container that was populated while
+        /// inactive. Without this the label rects are correct but the mesh stays empty, which
+        /// renders as an invisible row.
+        private static void ForceMeshUpdateIn(Transform container)
+        {
+            if (container == null) return;
+            foreach (var t in container.GetComponentsInChildren<TMP_Text>(includeInactive: true))
+            {
+                if (t == null) continue;
+                t.SetAllDirty();
+                t.ForceMeshUpdate();
+            }
         }
 
         private void ClearUpcoming()
@@ -862,7 +1301,14 @@ namespace ValheimServerGuide.Display
         {
             if (t == null) return;
             for (var i = t.childCount - 1; i >= 0; i--)
-                Destroy(t.GetChild(i).gameObject);
+            {
+                var child = t.GetChild(i).gameObject;
+                // Destroy is deferred to end-of-frame, and a LayoutGroup counts any child that is
+                // still activeInHierarchy. Repopulating in the same frame would otherwise lay out
+                // the old rows plus the new ones. Deactivating first takes them out immediately.
+                child.SetActive(false);
+                Destroy(child);
+            }
         }
 
         // ── Visibility helpers ────────────────────────────────────────────────────────────────
@@ -1058,6 +1504,63 @@ namespace ValheimServerGuide.Display
             Cursor.visible   = true;
             if (GameCamera.instance != null) GameCamera.instance.m_mouseCapture = false;
             PopulatePanel();
+        }
+
+        /// Repopulate the guide list and detail pane from the current config + player state,
+        /// without tearing the panel down. No-op while closed (Open() populates anyway).
+        /// Called by `vsg_refresh` and whenever a fresh config arrives from the server.
+        public void RepopulateIfOpen()
+        {
+            if (!IsOpen || _uiRoot == null) return;
+            // Keep whatever the player was reading — a background config push or an admin reset
+            // should not yank the detail pane back to the first guide.
+            PopulatePanel(keepSelection: true);
+        }
+
+        /// Destroy the whole codex UI and build it again from scratch, then reopen it if it was
+        /// open. This is the recovery path for a panel whose geometry or fonts were resolved
+        /// against an incomplete scene — e.g. the vanilla font was still unresolved at
+        /// Hud.Awake, leaving rows as blank gaps, or a stale root survived a HUD reload.
+        public void Rebuild()
+        {
+            var wasOpen = IsOpen;
+            if (wasOpen) Close();
+
+            if (_uiRoot != null)
+            {
+                // Deactivate first: Destroy is deferred to end-of-frame, and a live backdrop
+                // would otherwise sit on top of the new root for the rest of this frame.
+                _uiRoot.SetActive(false);
+                Destroy(_uiRoot);
+            }
+
+            _uiRoot           = null;
+            _panel            = null;
+            _leftContent      = null;
+            _upcomingScroll   = null;
+            _upcomingContent  = null;
+            _titleText        = null;
+            _badgeText        = null;
+            _bodyText         = null;
+            _bodyContentRect  = null;
+            _trackToggleGo    = null;
+            _trackToggleText  = null;
+            _hideToggleGo     = null;
+            _hideToggleText   = null;
+            _pageLabelText    = null;
+            _prevPageText     = null;
+            _nextPageText     = null;
+            _showHiddenText   = null;
+            _guideRows.Clear();
+            _pages.Clear();
+            _page = 0;
+            _selected = null;
+            // Drop the cached font so it is re-resolved against the current scene — a null font
+            // captured at build time is the usual cause of invisible rows.
+            _font = null;
+
+            BuildPanel();
+            if (wasOpen) Open();
         }
 
         public void Close()

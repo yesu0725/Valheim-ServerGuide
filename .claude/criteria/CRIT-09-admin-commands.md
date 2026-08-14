@@ -144,11 +144,38 @@ Dumps three diagnostic sections for the current character:
 - **Last fired** — up to the last 10 `(id, wall-clock time)` pairs from `DebugFireLog`, an
   in-memory, per-player, **session-only** ring buffer (not persisted to the save).
 
+### `vsg_refresh` (public — NOT admin-gated)
+
+Repairs a Codex / tracker that rendered incorrectly (blank quest rows, stale titles, entries
+missing after a server hot-reload). Reads and writes **no** guidance state, which is why it is
+the one command registered with `onlyAdmin: false` — any player can self-serve.
+
+What it does, in order:
+
+| Step | Action |
+|---|---|
+| 1 | `GuidanceSync.RequestConfigResync()` — client → server `VSG_ConfigReq`; server re-pushes the current config via the normal `VSG_SyncConfig` path. Skipped on host/single-player (they own the YAML). |
+| 2 | `GuidanceSync.RequestChainState(playerName)` — re-pulls this character's server-side chain progress. |
+| 3 | `GuidanceCodex.Instance.Rebuild()` — destroys `VSG_CodexRoot` and builds the panel again, dropping the cached `_font` so it is re-resolved. Reopens the Codex if it was open. |
+| 4 | `GuidanceHudTracker.ApplyLayout()` + `Refresh()` — re-applies the YAML `tracker:` layout and repaints rows. |
+
+Steps 1–2 are asynchronous. When the config push lands, `GuidanceSync.OnReceive` repaints the
+tracker and calls `GuidanceCodex.RepopulateIfOpen()`, so the panel updates a second time on its
+own without the player re-running the command.
+
+**Output:**
+```
+vsg_refresh: rebuilt Codex + tracker (142 entries currently loaded).
+vsg_refresh: requested a fresh config from the server — reopen the Codex in a moment if it still looks wrong.
+```
+(The second line appears only on a pure client.)
+
 ---
 
 ## Admin Verification
 
-Commands are registered with `onlyAdmin: true` in the 12-argument `Terminal.ConsoleCommand` constructor. In vanilla Valheim:
+All commands except `vsg_refresh` are registered with `onlyAdmin: true` in the 12-argument
+`Terminal.ConsoleCommand` constructor. In vanilla Valheim:
 - Single-player and host: always admin.
 - Dedicated server client: must be in `adminlist.txt`.
 
@@ -197,7 +224,7 @@ This protects against modded/malicious clients crafting the RPC directly without
 
 ## Criteria
 
-- [x] All commands are gated `onlyAdmin: true`.
+- [x] All state-changing commands are gated `onlyAdmin: true`; only the read-only `vsg_refresh` is public.
 - [x] `vsg_reset all` clears ONLY player-scope entries; global-scope entries are untouched.
 - [x] `vsg_reset <id>` auto-detects scope from the current config.
 - [x] Global reset from admin client goes through `VSG_AdminResetGlobal` RPC; server re-verifies admin.
@@ -218,3 +245,7 @@ This protects against modded/malicious clients crafting the RPC directly without
 - [x] Admin marker `"server"` distinguishes listen-server responses (output to `Console.instance`) from remote admin responses (RPC relay).
 - [x] Tab completion for `vsg_list_player` includes online peer names; `vsg_reset_player` includes peer names + `"all"` + configured IDs.
 - [x] `vsg_debug` lists currently-eligible entries, all `VSG.*` custom-data keys with values, and the last 10 fired ids (session-only) with timestamps.
+- [x] `vsg_refresh` rebuilds the Codex root and repaints the tracker without touching any `VSG.*` state.
+- [x] `vsg_refresh` requests a config re-push only when the local process is not the server.
+- [x] `VSG_ConfigReq` is server-handled only (`IsServer()` guard) and replies via `SendToPeer` to the requesting peer — no broadcast, no webhook URL in the payload.
+- [x] A config push arriving from the server repaints the tracker and repopulates an open Codex.

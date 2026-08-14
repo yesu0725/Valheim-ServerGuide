@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>ValheimServerGuide</AssemblyName>
     <RootNamespace>ValheimServerGuide</RootNamespace>
-    <Version>0.10.0</Version>
+    <Version>0.11.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the

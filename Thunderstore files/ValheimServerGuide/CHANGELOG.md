@@ -1,4 +1,48 @@
 # Changelog
+## 0.11.0
+
+### The Guide Codex list no longer breaks on a large server
+
+On a server with a lot of guides, the Codex list turned into a column of category names separated by blank gaps — the quest rows were there, and clicking the empty space still selected them, but nothing was drawn.
+
+The list was a fixed-height layout with no way to overflow. Unity does not spill a layout group past its container; it *compresses* it. Category headers had a pinned minimum height so they held their size, while the quest rows did not, so every row was squeezed toward zero height and vanished. It looked intermittent because it only started once a player had unlocked enough guides to outgrow the panel — a new character saw a perfectly normal Codex, and the same character saw a broken one twenty hours later.
+
+**The list is now paged.** New controls at the bottom of the category pane:
+
+```
+[<]   Page 2 / 4   [>]
+```
+
+Each page holds as many rows as actually fit — around eighteen guides — and never more, so no row is ever compressed or clipped. A category that runs across a page break repeats its header on the next page, so a guide is never stranded under the wrong heading. The arrows grey out on the first and last page. Row heights are now pinned at both ends as well, so the old compression cannot recur even if the metrics change.
+
+The "Upcoming Steps" section on the detail pane had the same latent problem — it fitted about seven step rows — and now scrolls.
+
+### Hide guides you are finished with
+
+Every guide you have ever triggered stays in the Codex forever, which is what made the list so long in the first place. You can now take one out of it.
+
+Select a guide and use the new pill next to "Show on Tracker":
+
+```
+[ ] Hide from list        ->  [x] Hidden — unhide
+```
+
+Unlike the tracker pin, this works on completed guides too — a finished quest is usually the thing you most want out of the way.
+
+To get one back, flip **`[ ] Show hidden (3)`** at the bottom of the category pane. Hidden guides reappear dimmed and marked with `[-]`; select one and click the pill again to restore it.
+
+Hiding is display-only and per-character. A hidden guide still fires, still tracks, still announces to Discord and still pays out its rewards — it simply does not take up a row. The preference is stored on the character (`VSG.hid`), so it follows that character between servers, and `vsg_reset` clears it (otherwise a reset quest could sit invisible in the list forever).
+
+### New public command: `vsg_refresh`
+
+```
+vsg_refresh
+```
+
+Rebuilds the Codex and tracker from scratch and asks the server to re-send its guide config and your chain progress. This is the one VSG command that is **not** admin-gated — it changes no state at all, so a player who hits a stale or half-drawn panel can fix it without hunting down an admin.
+
+It is also a genuine fix for a real timing hole: the HUD is built when the game loads it, which can happen *before* the server's config push arrives. A newly arriving config now repaints the tracker and repopulates an open Codex on its own, so a guide list that used to look empty until you relogged now fills itself in.
+
 ## 0.10.0
 
 ### Panels size themselves to your text — nothing is cut off

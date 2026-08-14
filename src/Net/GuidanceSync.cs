@@ -30,6 +30,7 @@ namespace ValheimServerGuide.Net
         private const string RpcRewardDiscord = "VSG_RewardDiscord";
         private const string RpcShareKillProgress = "VSG_ShareKillProgress";
         private const string RpcQuestStartLog = "VSG_QuestStartLog";
+        private const string RpcConfigRequest = "VSG_ConfigReq";
         // Admin per-player state commands (list / reset another player's guidance state)
         private const string RpcAdminPlayerListReq  = "VSG_APListReq";
         private const string RpcAdminPlayerListFwd  = "VSG_APListFwd";
@@ -73,6 +74,7 @@ namespace ValheimServerGuide.Net
             ZRoutedRpc.instance.Register<string>(RpcRewardDiscord, OnRewardDiscord);
             ZRoutedRpc.instance.Register<string, string, Vector3>(RpcShareKillProgress, OnShareKillProgress);
             ZRoutedRpc.instance.Register<string>(RpcQuestStartLog, OnQuestStartLog);
+            ZRoutedRpc.instance.Register<string>(RpcConfigRequest, OnConfigRequest);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListReq,  OnAdminPlayerListReq);
             ZRoutedRpc.instance.Register<string>(RpcAdminPlayerListFwd,  OnAdminPlayerListFwd);
             ZRoutedRpc.instance.Register<string, string>(RpcAdminPlayerListResp, OnAdminPlayerListResp);
@@ -97,11 +99,39 @@ namespace ValheimServerGuide.Net
                 Plugin.CurrentConfig = config;
                 GuidanceDisplay.RegisterTutorials(config);
                 Plugin.Log.LogInfo($"Received guidance config from server: {config.Guidances.Count} entries.");
+
+                // The HUD is built at Hud.Awake, which can run before this push lands (and runs
+                // again on every hot-reload broadcast). Repaint both surfaces so an already-open
+                // codex / visible tracker reflects the config that just arrived instead of the
+                // empty or previous one it was populated from.
+                GuidanceHudTracker.Instance?.ApplyLayout();
+                GuidanceHudTracker.Instance?.Refresh();
+                GuidanceCodex.Instance?.RepopulateIfOpen();
             }
             catch (System.Exception ex)
             {
                 Plugin.Log.LogError($"Failed to apply synced config: {ex.Message}");
             }
+        }
+
+        // ---- Config re-sync on demand (client → server) ----
+
+        /// Client → server: "push me the current config again". Used by `vsg_refresh` to recover
+        /// a client whose config never arrived (joined during a hot-reload) or was applied before
+        /// the HUD existed. The server stays the sole authority — this only asks it to re-send.
+        public static void RequestConfigResync()
+        {
+            if (ZRoutedRpc.instance == null) return;
+            if (ZNet.instance == null || ZNet.instance.IsServer()) return; // host/SP owns the YAML
+            ZRoutedRpc.instance.InvokeRoutedRPC(
+                ZRoutedRpc.instance.GetServerPeerID(), RpcConfigRequest, "");
+        }
+
+        private static void OnConfigRequest(long sender, string _)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+            SendToPeer(sender, Plugin.CurrentConfig);
+            Plugin.Log.LogInfo($"[sync] re-sent config to peer {sender} on request.");
         }
 
         public static void BroadcastToClients(GuidanceConfig config)
@@ -592,9 +622,11 @@ namespace ValheimServerGuide.Net
                 ConversationNodeState.ResetAll(player);
                 TrackedQuestState.ResetAll(player);
                 QuestStartLogState.ResetAll(player);
+                HiddenQuestState.ClearAll(player);
                 GuidanceDisplay.ClearAllVsgTutorialSeen();
                 GuidanceDisplay.ClearRavenState();
                 GuidanceHudTracker.Instance?.Refresh();
+                GuidanceCodex.Instance?.RepopulateIfOpen();
                 resultMsg = $"vsg_reset_player: cleared {n} fired id(s) + all chain/submit/goal state for {player.GetPlayerName()}.";
             }
             else
@@ -614,10 +646,12 @@ namespace ValheimServerGuide.Net
                 var hadNode = ConversationNodeState.GetCurrentNode(player, resetArg) != null;
                 if (hadNode) ConversationNodeState.Clear(player, resetArg);
                 QuestStartLogState.Clear(player, resetArg);
+                HiddenQuestState.Clear(player, resetArg);
 
                 if (singleCleared || isChain || hadSubmit || hadGoal || hadKill || hadNode)
                 {
                     GuidanceHudTracker.Instance?.Refresh();
+                    GuidanceCodex.Instance?.RepopulateIfOpen();
                     resultMsg = $"vsg_reset_player: cleared '{resetArg}'"
                         + (isChain   ? " (chain)"  : "")
                         + (hadSubmit ? " (submit)"  : "")

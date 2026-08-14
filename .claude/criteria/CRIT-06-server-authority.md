@@ -28,6 +28,7 @@ All registered on `ZRoutedRpc.instance`:
 | `VSG_PlayGlobal` | Server → All | `string id, string playerName` | Server broadcasts "show this now" |
 | `VSG_AnnounceRequest` | Client → Server | `string id, string playerName` | Player-scope discord announcement |
 | `VSG_AdminResetGlobal` | Client → Server | `string id` | Admin client requests global key removal |
+| `VSG_ConfigReq` | Client → Server | `string` (unused) | Client asks the server to re-push the config (`vsg_refresh`); server replies with `VSG_SyncConfig` to that peer only |
 
 ---
 

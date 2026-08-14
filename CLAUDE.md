@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.10.0` |
+| Version | `0.11.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -32,6 +32,7 @@ src/
 │   ├── GoalStartedState.cs          item_acquired "started" latch (VSG.ig.*)
 │   ├── ConversationNodeState.cs     Multi-node dialogue current node (VSG.cn.*)
 │   ├── TrackedQuestState.cs         HUD tracker pins + custom panel position (VSG.trk / VSG.tpos)
+│   ├── HiddenQuestState.cs          Codex "hide from list" preference (VSG.hid); display-only
 │   ├── QuestStartLogState.cs        Once-per-quest "start already logged to Discord" latch (VSG.qs.*)
 │   ├── PrerequisiteChecker.cs       requires/stop_when satisfaction logic
 │   └── DebugFireLog.cs              Session-only last-10-fired ring buffer (vsg_debug; not persisted)
@@ -45,7 +46,7 @@ src/
 │   ├── GuidanceDisplay.cs           Mode dispatch (raven/message/chat/rune/intro/conversation/bubble) + patches
 │   ├── RunePanel.cs                 Custom themed rune-reading panel (header/body/list, configurable fonts/colors; CRIT-03)
 │   ├── GuidanceHudTracker.cs        Progress panel (F10): Codex-pinned quests only, drag-to-move, no input lock
-│   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); per-quest "Show on Tracker" pin toggle
+│   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); paged guide list, "Show on Tracker" pin + "Hide from list" toggles
 │   ├── NpcConversationPanel.cs      Hold-E conversation panel; content-sized + scrolling, wrapped choice rows (CRIT-17/22/25)
 │   ├── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)
 │   └── TextHighlighter.cs           `highlight:` rules -> TMP rich text; never applied to Discord (CRIT-25)
@@ -55,7 +56,7 @@ src/
 ├── Net/
 │   └── GuidanceSync.cs              ZRoutedRpc RPCs; config sync, global events, admin, reward-discord, kill-share, quest-start log
 ├── Commands/
-│   └── AdminCommands.cs             vsg_reset / vsg_list / vsg_list_player / vsg_reset_player / vsg_debug
+│   └── AdminCommands.cs             vsg_reset / vsg_list / vsg_list_player / vsg_reset_player / vsg_debug / vsg_refresh (public)
 └── Discord/
     └── DiscordAnnouncer.cs          Server-side webhook POST via UnityWebRequest; announce/complete/reward posts + separate quest-start debug log (own webhook)
 ```

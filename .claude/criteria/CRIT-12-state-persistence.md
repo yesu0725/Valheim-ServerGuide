@@ -14,7 +14,19 @@
 | Chain progress | `Player.m_customData["VSG.cd/cp/cc.*"]` | Character `.fch` file | Game restarts, server changes |
 | NPC item-submit counts | `Player.m_customData["VSG.is.<id>"]` | Character `.fch` file | Game restarts, server changes |
 | Item-acquired goal started | `Player.m_customData["VSG.ig.<id>"]` | Character `.fch` file | Game restarts, server changes |
+| Codex hidden-quest list | `Player.m_customData["VSG.hid"]` | Character `.fch` file | Game restarts, server changes |
 | Cooldown timers | `SeenTracker.CooldownExpiry` (in-memory) | Process lifetime | Does NOT survive game restart |
+
+### `VSG.hid` — Codex "hide from list"
+
+**Format:** key `"VSG.hid"` → comma-separated string of hidden entry IDs. Same shape as
+`VSG.fired`, and removed entirely (not left empty) when the last id is unhidden.
+
+This is a **display preference only** (`HiddenQuestState`). A hidden quest still fires, tracks,
+announces, and rewards exactly as before — it is simply omitted from the Codex guide list until
+the player flips the "Show hidden" footer toggle. Both reset paths (`vsg_reset all` and
+`vsg_reset_player <name> all`) clear it, and a single-id reset unhides that id, so a reset quest
+can never sit invisible in the list.
 
 ---
 

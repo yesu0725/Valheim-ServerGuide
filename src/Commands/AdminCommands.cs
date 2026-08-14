@@ -93,7 +93,24 @@ namespace ValheimServerGuide.Commands
                 remoteCommand: false,
                 onlyAdmin: true);
 
-            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list, vsg_list_player, vsg_reset_player, vsg_debug");
+            // Public (not onlyAdmin): purely client-side UI recovery plus a request for the
+            // server to re-push its config. It changes no guidance state, so any player who
+            // hits a blank/garbled Codex can fix it themselves without calling an admin.
+            new Terminal.ConsoleCommand(
+                "vsg_refresh",
+                "Rebuild the Guide Codex + tracker UI and re-pull quest data from the server.",
+                Refresh,
+                isCheat: false,
+                isNetwork: false,
+                onlyServer: false,
+                isSecret: false,
+                allowInDevBuild: false,
+                optionsFetcher: null,
+                alwaysRefreshTabOptions: false,
+                remoteCommand: false,
+                onlyAdmin: false);
+
+            Plugin.Log.LogInfo("Registered console commands: vsg_reset, vsg_list, vsg_list_player, vsg_reset_player, vsg_debug, vsg_refresh");
         }
 
         private static void Reset(Terminal.ConsoleEventArgs args)
@@ -113,6 +130,9 @@ namespace ValheimServerGuide.Commands
                 ConversationNodeState.ResetAll(player);
                 TrackedQuestState.ResetAll(player);
                 QuestStartLogState.ResetAll(player);
+                // Codex "hidden from list" preferences (VSG.hid) — a full reset puts the guide
+                // list back to showing everything, matching the fresh-character state.
+                HiddenQuestState.ClearAll(player);
                 // Raven entries also carry vanilla's per-character "seen tutorial" flag
                 // (Player.m_shownTutorials), which gates the raven independently of VSG
                 // state. Clear it for our ids or reset raven entries would never re-show.
@@ -193,6 +213,10 @@ namespace ValheimServerGuide.Commands
             // Clear the quest-start log latch so a re-tested quest re-logs its start.
             QuestStartLogState.Clear(player, target);
 
+            // A reset quest should not stay hidden in the Codex list — the player would never
+            // see it fire again.
+            HiddenQuestState.Clear(player, target);
+
             if (singleCleared || isChain || hadSubmitProgress || hadGoalStarted || hadKillProgress || hadNodeProgress)
             {
                 args.Context.AddString($"vsg_reset: cleared '{target}'" + (isChain ? " (chain state)" : "") +
@@ -207,6 +231,39 @@ namespace ValheimServerGuide.Commands
             {
                 args.Context.AddString($"vsg_reset: '{target}' was not set (nothing to clear).");
             }
+        }
+
+        /// vsg_refresh — non-destructive repair for a Codex/tracker that rendered wrong
+        /// (blank quest rows, stale titles, missing entries after a server hot-reload).
+        /// Reads no state and writes none: it rebuilds the local UI from scratch and asks the
+        /// server to re-push the config and this character's server-side chain progress.
+        private static void Refresh(Terminal.ConsoleEventArgs args)
+        {
+            var player = Player.m_localPlayer;
+
+            // 1. Ask the server for a fresh config + chain state. Both arrive asynchronously;
+            //    OnReceive / OnChainStatePush repaint the UI again when they land.
+            var requested = false;
+            if (ZNet.instance != null && !ZNet.instance.IsServer())
+            {
+                GuidanceSync.RequestConfigResync();
+                requested = true;
+            }
+            if (player != null)
+                GuidanceSync.RequestChainState(player.GetPlayerName());
+
+            // 2. Rebuild the Codex UI from scratch (re-resolves the font, re-creates every row).
+            if (GuidanceCodex.Instance != null) GuidanceCodex.Instance.Rebuild();
+
+            // 3. Re-apply the tracker's YAML layout and repaint its rows.
+            GuidanceHudTracker.Instance?.ApplyLayout();
+            GuidanceHudTracker.Instance?.Refresh();
+
+            var entries = Plugin.CurrentConfig?.Guidances?.Count ?? 0;
+            args.Context.AddString($"vsg_refresh: rebuilt Codex + tracker ({entries} entries currently loaded).");
+            if (requested)
+                args.Context.AddString("vsg_refresh: requested a fresh config from the server — reopen the Codex in a moment if it still looks wrong.");
+            Plugin.Log.LogInfo($"[cmd] vsg_refresh: UI rebuilt (entries={entries}, resyncRequested={requested}).");
         }
 
         private static void Debug(Terminal.ConsoleEventArgs args)

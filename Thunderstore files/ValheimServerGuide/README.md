@@ -39,7 +39,7 @@ The mod works in **single-player and host & play** as well — the host acts as 
 - Opens a chest
 - And many more...
 
-**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Show on Tracker**) and follow their progress on a draggable on-screen panel (F10).
+**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Show on Tracker**) and follow their progress on a draggable on-screen panel (F10). The Codex list is paged, and finished guides can be hidden to keep it short.
 
 **NPC conversations** — Hold E near Haldor, Hildir, or BogWitch to open a dialogue panel. Give them choices. Fire quests. Grant rewards.
 
@@ -88,6 +88,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.11.0:_ the Guide Codex list is **paged** (`[<] Page 2 / 4 [>]`) instead of one long column, so it stays readable on a server with a hundred guides — and it no longer collapses its rows into blank gaps once the list outgrows the panel. Players can **hide** guides they are done with (`[ ] Hide from list`) and bring them back with `[ ] Show hidden`. New public `vsg_refresh` command rebuilds the Codex and re-pulls the server's config — no admin needed.
+
 _New in 0.10.0:_ panels now size themselves to your text — the NPC conversation panel grows to fit and scrolls instead of cutting long dialogue off, `message` at `position: Center` word-wraps, and no display mode truncates any more. Plus a new `highlight:` block that colours chosen words or phrases inside any text, so the hotkey, the cost or the warning survives a skim.
 
 _New in 0.9.1:_ `{playerName}` now expands everywhere author-written text is shown — the Guide Codex, the HUD tracker, NPC conversation headers and choice buttons, raven/intro topics, NPC hover text, and every reward message — instead of only in the message shown at the moment an entry fires.
@@ -118,5 +120,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.10.0
+**Version:** 0.11.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide
