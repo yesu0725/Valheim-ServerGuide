@@ -19,7 +19,10 @@ namespace ValheimServerGuide
     {
         public const string PluginGuid = "com.valheimserverguide";
         public const string PluginName = "ValheimServerGuide";
-        public const string PluginVersion = "0.11.1";
+        /// The version players see: BepInEx registers the plugin under it, the startup log line
+        /// reports it, and mod managers display it. Must match <Version> in the .csproj — the
+        /// VerifyPluginVersion build target fails the build if it does not.
+        public const string PluginVersion = "0.12.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }

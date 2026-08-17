@@ -18,6 +18,28 @@
 
 ---
 
+## Three version strings, one number
+
+A release has to bump **all three** of these, and only the second one is visible to players:
+
+| # | Where | What it sets |
+|---|---|---|
+| 1 | `<Version>` in `src/ValheimServerGuide.csproj` | the assembly version (`FileVersionInfo` / `AssemblyName`) |
+| 2 | `Plugin.PluginVersion` in `src/Plugin.cs` | the `[BepInPlugin]` version — **what BepInEx registers, the startup log prints, and mod managers display** |
+| 3 | `version_number` in `Thunderstore files/ValheimServerGuide/manifest.json` | the Thunderstore package version |
+
+0.12.0 was built, packaged and pushed with (1) and (3) bumped and (2) left at `0.11.1`, so the
+package would have installed as 0.12.0 and then announced itself as 0.11.1 in-game. Verifying the
+assembly version does not catch this — it is a different string.
+
+The **`VerifyPluginVersion`** target (`BeforeTargets="Build"`) now fails the build when (1) and (2)
+disagree, naming both values. The manifest is still a manual step.
+
+To read (2) out of a built DLL, search its bytes for the plugin GUID followed by a version —
+`com\.valheimserverguide.{0,40}?(\d+\.\d+\.\d+)` — since file metadata only carries (1).
+
+---
+
 ## Assembly References
 
 All `<Private>false</Private>` (not copied to output — loaded from game at runtime).
@@ -107,6 +129,9 @@ Targets are **conditional** — if the directory doesn't exist, the target silen
 
 ## Criteria
 
+- [ ] A release bumps all three version strings: csproj `<Version>`, `Plugin.PluginVersion`, and the Thunderstore `manifest.json`.
+- [ ] The build fails if `Plugin.PluginVersion` does not match `<Version>` (`VerifyPluginVersion`).
+- [ ] Release verification reads the **plugin** version out of every deployed DLL, not only the assembly version.
 - [ ] `YamlDotNet.dll` is NOT copied to any deploy target.
 - [ ] YamlDotNet `PackageReference` version must match the version bundled with the installed Jötunn.
 - [ ] All three deploy targets use `Condition="Exists(...)"` so they skip gracefully on machines where the target path doesn't exist.

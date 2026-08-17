@@ -112,6 +112,20 @@
     </Reference>
   </ItemGroup>
 
+  <!-- The version players actually see is the [BepInPlugin] one, i.e. the PluginVersion const in
+       Plugin.cs — that is what BepInEx registers, what the log line reports and what mod managers
+       display. <Version> above only stamps the assembly. The two are separate strings, so bumping
+       one and forgetting the other ships a package whose manifest and in-game version disagree.
+       This fails the build instead. -->
+  <Target Name="VerifyPluginVersion" BeforeTargets="Build">
+    <PropertyGroup>
+      <_PluginSource>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\Plugin.cs'))</_PluginSource>
+      <_ExpectedVersionConst>PluginVersion = "$(Version)"</_ExpectedVersionConst>
+    </PropertyGroup>
+    <Error Condition="!$(_PluginSource.Contains('$(_ExpectedVersionConst)'))"
+           Text="Plugin.cs does not declare [$(_ExpectedVersionConst)]. The &lt;Version&gt; property is $(Version), so set PluginVersion in Plugin.cs to match — otherwise the mod reports the old version in-game and in mod managers while the assembly and Thunderstore manifest say $(Version)." />
+  </Target>
+
   <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
        ValheimModding-YamlDotNet package that's a transitive dep of Jötunn. -->
   <Target Name="DeployToBepInEx" AfterTargets="Build" Condition="Exists('$(BepInExDir)')">
