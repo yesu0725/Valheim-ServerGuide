@@ -1,24 +1,26 @@
 # Changelog
 ## 0.12.0
 
-*The server-side quest progress change below is the big one, and it is new here rather than
-field-proven: it is built and code-reviewed, but it has not yet been through a live-server
-playtest. Read its note first, and back up your `PlayerProgress` folder and your world before
-rolling it out.*
+**Before you update:** quest progress moves out of player character files and into files your server
+owns. Existing progress migrates by itself the first time each character logs in, and nothing resets
+— but back up your world first, and back up the new
+`BepInEx/config/ValheimServerGuide/PlayerProgress/` folder once your players have logged in. Update
+the mod on your server **and** on your players; the first entry explains what happens if only one
+side is updated.
 
 ### Quest progress is saved on the server, not in the player's character file
 
-**This is a storage change to every quest's progress. Read the whole entry.**
+**This changes where every quest's progress is stored. Read the whole entry.**
 
-Progress used to live inside the player's character save (the `.fch` file on their own PC). That
-made it portable in the wrong direction:
+Progress used to live inside the player's own character save. That let it travel in the wrong
+direction:
 
 1. A player joins your server and starts a quest chain.
 2. They log off and play **single-player** with the same character.
 3. Every quest they finish offline is written into their character file.
 4. They rejoin your server — and the server sees those quests as already done.
 
-Quest progress now lives in a file the **server** owns, one per character:
+Progress now lives in a file your **server** owns, one per character:
 
 ```
 BepInEx/config/ValheimServerGuide/PlayerProgress/
@@ -26,11 +28,11 @@ BepInEx/config/ValheimServerGuide/PlayerProgress/
   Astrid_44019283746152.yml
 ```
 
-Single-player is its own server, so offline play now writes to the player's *own* local folder and
-can never reach yours. Nothing about writing guides changes — no YAML field, trigger, or command
-behaves differently.
+Single-player is its own server, so offline play writes to that player's own local folder and can
+never reach yours. Nothing about writing guides changes — no YAML field, trigger or command behaves
+differently.
 
-The files are readable and hand-editable while the character is offline:
+The files are plain text, and you can read or hand-edit them while the character is offline:
 
 ```yaml
 player_name: Ulf
@@ -43,141 +45,112 @@ progress:
   VSG.fired: eikthyr_lore,arrow_hint
 ```
 
-`character_id` is the real identity — the name in the filename is only there so the folder is
-readable, and a player who renames keeps their progress (the file is renamed to match).
+The name in the filename is only there to keep the folder readable — `character_id` is the identity,
+so a player who renames their character keeps their progress.
 
-**Existing progress is migrated automatically, once.** The first time a character logs in after
-this update, whatever quest progress is still in their character file is copied into their new
-server-side file and stamped `migrated_from_character_file: true`. Every later login reads the
-server file and ignores the character file. Nothing is lost and nothing resets — a player
-mid-chain stays mid-chain. Each player just needs to log in once.
+**Existing progress migrates automatically, once.** The first time a character logs in after this
+update, whatever progress is still in their character file is copied into their new server-side file.
+Every later login reads the server file. Nothing is lost and nothing resets — a player mid-chain
+stays mid-chain. Each player just needs to log in once.
 
-The old keys are **left in the character file untouched and never read again**. They are a
-read-only backup: if you ever lose a progress file, deleting it makes the next login re-seed from
-that backup. `vsg_debug` reports how many leftovers a character still carries.
+Their character file keeps its old progress untouched and unread from then on, as a backup: if you
+ever lose a progress file, deleting it makes that character's next login re-seed from the backup.
 
-**Back up the `PlayerProgress` folder.** These files *are* your players' quest progress, and they
-sit under `config/`, which some mod managers rewrite when they update a mod. The new
-`PlayerProgress / ProgressPath` setting moves the folder anywhere you like — an absolute path
-outside the config tree is the safe choice on a managed server.
+**Back up the `PlayerProgress` folder.** These files *are* your players' quest progress, and they sit
+under `config/`, which some mod managers rewrite when they update a mod. The new
+`PlayerProgress / ProgressPath` setting moves the folder anywhere you like — a path outside the
+config tree is the safe choice on a managed server.
 
-**Both sides need this version.** An updated player on an old server falls back to the old
-character-file storage after about 20 seconds and logs a warning, so their quest log still works,
-it just is not server-authoritative. An old player on an updated server keeps using their
-character file, and migrates correctly whenever they do update. Neither case loses progress.
+**Both sides need this version.** An updated player on an old server falls back to character-file
+storage after about 20 seconds, so their quest log still works, it just is not server-authoritative.
+An old player on an updated server keeps using their character file, and migrates whenever they do
+update. Neither case loses progress.
 
-Also fixed by the same work: chain progress used to be cached on the server only in memory and
-only for chains, so it was lost on every server restart. All progress now persists properly.
+Progress also survives a server restart now. Chain progress used to be kept only in the running
+server's memory, so a restart lost it.
 
-**Admins:** `vsg_debug` and `vsg_list_player` now lead with which storage is in use
-(`server-side`, `local file`, or `character file (legacy fallback)`), which is the first thing to
-check if a player reports a wrong quest state. `vsg_refresh` re-pulls the progress file too, and
-no longer discards changes made in the same moment.
+**Admins:** `vsg_debug` and `vsg_list_player` now open with the storage that character is using —
+`server-side`, `local file`, or `character file (legacy fallback)`. That is the first thing to check
+if someone reports a wrong quest state. `vsg_refresh` re-pulls the progress file too, and no longer
+discards a change made in the same moment.
 
 ### The Guide Codex is drawn in the game's own window
 
-The Codex used to be a stack of flat coloured rectangles. It is now the **player inventory window**:
-the same carved wood frame, the same darker interior boxes behind the guide list and the guide text,
-the same buttons with the same hover and press states, and the same font Valheim letters its own
-inventory with. Nothing is shipped to do it — the mod reads those sprites off the inventory window
-the running game already has in memory, so the Codex matches whatever your game looks like and the
-download does not grow by a byte.
+The Codex used to be a stack of flat coloured rectangles. It is now the **player inventory window** —
+the same carved wood frame, the same darker boxes behind the guide list and the guide text, the same
+buttons (hover and press included), and the same font the inventory uses. It is the game's own
+artwork, so the Codex matches your install and the download does not grow by a byte.
 
-Text sizes went up a step or two to suit that font (window title, guide title, body text and list
-rows), and the palette is now Valheim's own orange-on-parchment pairing.
+Its text is a size or two larger to suit that font, and its colours are Valheim's orange-on-parchment.
 
-Two related fixes came with it:
+- **Buttons are sized for their labels.** `Close`, both toggle pills and the footer toggle were small
+  boxes with the text crammed against the edge. They are taller now, padded inside, and their labels
+  are larger. The pin button reads `[ ] Pin to Tracker`, or `[x] Pinned to Tracker` once pinned.
+- **The window scales with your display.** It takes about 80% of your screen height at any resolution
+  and GUI scale, and re-fits itself if you change either. It used to come out oversized on most
+  displays.
+- **Upcoming Steps only appears when a guide has some.** For everything else — which is most quests —
+  the guide text gets that space instead.
 
-- **Buttons are sized for their text.** `Close`, both toggle pills and the footer toggle were small
-  boxes with the label crammed against the edge. They are taller now, with real padding inside, and
-  their labels are two points larger. The pin button reads `[ ] Pin to Tracker` — the old
-  "(click to pin)" hint is redundant now that the pills visibly behave as buttons.
-- **The panel is sized in interface units, not raw pixels.** It was fitted before Unity had applied
-  the game's GUI scale, so it came out roughly 20% too large on any resolution that is not the
-  reference one. It now takes about 80% of the screen height at every resolution and GUI scale, and
-  re-fits if you change either. It also keeps the inventory frame's exact proportions, so the carved
-  border is never stretched.
-
-**Upcoming Steps** is now hidden for a guide with no locked steps left — which is most quests — and
-the guide text gets that space instead.
-
-If the inventory art cannot be found for any reason, every panel falls back to the flat fills it
-used before: plainer, never broken.
-
-The F10 quest tracker is deliberately unchanged. It is a HUD overlay, not a window.
+The F10 quest tracker looks the same as before.
 
 ### The Guide Codex list scrolls instead of paging
 
 `[<] Page 2 / 4 [>]` is gone. The category pane is one continuous list you scroll with the wheel,
-which is what you expect a quest log to do — and it removes the awkward parts of paging: a category
-that straddled a page break printed its header twice, hiding a guide could shuffle everything onto
-different pages, and there was no way to see two categories at once if the split fell between them.
-A thin scrollbar appears on the right only when the list is longer than the pane, so it also tells
-you at a glance whether there is more below.
+which is what you expect a quest log to do. Paging had rough edges: a category that straddled a page
+break printed its heading twice, hiding a guide could shuffle everything onto different pages, and
+you could not see two categories at once if the split fell between them.
 
-The footer keeps `[ ] Show hidden (n)` and gets the space the arrows used to take.
+A thin scrollbar appears on the right only when the list is longer than the pane, so its presence
+tells you there is more below. The footer keeps `[ ] Show hidden (n)` and gains the space the arrows
+used to take.
 
 Two fixes came with it:
 
-- **The wheel no longer zooms the camera while the Codex is open.** Scrolling the list also pulled
-  the camera in and out, because Valheim only stops zooming for a fixed list of its own windows and
-  a mod's panel can never be on that list. The wheel is now hidden from the game entirely while the
-  Codex is up, which also stops the hotbar cycling underneath it.
-- **Scrolling works, and at a sensible speed.** The detail pane's guide text and the "Upcoming
-  Steps" section could not be scrolled by wheel at all — only dragged — and neither could the rune
-  reading. Where the wheel did work it moved a pixel or two per notch. Every scrolling area in the
-  mod now moves a fixed, readable distance per notch.
+- **The wheel no longer zooms the camera while the Codex is open.** Scrolling the list used to pull
+  the camera in and out at the same time. Your hotbar no longer cycles underneath it either.
+- **Scrolling works everywhere, at a sensible speed.** The guide text, the "Upcoming Steps" section
+  and the rune reading could not be wheel-scrolled at all — only dragged — and where the wheel did
+  work it crawled a pixel or two per notch. Every scrolling area now moves a readable distance per
+  notch.
 
 ### Nothing in the game's HUD covers a mod panel any more
 
 The stamina bar drew on top of the NPC dialogue panel, and the crosshair sat in the middle of every
-panel you opened. Valheim's own interface elements do not agree on a single stacking order, and the
-mod had been picking a number just above whichever one it last collided with, so each new panel
-brought a new collision. All of them — quest tracker, NPC dialogue, rune reading, Guide Codex, intro
-cinematic — now sit above the entire game interface, in a fixed order among themselves.
+panel you opened. The quest tracker, NPC dialogue, rune reading, Guide Codex and intro cinematic now
+all sit above the game's interface.
 
-The crosshair and the hover-name text are also hidden while a panel is open, rather than showing
-through it: you have a free mouse cursor at that point, so a centre-screen aiming reticle is only in
-the way. Both return the instant the panel closes.
+The crosshair and the hover-name text hide while a panel is open instead of showing through it — you
+have a free mouse cursor at that point, so a centre-screen reticle is only in the way. Both return
+the instant the panel closes.
 
-One thing to be aware of: these panels now also draw over the pause menu. The Codex already closes
-on ESC rather than opening the menu, so this shows up mainly if you open the menu with the tracker
-on screen.
+One thing to be aware of: these panels also draw over the pause menu. The Codex closes on ESC rather
+than opening the menu, so this shows up mainly if you open the menu with the tracker on screen.
 
 ### Text no longer gets cut off anywhere
 
-The rune reading wrapped its body at a width wider than the panel, so every line was clipped on
-**both** sides — sentences started and ended mid-word. The scroll area inside the panel set its
-anchors but not its offsets, and a rect created in code starts 100px wide, so the text was laid out
-100px wider than the window it was drawn through.
+Rune readings were clipped on **both** sides — sentences started and ended mid-word. That is fixed,
+along with the last places text was cut short rather than wrapped:
 
-The same pass removed the last places anything was truncated rather than wrapped:
+- **F10 tracker** — quest rows ended in `...`; they wrap onto extra lines now and the panel grows. Progress bars stay whole instead of breaking across a line.
+- **Tracker tooltip** — was capped at six lines; shows the whole description now.
+- **Codex list** — quest titles were cut short; they wrap onto a second line and the row grows to fit.
+- **Codex detail title** — a long title ran over the rule beneath it; the title area grows instead.
+- **Codex "Upcoming Steps"** — locked steps were cut at 40 characters; they show in full.
+- **Reward summary and top-left toasts** — long lines ran off the screen edge; they wrap.
 
-- **F10 tracker** — quest rows wrapped to `...`; they now wrap onto extra lines and the panel grows. Progress bars are kept whole rather than breaking across a line.
-- **Tracker tooltip** — was capped at six lines; now shows the whole description.
-- **Codex sidebar** — quest titles were ellipsised; they now wrap onto a second line and the row grows to fit.
-- **Codex detail title** — a long title overflowed onto the rule beneath it; the title band now grows and pushes everything below it down.
-- **Codex "Upcoming Steps"** — locked steps were cut at 40 characters; they now show in full.
-- **Reward summary and top-left toasts** — long lines ran off the screen edge; they wrap now.
+### Rune readings use the width you set
 
-### Rune readings use the width you wrote
-
-The first rune reading of a session ignored its `width:` and came out as a narrow column — often a
-third of the width asked for — with the body text stacked a few words per line. Every later reading
-in the same session was correct, which is what made it look random.
-
-The panel clamps `width:` against the screen so an oversized value cannot push text off both edges,
-and it was measuring the screen before its canvas had been laid out, where the answer is a
-placeholder 100 pixels. The clamp therefore collapsed to its 240-pixel floor and swallowed whatever
-the author asked for. Only the width was affected — the height clamp runs a moment later, which is
-why the panel came out narrow *and* full height.
+The first rune reading of each session ignored its `width:` and came out as a narrow column of text,
+often a third of the width you asked for, while every later reading in the same session was correct.
+Every reading uses your width now. If you raised `width:` to work around it, you can set it back to
+the value you actually want.
 
 ### Several quests advancing at once all get a line
 
-Valheim's centre message holds one string, so writing a second in the same frame replaced the first
-before it was drawn. Killing one Greyling with two Greyling quests active advanced both counters but
-only ever showed one of them. Everything the mod puts there is now collected per frame and shown as
-one message, one line per quest:
+Killing one Greyling with two Greyling quests active advanced both counters but only ever showed one
+of them. Everything the mod writes to the centre of your screen is now gathered up and shown as a
+single message, one line per quest:
 
 ```
 Thin the Wilds: 3/15
@@ -192,46 +165,44 @@ A quest completing at the same moment another advances no longer wipes out the o
 Collapsed  ──F10──▶  Expand Titles  ──F10──▶  Expand Full  ──F10──▶  Collapsed
 ```
 
-**Expand Full** prints each pinned quest's objective under its row, so objectives can be read
+**Expand Full** prints each pinned quest's objective under its row, so you can read objectives
 without opening the inventory to free the cursor and hover a row.
 
-The badge now says what the **next** press will do — `Show Quests (2) [F10]` → `Show Desc [F10]` →
+The badge says what the **next** press will do — `Show Quests (2) [F10]` → `Show Desc [F10]` →
 `Hide Quests [F10]` — so the key explains itself to a player who has never pressed it, and a second
-line notes that the panel can be dragged (with the inventory open). The badge also travels with the
-panel when dragged instead of being left at the screen corner, and either box can be grabbed.
+line notes that the panel can be dragged (with the inventory open). The badge now travels with the
+panel when you drag it instead of being left at the screen corner, and you can grab either box.
 
 **Guide authors:** the objective text comes from the step's `description:`, falling back to a new
-**entry-level `description:`**. Non-chain quests — kill counts, item submits, collection goals —
-have no step, so set the entry-level field or they show a title and a bar with no objective.
-`description:` written at entry level in earlier versions was silently discarded by the config
-loader; it now works.
+**entry-level `description:`**. Non-chain quests — kill counts, item submits, collection goals — have
+no step, so set the entry-level field or they show a title and a bar with no objective. An
+entry-level `description:` was ignored in earlier versions; it works now.
 
 ### NPC conversations open with Shift + E
 
 `[Hold E]` is gone. Holding E for half a second meant every ordinary trade had to wait out the hold
 timer before the store could open. **Shift + E** is decided instantly, so plain E opens the store
-with no delay. Either Shift key works, as does the key bound to Run (Shift by default), which is
-how a gamepad reaches conversations. Hover prompts now read `[Shift + E] Quest`; update any
-`hover_text:` in your own YAML that spells out the old binding.
+with no delay. Either Shift key works, as does the key bound to Run (Shift by default), which is how
+a gamepad reaches conversations. Hover prompts now read `[Shift + E] Quest`; update any `hover_text:`
+in your own YAML that spells out the old binding.
 
-### NPC and creature names are localized
+### NPC and creature names show properly
 
-Names taken from the game are localization tokens, not text. The multi-quest picker showed
-`$npc_haldor` as its header, and `{creatureName}` / `{itemName}` had been substituting raw tokens
-into every message and Discord post since they were added. All of them resolve properly now.
+The multi-quest picker used `$npc_haldor` as its heading instead of "Haldor", and `{creatureName}` /
+`{itemName}` had been printing raw names like that into messages and Discord posts ever since they
+were added. They all read properly now.
 
 ### `timed` entries with `scope: player` never fired on a dedicated server
 
-Player-scope timers are meant to run on each client so per-player gates apply independently, and the
-server deliberately skips them — but the client only learns the config over the network, and that
-path never started the timers. The entry was scheduled nowhere. It worked in single-player, which is
-why it went unnoticed. Also fixed in the same trigger:
+A player-scope timer runs on each player's own game so its gates apply per player — and on a
+dedicated server it was never started anywhere, so the entry simply never fired. It worked in
+single-player, which is why it went unnoticed. Also fixed:
 
-- An entry with no `trigger.id` fired on schedule with nothing listening. `id` is now optional and defaults to the entry's own id.
-- Every config push reset every countdown, so on a server whose YAML is edited often a long timer could never complete an interval. Unchanged timers now keep running.
-- `interval` accepted plain seconds only, and anything else was silently skipped. It now takes `30s`, `15m`, `2h`, `1d`, `daily`, `hourly` or plain seconds, and an unparseable value says so in the log.
+- An entry with no `trigger.id` fired on schedule with nothing listening. `id` is optional now and defaults to the entry's own id.
+- Every config change reset every countdown, so on a server whose YAML is edited often a long timer could never finish an interval. Unchanged timers keep running now.
+- `interval` only accepted plain seconds, and anything else was skipped without a word. It now takes `30s`, `15m`, `2h`, `1d`, `daily`, `hourly` or plain seconds, and says so in the log when it cannot read the value.
 
-**This fix has to be on the client to matter** — updating only the server changes nothing for
+**Your players need this version for it to matter** — updating only the server changes nothing for
 player-scope timers.
 
 ## 0.11.1
