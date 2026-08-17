@@ -7,7 +7,7 @@
 #   raven → first_login, player_death, biome, distance
 #           (discover_location is a planned raven trigger, not yet implemented)
 #   message → npc_interacted, equip, location_entered, and other NPC-driven tips
-#   conversation → npc_conversation (Hold E on a trader)
+#   conversation → npc_conversation (Shift + E on a trader)
 #
 # PREFAB NAMES THAT REQUIRE IN-GAME VERIFICATION BEFORE SHIPPING:
 #   guard_stone        - ProtectiveWards ward piece (vanilla ward prefab; verify mod does not rename it)

@@ -25,6 +25,8 @@ No custom assets. No custom UI skins. Just your words, delivered through Hugin, 
 
 The mod works in **single-player and host & play** as well — the host acts as the server.
 
+Your server also keeps each character's quest progress in `BepInEx/config/ValheimServerGuide/PlayerProgress/`, one file per character. **Include that folder in your backups** — it is your players' quest progress, not config you can regenerate.
+
 ---
 
 ## What you can create
@@ -39,9 +41,9 @@ The mod works in **single-player and host & play** as well — the host acts as 
 - Opens a chest
 - And many more...
 
-**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Show on Tracker**) and follow their progress on a draggable on-screen panel (F10). The Codex list is paged, and finished guides can be hidden to keep it short.
+**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Pin to Tracker**) and follow their progress on a draggable on-screen panel (F10). The Codex list scrolls, and finished guides can be hidden to keep it short.
 
-**NPC conversations** — Hold E near Haldor, Hildir, or BogWitch to open a dialogue panel. Give them choices. Fire quests. Grant rewards.
+**NPC conversations** — Shift + E on Haldor, Hildir, or BogWitch to open a dialogue panel. Give them choices. Fire quests. Grant rewards.
 
 **Item turn-ins** — Have players bring a specific item to a trader NPC to complete a quest step.
 
@@ -88,7 +90,13 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
-_New in 0.11.0:_ the Guide Codex list is **paged** (`[<] Page 2 / 4 [>]`) instead of one long column, so it stays readable on a server with a hundred guides — and it no longer collapses its rows into blank gaps once the list outgrows the panel. Players can **hide** guides they are done with (`[ ] Hide from list`) and bring them back with `[ ] Show hidden`. New public `vsg_refresh` command rebuilds the Codex and re-pulls the server's config — no admin needed.
+_New in 0.12.0:_ **quest progress is saved on the server**, in one readable file per character under `BepInEx/config/ValheimServerGuide/PlayerProgress/`. Previously it rode along inside each player's own character save, which meant quests finished in single-player showed up as already done when they rejoined your server. Existing progress migrates automatically the first time each character logs in — nothing resets. Back this folder up (or point `ProgressPath` outside `config/`): it *is* your players' quest progress.
+
+_New in 0.12.0:_ the **Guide Codex is drawn in the game's own window** — the player inventory's carved frame, interior boxes, buttons and font, read off the running game rather than shipped, so it matches your install and adds nothing to the download. Its text is a size or two larger to suit that font, its buttons are sized for their labels, and the panel now scales with your resolution and GUI scale instead of coming out oversized. Rune readings also honour the `width:` you wrote — the first one of each session used to come out as a narrow column.
+
+_New in 0.12.0:_ the **Guide Codex list scrolls** instead of paging — one continuous list with a scrollbar that appears only when there is more to see. The mouse wheel no longer zooms the camera while the Codex is open, every scrolling area in the mod moves a sensible distance per notch (the detail pane, "Upcoming Steps" and the rune reading could not be wheel-scrolled at all before), and **no game HUD element covers a mod panel any more** — the stamina bar used to draw over NPC dialogue, and the crosshair sat in the middle of every panel. The crosshair and hover text now hide while a panel is open and return when it closes.
+
+_New in 0.11.0:_ the Guide Codex list no longer collapses its rows into blank gaps once the list outgrows the panel. (This version fixed it by **paging** the list; the unreleased note above replaces that with scrolling.) Players can **hide** guides they are done with (`[ ] Hide from list`) and bring them back with `[ ] Show hidden`. New public `vsg_refresh` command rebuilds the Codex and re-pulls the server's config — no admin needed.
 
 _New in 0.10.0:_ panels now size themselves to your text — the NPC conversation panel grows to fit and scrolls instead of cutting long dialogue off, `message` at `position: Center` word-wraps, and no display mode truncates any more. Plus a new `highlight:` block that colours chosen words or phrases inside any text, so the hotkey, the cost or the warning survives a skim.
 
@@ -120,5 +128,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.11.1
+**Version:** 0.12.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

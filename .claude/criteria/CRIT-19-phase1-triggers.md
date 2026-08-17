@@ -87,8 +87,13 @@ Kills cannot be recounted from inventory, so they need a persistent accumulator 
 - `KillTrigger.Postfix` calls `KillCountTracker.CheckKillCount(creature, displayName)` after `Raise`.
 - `CheckKillCount` increments the counter for each matching, gate-passing `kill` count entry; on
   reaching `count` it clears the counter and fires the entry via `GuidanceDispatcher.FireEntry`;
-  otherwise it persists progress, shows a `MessageType.Center` `"<title>: <cur>/<goal>"` message,
-  and refreshes the HUD tracker.
+  otherwise it persists progress, queues a `"<title>: <cur>/<goal>"` centre line, and refreshes the
+  HUD tracker.
+- **One creature can advance several quests.** `CheckKillCount` loops every matching entry, so a
+  single Greyling credits both "Thin the Wilds" and "Thin the Pack". Progress lines therefore go
+  through `CenterToast.Queue` rather than `ShowMessage(Center, …)` — the vanilla centre slot keeps
+  only the last string written to it, so direct calls meant every quest but one silently lost its
+  feedback. See CRIT-03 → "The centre message holds one string".
 - HUD tracker shows an `X/Y` progress row for in-progress `kill` count entries that have a `title`
   (mirrors the `npc_item_submit` progress block).
 
@@ -164,6 +169,7 @@ case "ship_sailed":         return true;   // type-only
 
 - [x] `kill` with `count: N` fires only after N matching kills; `count` omitted/`<=1` fires on each kill.
 - [x] Kill-count progress persists across logout in `VSG.kc.<id>` and shows an `X/Y` Center message.
+- [ ] One kill that advances several kill-count quests shows one line per quest, not just one quest.
 - [x] Kill-count in-progress entries with a `title` show an `X/Y` row in the HUD tracker.
 - [x] `vsg_reset <id>` and `vsg_reset all` clear `VSG.kc.*`; same for `vsg_reset_player`.
 - [x] `ward_activated` fires when the local player toggles a ward (PrivateArea).

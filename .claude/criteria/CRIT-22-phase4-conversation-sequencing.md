@@ -97,7 +97,7 @@ public class NodeChoiceSpec
 `VSG.cn.<entry_id>` = current node id. Distinct from `ChainState`'s `VSG.cp./cd.` buckets — this
 tracks position in a dialogue tree, not chain-entry progression. Written on every node render
 (regardless of `resume_on_return`), so progress is never lost to a relog; `resume_on_return`
-only controls whether `Open()` reads it back on a fresh hold-E (`false`/absent = always restart
+only controls whether `Open()` reads it back on a fresh Shift+E (`false`/absent = always restart
 at `nodes[0]`). Cleared whenever the conversation ends (any terminal choice).
 
 ---
@@ -161,7 +161,7 @@ build-while-inactive rect.
 
 ## Criteria
 
-- [x] An entry with `conversation.nodes` opens at `nodes[0]` on first hold-E.
+- [x] An entry with `conversation.nodes` opens at `nodes[0]` on first Shift+E.
 - [x] A `goto_node` choice renders the target node's text/choices without closing the panel.
 - [x] A `goto_node` referencing a non-existent node id logs a warning and ends the conversation gracefully (no crash).
 - [x] A choice with neither `goto_node` nor `goto` ends the conversation when selected (marks fired, closes panel).

@@ -10,6 +10,60 @@ vanilla Unity/Valheim components. No custom assets.
 
 ---
 
+## Canvas layering — `src/Display/UiLayers.cs`
+
+Every VSG screen-space surface takes its `sortingOrder` from `UiLayers`, and every one of those
+constants sits at the top of Unity's range (32700–32760). Nothing picks a number "just above the
+vanilla thing it collided with".
+
+The reason: Valheim sets its UI sorting in **scene data, not code**, so there is no constant to
+read and no patch point. Its numbers are also not uniform — a tracker at `1000` outranked the
+inventory and crafting panels, yet the conversation panel at `200` was painted over by the
+health/stamina bars. Anything short of "top of the range" is a guess that holds until the next
+vanilla surface is found. The relative order among our own surfaces is the only part that carries
+meaning:
+
+| Constant | Order | Sits above |
+|---|---|---|
+| `UiLayers.Tracker` | 32700 | all vanilla UI |
+| `UiLayers.Conversation` | 32710 | the tracker |
+| `UiLayers.Rune` | 32720 | a conversation it was opened from |
+| `UiLayers.Codex` | 32730 | everything openable from the HUD |
+| `UiLayers.Intro` | 32760 | all of the above, by design (CRIT-07) |
+
+Two consequences:
+
+1. These panels also draw over the pause menu and the loading screen. Each surface closes or
+   hides itself in those situations (`IntroLockActive`, `Player.m_localPlayer == null`) rather than
+   relying on sorting to keep it out of the way.
+2. The vanilla **crosshair** is drawn dead-centre and shows through a translucent panel, so
+   `HudCrosshairModalPatch` deactivates it (and blanks `m_hoverName`) while any full-screen VSG
+   surface is up. No restore is needed — vanilla's `Hud.UpdateCrosshair` re-activates it as soon
+   as the patch stops firing.
+
+## Mouse wheel — `src/Display/WheelScroller.cs`
+
+`ScrollRect` moves its content by `scrollDelta * scrollSensitivity`, and Valheim drives the UI
+through `InputSystemUIInputModule`, which reports a notch as
+`raw / InputSystem.scrollWheelDeltaPerTick * scrollDeltaPerTick` — a fraction of a unit once the
+raw wheel value is normalised. A sensitivity of `24` therefore crawled a pixel or two per notch.
+
+Every VSG `ScrollRect` is instead handed to `WheelScroller.Attach(scroll, stepPixels)`, which:
+
+- zeroes `scrollSensitivity` and moves the content a **fixed** number of pixels per notch (default
+  180; the Codex guide list uses 200, the shorter "Upcoming Steps" section 90);
+- installs an invisible `raycastTarget` `Image` on the viewport if it has no `Graphic` — a wheel
+  event only reaches a scroll view when the pointer hits a `Graphic` *inside* it, and VSG body text
+  is mostly `raycastTarget = false`.
+
+Call it **after** `viewport` and `content` are assigned. Dragging is untouched (`IDragHandler`).
+
+While the Codex is open, `ZInputScrollCodexPatch` also makes `ZInput.GetMouseScrollWheel` return
+`0` so the wheel does not zoom the camera or cycle the hotbar underneath it. Unity's UI reads the
+wheel through the EventSystem, not `ZInput`, so panel scrolling is unaffected.
+
+---
+
 ## Mode: `raven`
 
 - Uses `Tutorial.instance.ShowText(id, true)` → Hugin (Raven) popup via `ShowRavenNow()`.
@@ -65,10 +119,9 @@ display:
 
 ## Mode: `message`
 
-- Uses `MessageHud.instance.ShowMessage(type, text)`.
 - `position` field controls `MessageHud.MessageType`:
-  - `"TopLeft"` (default) → `MessageType.TopLeft`
-  - `"Center"` → `MessageType.Center`
+  - `"TopLeft"` (default) → `MessageType.TopLeft`, straight to `MessageHud.ShowMessage`
+  - `"Center"` → queued through `CenterToast` (see below)
 - No ghost mode, no music, no input lock.
 
 **Config example:**
@@ -78,6 +131,30 @@ display:
   text: "You picked up a sword!"
   position: Center
 ```
+
+### The centre message holds one string — everything goes through `CenterToast`
+
+`MessageHud.ShowMessage` only *queues* the `TopLeft` type. `Center` overwrites
+`m_messageCenterText` and restarts its animation, so two calls in the same frame mean the first is
+never read. That is invisible until two quests share a target: killing one Greyling with both
+"Thin the Wilds" (`vc_daily_hunt_meadows`, 15) and "Thin the Pack" (`lw_rep_greyling`, 20) active
+advanced both counters but only ever showed one line.
+
+So **nothing calls `ShowMessage(Center, …)` directly**. Producers call `CenterToast.Queue(line)`
+and `Plugin.Update` calls `CenterToast.Flush()` once per frame, joining that frame's lines with
+`\n` into a single message:
+
+```
+Thin the Wilds: 3/15
+Thin the Pack: 7/20
+```
+
+Queued by: `kill` count progress (`KillCountTracker.ApplyIncrement`), `npc_item_submit` progress,
+`message` + `position: Center`, and the reward summary (`RewardNotification`). A completion and a
+progress line landing in the same frame therefore share one toast instead of clobbering each other.
+Identical lines collapse (a `share_progress` entry can be credited twice in a frame). `Flush` calls
+`EnsureCenterMessageWraps` first, so the multi-line string wraps instead of running off the edges
+(CRIT-25). The per-quest detail view is unchanged — F3 Codex and the F10 tracker.
 
 ---
 
@@ -102,12 +179,19 @@ display:
 ## Mode: `rune`
 
 - Rendered by the custom **`RunePanel`** (`src/Display/RunePanel.cs`) — a Valheim-themed
-  reading card on a dedicated `ScreenSpaceOverlay` canvas (`sortingOrder = 210`), not the
+  reading card on a dedicated `ScreenSpaceOverlay` canvas (`UiLayers.Rune`), not the
   vanilla `TextViewer`. Uses the game font (resolved the same way as the Codex / Conversation
   panels) plus `Image` color fills. No custom assets (CRIT-14).
 - **Layout:** a full-screen darkening backdrop behind a centered card. The card is a
   `VerticalLayoutGroup` + `ContentSizeFitter` that stacks **header → divider → body → list →
   footer**; its height grows to fit the content, its width is fixed (`rune.width`, default 620).
+- **`rune.width` is only ever clamped by the real screen** (240 … min(1200, screen − 40)). That
+  clamp reads the screen through `CanvasSize()`, which derives it from `Screen` and the canvas's
+  `scaleFactor` — **never** from the canvas RectTransform: `Open()` sizes the panel while the root
+  is still inactive, where that rect is still the default 100×100, and reading it there collapsed
+  the clamp to the 240 floor. The symptom was distinctive — the *first* reading of a session came
+  out as a narrow column (its height was fine, since the height clamp runs after activation) while
+  every later one was correct.
 - **Default content (no `rune:` block):** header = `display.topic`, body = `message:` / `display.text`,
   styled with themed defaults (gold header, parchment body on dark stone). The header + divider are
   hidden when there is no topic; the body is hidden when there is no text; the list is hidden when empty.
@@ -209,7 +293,7 @@ display:
 ## Mode: `conversation`
 
 - Opened by `NpcConversationPanel.Get().Open(entry, renderedText)`.
-- Panel is a dedicated `Canvas` (`ScreenSpaceOverlay`, `sortingOrder = 200`) kept inactive
+- Panel is a dedicated `Canvas` (`ScreenSpaceOverlay`, `UiLayers.Conversation`) kept inactive
   between conversations. Activated by `Open()`, deactivated by `Close()`.
 - **Position:** anchored at `(0.5, 0)` with pivot `(0.5, 0)`, 110 px above the bottom edge —
   the panel grows UPWARD from a fixed baseline as the text gets longer, so it can never slide
@@ -304,16 +388,27 @@ Released by calling `GuidanceDisplay.ReleaseGhostMode()`.
 - [x] `vsg_reset all` clears the raven queue and dungeon-deferred queue.
 - [x] `vsg_reset <id>` removes a specific entry from both queues and cancels it if currently active.
 - [ ] `message` respects `position: Center` vs `position: TopLeft`.
+- [ ] Every centre message goes through `CenterToast`; nothing calls `ShowMessage(Center, …)` directly.
+- [ ] Two quests advancing on the same action produce one centre message with a line per quest, not just the last one.
+- [ ] A completion message and a progress line in the same frame share one centre toast.
+- [ ] Duplicate lines in one frame collapse; queued lines are dropped on session teardown.
 - [ ] `chat` text must be visually distinct from white say and yellow shout (gold color by default).
 - [ ] `chat` must force the chat panel visible immediately (not rely on the player having the panel open).
 - [ ] `rune` engages ghost mode; releases ghost mode when the panel finishes closing.
 - [ ] `rune` renders header (topic) + body (message/text) with themed defaults when no `rune:` block is present.
 - [ ] `rune` honors `display.rune` overrides: header/body/item colors, font sizes, styles, alignment, bullet list, width, background.
+- [ ] `rune` renders at its authored `width:` on the **first** reading of a session, not only on later ones.
+- [ ] No panel reads a canvas/RectTransform rect for sizing while its root is still inactive.
 - [ ] `rune` is dismissed by Use (E) / Escape / backdrop click, fading out over `fade_out` seconds; auto-closes instantly (no fade) on intro start and session teardown.
 - [ ] `rune` fades in over `fade_in` seconds on open; re-opening mid fade-out crossfades from the current alpha instead of flashing.
 - [ ] `intro` engages ghost mode + input freeze + ESC block + music; all released when text is dismissed.
 - [ ] Ghost mode state before the display is restored exactly (if already ghost, stays ghost after release).
 - [ ] Unknown `mode` values log a warning and do nothing; they do not throw.
+- [ ] Every VSG canvas takes its `sortingOrder` from `UiLayers`; no surface hard-codes a number.
+- [ ] No vanilla HUD element (health/stamina/eitr bars, hotbar, crosshair, hover name) draws over any VSG panel.
+- [ ] The crosshair and hover name disappear while a full-screen VSG surface is open, and come back on close.
+- [ ] Every VSG `ScrollRect` goes through `WheelScroller.Attach` (after `viewport`/`content` are set) and moves a fixed distance per wheel notch.
+- [ ] The wheel scrolls a panel wherever the pointer sits inside its scroll view, including over gaps and non-raycast text.
 - [x] `conversation` panel sits above the bottom edge and grows upward as its text gets longer.
 - [x] `conversation` body text word-wraps within the panel width and is never truncated —
       it scrolls once the panel would exceed 82% of screen height (CRIT-25).

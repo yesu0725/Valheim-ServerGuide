@@ -29,8 +29,8 @@ directly and skip highlighting entirely.
 | Token | Replaced with | Available when |
 |---|---|---|
 | `{playerName}` / `{player_name}` | The local player's name (`Player.GetPlayerName()`) — both spellings are aliases for the same value | Always |
-| `{itemName}` | `evt.DisplayName` ?? `evt.Subject` | `craft`, `pickup`, `equip` triggers |
-| `{creatureName}` | `evt.DisplayName` ?? `evt.Subject` | `kill` trigger |
+| `{itemName}` | `evt.DisplayName` ?? `evt.Subject`, **localized** | `craft`, `pickup`, `equip` triggers |
+| `{creatureName}` | `evt.DisplayName` ?? `evt.Subject`, **localized** | `kill` trigger |
 | `{biome}` | The local player's current biome (`Player.GetCurrentBiome()`); falls back to `evt.Subject` if the player is unavailable | Always (biome is read live, not just on the `biome` trigger) |
 | `{skill}` | The skill name part of `"SkillName:level"` | `skill_level` trigger |
 | `{level}` | The level part of `"SkillName:level"` | `skill_level` trigger |
@@ -107,11 +107,14 @@ internal static string TemplateText(string template, TriggerEvent evt, string pl
     string Extra(string key) =>
         evt?.Extra != null && evt.Extra.TryGetValue(key, out var v) ? v?.ToString() ?? "" : "";
 
+    // Game-supplied names are localization TOKENS; resolve once, here.
+    var displayName = TriggerUtils.LocalizeName(evt?.DisplayName ?? evt?.Subject ?? "");
+
     var result = template
         .Replace("{playerName}", playerName ?? "")
         .Replace("{player_name}", playerName ?? "")
-        .Replace("{itemName}", evt?.DisplayName ?? evt?.Subject ?? "")
-        .Replace("{creatureName}", evt?.DisplayName ?? evt?.Subject ?? "")
+        .Replace("{itemName}", displayName)
+        .Replace("{creatureName}", displayName)
         .Replace("{biome}", string.IsNullOrEmpty(biomeName) ? (evt?.Subject ?? "") : biomeName)
         .Replace("{skill}", skillName)
         .Replace("{level}", levelStr)
@@ -136,6 +139,21 @@ internal static string TemplateText(string template, TriggerEvent evt, string pl
 ```
 
 Note: `{itemName}` and `{creatureName}` resolve to the same value (`DisplayName ?? Subject`). They are aliases — the correct one to use depends on the trigger type, but either works. `{step}`/`{total}` are only substituted when the caller passes non-negative values (chain step firing); everywhere else they pass through unexpanded.
+
+### Names are tokens until you localize them
+
+Every trigger fills `evt.DisplayName` straight from the game — `Character.m_name` is
+`$enemy_greyling`, `ItemDrop.m_shared.m_name` is `$item_wood`, `Trader.m_name` is `$npc_haldor`.
+Printed as-is they read as raw markup, which is how `$npc_haldor` ended up as the header of the
+multi-quest picker. `TriggerUtils.LocalizeName` resolves them, and `TemplateText` calls it at the
+one point where those names reach player-facing text — so a new trigger gets this for free just by
+setting `DisplayName`.
+
+Anything that shows a game-supplied name **outside** the template path must call it itself. Current
+callers: the picker header (`NpcConversationPanel.OpenSelection`) and the kill-progress line's
+title fallback (`KillCountTracker.ApplyIncrement`, used when an entry has no `title:`).
+`LocalizeName` only touches strings containing `$`, so authored text is never altered, and it
+falls back to the raw string when `Localization.instance` is not up (early load, dedicated server).
 
 ---
 

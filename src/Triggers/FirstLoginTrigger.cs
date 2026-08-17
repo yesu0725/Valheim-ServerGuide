@@ -16,8 +16,17 @@ namespace ValheimServerGuide.Triggers
         private static void Postfix(Player __instance)
         {
             if (__instance != Player.m_localPlayer) return;
-            if (SeenTracker.HasFired(__instance, GuardKey)) return;
-            SeenTracker.MarkFired(__instance, GuardKey);
+            RunIfNeeded(__instance);
+        }
+
+        /// Also called from PlayerProgress once a client's progress file arrives: on a pure
+        /// client the store is still in flight when OnSpawned runs, and setting the guard key
+        /// against an empty store would consume the one-shot without ever firing it.
+        internal static void RunIfNeeded(Player player)
+        {
+            if (player == null || !PlayerProgress.IsReady) return;
+            if (SeenTracker.HasFired(player, GuardKey)) return;
+            SeenTracker.MarkFired(player, GuardKey);
 
             GuidanceDispatcher.Raise(new TriggerEvent { Type = "first_login", Subject = "" });
         }

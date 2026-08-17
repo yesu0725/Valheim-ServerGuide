@@ -29,23 +29,45 @@ namespace ValheimServerGuide.Display
 
         // ASCII-only markers — Valheim's font lacks the ▸/▌ geometric glyphs (they render as □).
         private const string RowPrefix = "> ";
+        /// Gap between the bottom of the badge and the top of the panel, in pixels.
+        private const float BadgeGap = 6f;
+        /// Left indent (TMP margin) on a description line, so it reads as belonging to the row above.
+        private const float DescIndent = 14f;
+
+        /// How much of the tracker is on screen. F10 cycles forward through these and wraps.
+        public enum TrackerView
+        {
+            /// Badge only — the panel is down.
+            Collapsed = 0,
+            /// Badge + one row per pinned quest (title and progress bar).
+            Titles = 1,
+            /// Titles plus each quest's description underneath, so the objective is readable
+            /// without hovering a row with a freed cursor.
+            Full = 2,
+        }
 
         // ── Main tracker panel ────────────────────────────────────────────────────────────────
         private GameObject _panel;
         private RectTransform _panelRect;
         private TMP_Text _headerText;
         private readonly List<TMP_Text> _rowTexts = new List<TMP_Text>();
+        /// One per row in _rowTexts, built immediately after it so the layout group interleaves
+        /// them (row, description, row, description…). Only shown in TrackerView.Full.
+        private readonly List<TMP_Text> _rowDescTexts = new List<TMP_Text>();
         private TMP_Text _overflowText;
         private TMP_FontAsset _font;
         private int _builtMaxVisible;
 
-        // ── Hotkey toggle + badge ─────────────────────────────────────────────────────────────
+        // ── Hotkey cycle + badge ──────────────────────────────────────────────────────────────
         // The panel shows the set of quests the player has pinned from the Guide Codex
-        // (TrackedQuestState). It starts hidden each session; F10 toggles _userHidden, and pinning
-        // a quest in the Codex force-unhides it. The panel no longer captures input or the cursor.
-        private bool _userHidden = true;   // true = player has hidden the panel (default: hidden)
+        // (TrackedQuestState). It starts Collapsed each session; F10 cycles
+        // Collapsed → Titles → Full → Collapsed, and pinning a quest in the Codex opens it to at
+        // least Titles. The panel never captures input or the cursor.
+        private TrackerView _view = TrackerView.Collapsed;
         private GameObject _badgePanel;
         private TMP_Text _badgeText;
+        /// Second badge line: the drag-to-move hint.
+        private TMP_Text _badgeHintText;
 
         // ── Drag-to-move ──────────────────────────────────────────────────────────────────────
         // The panel can be dragged anywhere, but only while the cursor is free (inventory or the
@@ -90,7 +112,7 @@ namespace ValheimServerGuide.Display
             _uiRoot = new GameObject("VSG_TrackerRoot");
             var canvas = _uiRoot.AddComponent<Canvas>();
             canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 1000; // above InventoryGui/crafting, below nothing we care about
+            canvas.sortingOrder = UiLayers.Tracker;
 
             var srcScaler = Hud.instance != null
                 ? Hud.instance.GetComponentInParent<Canvas>()?.GetComponent<CanvasScaler>()
@@ -156,9 +178,20 @@ namespace ValheimServerGuide.Display
             _headerText = MakeText("GUIDES", style: FontStyles.Bold,
                 color: new Color(1f, 0.82f, 0.42f), rowHeight: 15f);
 
+            // Row and its description are created as a pair so the VerticalLayoutGroup renders
+            // them adjacent — the description belongs to the row directly above it.
             _rowTexts.Clear();
+            _rowDescTexts.Clear();
             for (var i = 0; i < _builtMaxVisible; i++)
+            {
                 _rowTexts.Add(MakeText("", style: FontStyles.Normal, color: Color.white, rowHeight: 14f));
+
+                var desc = MakeText("", style: FontStyles.Normal,
+                    color: new Color(0.74f, 0.72f, 0.66f), rowHeight: 12f);
+                desc.margin = new Vector4(DescIndent, 0f, 0f, 2f);
+                desc.gameObject.SetActive(false); // Titles view hides these
+                _rowDescTexts.Add(desc);
+            }
             _rowHighlightTimers = new float[_builtMaxVisible];
 
             _overflowText = MakeText("", style: FontStyles.Italic,
@@ -167,8 +200,10 @@ namespace ValheimServerGuide.Display
             ApplyLayout();
         }
 
-        /// Called from HudAwakePatch after BuildPanel. Creates the persistent corner hint badge
-        /// that shows the hotkey label and active quest count even when the main panel is hidden.
+        /// Called from HudAwakePatch after BuildPanel. Creates the always-visible badge that sits
+        /// directly above the panel: line 1 says what F10 will do next (and, while collapsed, how
+        /// many quests are pinned), line 2 is the drag-to-move hint. It is the widget's title bar
+        /// and its only affordance while the panel is collapsed.
         public void BuildBadge()
         {
             _badgePanel = new GameObject("VSG_TrackerBadge");
@@ -179,11 +214,15 @@ namespace ValheimServerGuide.Display
             bg.color = new Color(0f, 0f, 0f, 0.45f);
             bg.raycastTarget = false;
 
-            var layout = _badgePanel.AddComponent<HorizontalLayoutGroup>();
+            // Vertical, not horizontal: the badge carries two stacked lines — the label telling
+            // the player what F10 will do NEXT, and the drag-to-move hint beneath it.
+            var layout = _badgePanel.AddComponent<VerticalLayoutGroup>();
             layout.childControlWidth      = true;
             layout.childForceExpandWidth  = false;
             layout.childControlHeight     = true;
             layout.childForceExpandHeight = false;
+            layout.childAlignment         = TextAnchor.UpperLeft;
+            layout.spacing                = 1f;
             layout.padding = new RectOffset(6, 6, 3, 3);
 
             var fitter = _badgePanel.AddComponent<ContentSizeFitter>();
@@ -193,20 +232,36 @@ namespace ValheimServerGuide.Display
             // Start hidden — same null-font guard as the main panel.
             _badgePanel.SetActive(false);
 
-            var go = new GameObject("VSG_BadgeText");
+            _badgeText = MakeBadgeLine("VSG_BadgeText", "Show Quests [F10]", 10f,
+                new Color(0.85f, 0.85f, 0.85f, 1f), FontStyles.Normal);
+            _badgeHintText = MakeBadgeLine("VSG_BadgeHint", DragHintText, 9f,
+                new Color(0.62f, 0.60f, 0.56f, 1f), FontStyles.Italic);
+
+            ApplyBadgeLayout();
+        }
+
+        /// The hint under the badge label. Names the modifier that actually makes dragging
+        /// possible — the cursor is captured for mouse-look otherwise, so "just drag it" would
+        /// be advice the player cannot follow.
+        private const string DragHintText = "drag to move (with inventory open)";
+
+        private TMP_Text MakeBadgeLine(string name, string content, float size, Color color, FontStyles style)
+        {
+            var go = new GameObject(name);
             go.transform.SetParent(_badgePanel.transform, worldPositionStays: false);
             go.AddComponent<LayoutElement>();
 
-            _badgeText = go.AddComponent<TextMeshProUGUI>();
-            _badgeText.text               = "[F10] Quests";
-            _badgeText.fontStyle          = FontStyles.Normal;
-            _badgeText.color              = new Color(0.85f, 0.85f, 0.85f, 1f);
-            _badgeText.fontSize           = 10f;
-            _badgeText.alignment          = TextAlignmentOptions.Left;
-            _badgeText.enableWordWrapping = false;
-            _badgeText.raycastTarget      = false;
-
-            ApplyBadgeLayout();
+            var t = go.AddComponent<TextMeshProUGUI>();
+            if (_font != null) t.font = _font;
+            t.text               = content;
+            t.fontStyle          = style;
+            t.color              = color;
+            t.fontSize           = size;
+            t.alignment          = TextAlignmentOptions.Left;
+            t.enableWordWrapping = false;
+            t.overflowMode       = TextOverflowModes.Overflow;
+            t.raycastTarget      = false;
+            return t;
         }
 
         /// Builds the floating tooltip panel shown when hovering a chain row that has a description.
@@ -248,8 +303,9 @@ namespace ValheimServerGuide.Display
             _tooltipText.color              = new Color(0.9f, 0.88f, 0.82f);
             _tooltipText.alignment          = TextAlignmentOptions.TopLeft;
             _tooltipText.enableWordWrapping = true;
-            _tooltipText.maxVisibleLines    = 6;
-            _tooltipText.overflowMode       = TextOverflowModes.Truncate;
+            // No line cap and no truncation: the tooltip panel is content-sized on both axes, so
+            // a long step description grows the box instead of losing its tail (CRIT-25).
+            _tooltipText.overflowMode       = TextOverflowModes.Overflow;
             _tooltipText.raycastTarget      = false;
         }
 
@@ -285,8 +341,10 @@ namespace ValheimServerGuide.Display
         {
             if (_headerText != null) _headerText.font = font;
             foreach (var t in _rowTexts) if (t != null) t.font = font;
+            foreach (var t in _rowDescTexts) if (t != null) t.font = font;
             if (_overflowText != null) _overflowText.font = font;
             if (_badgeText != null) _badgeText.font = font;
+            if (_badgeHintText != null) _badgeHintText.font = font;
             if (_tooltipText != null) _tooltipText.font = font;
         }
 
@@ -296,6 +354,20 @@ namespace ValheimServerGuide.Display
         private static string Template(string text, GuidanceEntry entry, GuidanceStep step = null)
             => GuidanceDispatcher.RenderLocal(entry, text, step) ?? "";
 
+        /// The objective line for a row: the current step's `description:` when the entry is a
+        /// chain, else the entry-level one. Non-chain quests (kill counts, item submits) have no
+        /// step to carry it, so without the entry-level fallback they would show a title and a
+        /// bar and never say what the player is meant to do.
+        private static string RowDescription(GuidanceEntry entry, GuidanceStep step)
+        {
+            var text = step?.Description;
+            if (string.IsNullOrEmpty(text)) text = entry?.Description;
+            if (string.IsNullOrEmpty(text)) return null;
+            // Flattened to one logical line: the row wraps on its own, and a YAML block scalar's
+            // hard newlines would otherwise punch odd gaps into the panel.
+            return Template(text, entry, step).Replace("\r", " ").Replace("\n", " ").Trim();
+        }
+
         /// Fixed-width "ghost bar" progress indicator using TMP rich-text color tags so the
         /// bracket width never changes as the counter advances (plain space-padding looks
         /// uneven in a proportional font). Bright filled segments, dark-gray ghost segments.
@@ -304,9 +376,11 @@ namespace ValheimServerGuide.Display
             if (goal <= 0) return cur + "/" + goal;
             var width = Mathf.Clamp(goal, 1, 12);
             var filled = Mathf.Clamp(Mathf.RoundToInt((float)cur / goal * width), 0, width);
-            return "[<color=#FFE6A8>" + new string('=', filled) +
+            // <nobr> keeps the bar and its counter together: rows wrap now, and a line break in
+            // the middle of the bar would read as two broken half-bars.
+            return "<nobr>[<color=#FFE6A8>" + new string('=', filled) +
                    "</color><color=#555555>" + new string('=', width - filled) +
-                   "</color>] " + cur + "/" + goal;
+                   "</color>] " + cur + "/" + goal + "</nobr>";
         }
 
         private TMP_Text MakeText(string content, FontStyles style, Color color, float rowHeight)
@@ -315,6 +389,7 @@ namespace ValheimServerGuide.Display
             go.transform.SetParent(_panel.transform, worldPositionStays: false);
 
             var le = go.AddComponent<LayoutElement>();
+            le.minHeight       = rowHeight;
             le.preferredHeight = rowHeight;
             le.flexibleWidth   = 1f;
 
@@ -323,13 +398,45 @@ namespace ValheimServerGuide.Display
             t.text               = content;
             t.fontStyle          = style;
             t.color              = color;
-            t.alignment          = TextAlignmentOptions.Left;
-            t.enableWordWrapping = false;
-            // Clamp to the row width with a trailing ellipsis so long titles never spill
-            // off the right edge of the screen.
-            t.overflowMode       = TextOverflowModes.Ellipsis;
+            t.alignment          = TextAlignmentOptions.TopLeft;
+            // Long quest titles wrap onto as many lines as they need and the panel grows to fit
+            // (SizeRow measures each row). Ellipsis is banned here — no VSG surface truncates
+            // authored text (CRIT-25).
+            t.enableWordWrapping = true;
+            t.overflowMode       = TextOverflowModes.Overflow;
             t.raycastTarget      = false;
             return t;
+        }
+
+        /// Panel width available to a row: the configured width minus the layout group's
+        /// left + right padding. Rows wrap at this measure.
+        private static float RowInnerWidth() => Mathf.Max(40f, Mathf.Max(60f, EffectiveSpec().Width) - 16f);
+
+        /// Pin a row's LayoutElement to the height its text actually needs once wrapped at the
+        /// panel width. Rows word-wrap, so the fixed one-line height SetRow seeds would clip
+        /// every wrapped line after the first (a LayoutElement outranks TMP's own preferred
+        /// height, so the VerticalLayoutGroup would never grow the row on its own).
+        private static void SizeRow(TMP_Text t)
+        {
+            if (t == null) return;
+            var le = t.GetComponent<LayoutElement>();
+            if (le == null) return;
+
+            var oneLine = Mathf.Ceil(t.fontSize * 1.45f);
+            var height  = oneLine;
+            // Only measure a live label: TMP's metrics need the component to have awoken, which
+            // it has not while the panel is still being built. Refresh() re-measures every row it
+            // shows, so a row that skips the measurement here gets its real height before it is
+            // ever visible. Description rows carry a left margin, which eats into the width the
+            // text has to wrap in — measure against what is actually left.
+            if (!string.IsNullOrEmpty(t.text) && t.font != null && t.gameObject.activeInHierarchy)
+            {
+                var width = Mathf.Max(40f, RowInnerWidth() - t.margin.x - t.margin.z);
+                height = Mathf.Ceil(t.GetPreferredValues(t.text, width, 0f).y) + 2f;
+            }
+
+            le.minHeight       = Mathf.Max(oneLine, height);
+            le.preferredHeight = le.minHeight;
         }
 
         // ── Live layout ───────────────────────────────────────────────────────────────────────
@@ -356,35 +463,68 @@ namespace ValheimServerGuide.Display
             // row height. A ~1.45x line box leaves room for ascenders/descenders.
             if (_headerText != null)   SetRow(_headerText,   fs + 1f);
             foreach (var t in _rowTexts) if (t != null) SetRow(t, fs);
+            foreach (var t in _rowDescTexts) if (t != null) SetRow(t, Mathf.Max(6f, fs - 2f));
             if (_overflowText != null) SetRow(_overflowText, fs - 1f);
 
             ApplyBadgeLayout();
         }
 
         /// Apply a font size to a text row and resize its LayoutElement height to match, so the
-        /// glyphs are never clipped vertically by a stale fixed row height.
+        /// glyphs are never clipped vertically by a stale fixed row height. SizeRow then grows
+        /// the row further when the text wraps onto more than one line.
         private static void SetRow(TMP_Text t, float fontSize)
         {
             t.fontSize = fontSize;
             var le = t.GetComponent<LayoutElement>();
-            if (le != null) le.preferredHeight = Mathf.Ceil(fontSize * 1.45f);
+            if (le != null)
+            {
+                le.minHeight       = Mathf.Ceil(fontSize * 1.45f);
+                le.preferredHeight = le.minHeight;
+            }
+            SizeRow(t);
         }
 
         private void ApplyBadgeLayout()
         {
             if (_badgePanel == null) return;
+
+            var spec = EffectiveSpec();
+            if (_badgeText != null)
+                _badgeText.fontSize = Mathf.Max(6f, spec.FontSize - 1f);
+            if (_badgeHintText != null)
+                _badgeHintText.fontSize = Mathf.Max(5f, spec.FontSize - 4f);
+
+            PositionBadge();
+        }
+
+        /// Park the badge directly above the panel, whatever the panel's anchor or dragged
+        /// position is. The badge used to be anchored independently (same corner, OffsetY − 40),
+        /// which meant dragging the panel left it stranded at the corner — unacceptable now that
+        /// the badge is the widget's title bar and advertises "drag to move".
+        ///
+        /// It borrows the panel's anchor and pivot, so the maths is pivot-agnostic and the two
+        /// boxes stay edge-aligned (right edges for a right anchor, left for a left one).
+        private void PositionBadge()
+        {
+            if (_badgePanel == null || _panelRect == null) return;
             var badgeRect = _badgePanel.GetComponent<RectTransform>();
             if (badgeRect == null) return;
 
-            var spec = EffectiveSpec();
-            // Badge sits clearly above the main tracker panel: same anchor and OffsetX, but a
-            // smaller OffsetY (closer to the screen edge). The 40px gap is enough to clear the
-            // badge's own height plus margin so the two boxes never overlap.
-            var badgeOffsetY = Mathf.Max(0f, spec.OffsetY - 40f);
-            ApplyAnchor(badgeRect, spec.Anchor, spec.OffsetX, badgeOffsetY);
+            badgeRect.anchorMin = _panelRect.anchorMin;
+            badgeRect.anchorMax = _panelRect.anchorMax;
+            badgeRect.pivot     = _panelRect.pivot;
 
-            if (_badgeText != null)
-                _badgeText.fontSize = Mathf.Max(6f, spec.FontSize - 1f);
+            // A hidden panel keeps its last measured height; treat it as zero so the badge sits
+            // where the panel's top edge would be, instead of floating above empty space.
+            var panelH = _panel != null && _panel.activeSelf ? _panelRect.rect.height : 0f;
+            var badgeH = badgeRect.rect.height;
+            var pivotY = _panelRect.pivot.y;
+
+            // Panel top edge, then place the badge's bottom edge BadgeGap above it.
+            var panelTop = _panelRect.anchoredPosition.y + (1f - pivotY) * panelH;
+            badgeRect.anchoredPosition = new Vector2(
+                _panelRect.anchoredPosition.x,
+                panelTop + BadgeGap + pivotY * badgeH);
         }
 
         /// Resolve effective layout settings: YAML `tracker:` section wins; otherwise derive
@@ -430,14 +570,18 @@ namespace ValheimServerGuide.Display
             }
         }
 
-        /// Pin the panel to a player-chosen position. Uses a centre anchor/pivot so the stored
-        /// anchoredPosition is canvas-centre-relative (resolution-independent) and survives the
-        /// CanvasScaler the same way the drag math computes it.
+        /// Pin the panel to a player-chosen position. The ANCHOR is canvas-centre so the stored
+        /// position is resolution-independent (and survives the CanvasScaler) the same way the
+        /// drag math computes it; the PIVOT is the top edge so the panel grows downward from
+        /// where the player dropped it. A centre pivot would make it expand in both directions as
+        /// rows appear, dragging the badge above it up and down with every progress tick.
         private void ApplyCustomPos()
         {
             if (_panelRect == null) return;
-            _panelRect.anchorMin = _panelRect.anchorMax = _panelRect.pivot = new Vector2(0.5f, 0.5f);
+            _panelRect.anchorMin = _panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            _panelRect.pivot     = new Vector2(0.5f, 1f);
             _panelRect.anchoredPosition = _customPos;
+            PositionBadge();
         }
 
         // ── Tracked-quest pins (Guide Codex toggle) ───────────────────────────────────────────
@@ -450,7 +594,9 @@ namespace ValheimServerGuide.Display
             var player = Player.m_localPlayer;
             if (player == null || string.IsNullOrEmpty(entryId)) return;
             TrackedQuestState.SetTracked(player, entryId, tracked);
-            if (tracked) _userHidden = false; // turning a switch on unhides the panel
+            // Pinning opens the panel far enough to see the quest land. Already-open views are
+            // left alone — a player reading descriptions should not be dropped back to titles.
+            if (tracked && _view == TrackerView.Collapsed) _view = TrackerView.Titles;
             Refresh();
         }
 
@@ -465,7 +611,7 @@ namespace ValheimServerGuide.Display
 
         /// Rebuild the visible rows from the current config and player chain state.
         /// Only quests the player has pinned from the Guide Codex appear. Visibility is controlled
-        /// by the player (F10 toggles _userHidden); fromProgress only highlights changed rows.
+        /// by the player (F10 cycles _view); fromProgress only highlights changed rows.
         /// Safe to call at any time; exits early when the HUD is not ready.
         public void Refresh(bool fromProgress = false)
         {
@@ -567,7 +713,7 @@ namespace ValheimServerGuide.Display
                 }
 
                 rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + progress);
-                descs.Add(Template(step?.Description, entry, step));
+                descs.Add(RowDescription(entry, step));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -588,7 +734,7 @@ namespace ValheimServerGuide.Display
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
                 rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + ProgressBar(cur, goal));
-                descs.Add(null);
+                descs.Add(RowDescription(entry, null));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -610,7 +756,7 @@ namespace ValheimServerGuide.Display
                 if (cur <= 0 || cur >= goal) continue; // only while actively in progress
 
                 rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + ProgressBar(cur, goal));
-                descs.Add(null);
+                descs.Add(RowDescription(entry, null));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -655,7 +801,10 @@ namespace ValheimServerGuide.Display
                 }
 
                 rows.Add(RowPrefix + Template(entry.Title, entry) + "   " + progress);
-                descs.Add(ItemAcquiredTrigger.BuildGoalProgressText(player, goals));
+                // The per-item breakdown IS the objective here; fall back to the authored
+                // description only when there is nothing to break down.
+                descs.Add(ItemAcquiredTrigger.BuildGoalProgressText(player, goals)
+                          ?? RowDescription(entry, null));
                 rowChainIds.Add(entry.Id);
             }
 
@@ -670,10 +819,10 @@ namespace ValheimServerGuide.Display
                 _rowChainIds.Add(rowChainIds[i]);
             }
 
-            // Visibility is the player's call: F10 toggles _userHidden. While hidden, the panel
-            // stays down even though its pinned quests are still "in" it (the badge keeps showing
-            // the count so the player knows there's something to re-open).
-            if (_userHidden)
+            // Visibility is the player's call: F10 cycles Collapsed → Titles → Full. While
+            // collapsed the panel stays down even though its pinned quests are still "in" it (the
+            // badge keeps showing the count so the player knows there's something to re-open).
+            if (_view == TrackerView.Collapsed)
             {
                 _panel.SetActive(false);
                 HideTooltip();
@@ -695,6 +844,7 @@ namespace ValheimServerGuide.Display
                 }
                 for (var i = 1; i < _rowTexts.Count; i++)
                     _rowTexts[i].gameObject.SetActive(false);
+                foreach (var d in _rowDescTexts) if (d != null) d.gameObject.SetActive(false);
                 if (_overflowText != null) _overflowText.gameObject.SetActive(false);
             }
             else
@@ -721,6 +871,16 @@ namespace ValheimServerGuide.Display
                     else
                     {
                         _rowTexts[i].gameObject.SetActive(false);
+                    }
+
+                    // Description under the row — only in Full view, and only when the quest
+                    // actually has one. A row with no description simply has no second line.
+                    if (i < _rowDescTexts.Count && _rowDescTexts[i] != null)
+                    {
+                        var desc = _view == TrackerView.Full && i < visible && i < descs.Count
+                            ? descs[i] : null;
+                        _rowDescTexts[i].text = desc ?? "";
+                        _rowDescTexts[i].gameObject.SetActive(!string.IsNullOrEmpty(desc));
                     }
                 }
 
@@ -754,9 +914,19 @@ namespace ValheimServerGuide.Display
                 }
             }
 
+            // Re-measure every visible row against the panel width now that its final text is in
+            // place, so a wrapped title (or a description spanning three lines) gets the extra
+            // height it needs.
+            if (_headerText != null) SizeRow(_headerText);
+            foreach (var t in _rowTexts) if (t != null && t.gameObject.activeSelf) SizeRow(t);
+            foreach (var t in _rowDescTexts) if (t != null && t.gameObject.activeSelf) SizeRow(t);
+            if (_overflowText != null && _overflowText.gameObject.activeSelf) SizeRow(_overflowText);
+
             // Force an immediate layout pass so ContentSizeFitter recalculates the panel height
             // and TMP regenerates each row's geometry against its now-correct width.
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+            // The panel's height just changed, and the badge rides directly above it.
+            PositionBadge();
         }
 
         public void FlashCompletion(string chainId)
@@ -798,22 +968,45 @@ namespace ValheimServerGuide.Display
                 : Plugin.TrackerHotkey?.Value ?? "F10";
             if (string.IsNullOrEmpty(keyStr)) keyStr = "F10";
 
-            _badgeText.text = activeCount > 0
-                ? "[" + keyStr + "] Quests (" + activeCount + ")"
-                : "[" + keyStr + "] Quests";
+            // The badge advertises what the key does NEXT, not what is on screen now — a player
+            // who has never pressed F10 can read "Show Quests [F10]" and know both that the key
+            // does something and what it will do. The pinned count rides along only while the
+            // panel is down, where it is the one thing the badge cannot otherwise convey.
+            switch (_view)
+            {
+                case TrackerView.Collapsed:
+                    _badgeText.text = activeCount > 0
+                        ? "Show Quests (" + activeCount + ") [" + keyStr + "]"
+                        : "Show Quests [" + keyStr + "]";
+                    break;
+                case TrackerView.Titles:
+                    _badgeText.text = "Show Desc [" + keyStr + "]";
+                    break;
+                default: // Full — next press closes it
+                    _badgeText.text = "Hide Quests [" + keyStr + "]";
+                    break;
+            }
 
             _badgePanel.SetActive(true);
+            LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_badgePanel.transform);
+            PositionBadge();
         }
 
         // ── Hotkey toggle ─────────────────────────────────────────────────────────────────────
 
-        /// F10 handler: flip the player's hidden/shown preference. The panel no longer captures
-        /// the cursor or freezes the player — it just shows or hides over normal gameplay.
-        private void ToggleManual()
+        /// F10 handler: advance to the next view and wrap — Collapsed → Titles → Full →
+        /// Collapsed. Cycling (rather than a two-state toggle) is what lets the player read
+        /// objectives without freeing the cursor to hover a row. The panel still never captures
+        /// the cursor or freezes the player; it just shows more or less over normal gameplay.
+        private void CycleView()
         {
-            _userHidden = !_userHidden;
-            if (_userHidden)
-                HideTooltip();
+            _view = _view == TrackerView.Collapsed ? TrackerView.Titles
+                  : _view == TrackerView.Titles    ? TrackerView.Full
+                  : TrackerView.Collapsed;
+
+            // Full view prints every description inline, so the hover tooltip would only repeat
+            // what is already on screen; collapsed has nothing to hover.
+            if (_view != TrackerView.Titles) HideTooltip();
             Refresh();
         }
 
@@ -858,13 +1051,16 @@ namespace ValheimServerGuide.Display
         /// free) to move it; the position is persisted on release.
         private void UpdateDrag()
         {
-            if (_panel == null || !_panel.activeSelf) { _dragging = false; return; }
+            // Either box is a drag handle. The badge matters most: while collapsed it is the only
+            // thing on screen, and it is where the "drag to move" hint is written.
+            var panelUp = _panel != null && _panel.activeSelf;
+            var badgeUp = _badgePanel != null && _badgePanel.activeSelf;
+            if (!panelUp && !badgeUp) { _dragging = false; return; }
 
             if (!_dragging)
             {
                 if (!CursorFreeForDrag()) return;
-                if (Input.GetMouseButtonDown(0) && _panelRect != null &&
-                    RectTransformUtility.RectangleContainsScreenPoint(_panelRect, Input.mousePosition, null))
+                if (Input.GetMouseButtonDown(0) && _panelRect != null && DragHandleHit())
                 {
                     _dragging       = true;
                     _dragMouseStart = Input.mousePosition;
@@ -897,15 +1093,32 @@ namespace ValheimServerGuide.Display
             }
         }
 
-        /// Convert the panel's current corner-anchored rect into a centre-anchored anchoredPosition
-        /// so dragging starts exactly where the panel is currently drawn (no visual jump).
+        /// True when the cursor is over either drag handle — the panel or the badge above it.
+        private bool DragHandleHit()
+        {
+            var mouse = Input.mousePosition;
+            if (_panel != null && _panel.activeSelf && _panelRect != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(_panelRect, mouse, null))
+                return true;
+            if (_badgePanel != null && _badgePanel.activeSelf &&
+                RectTransformUtility.RectangleContainsScreenPoint(
+                    (RectTransform)_badgePanel.transform, mouse, null))
+                return true;
+            return false;
+        }
+
+        /// Convert the panel's current corner-anchored rect into the centre-anchored
+        /// anchoredPosition ApplyCustomPos expects, so dragging starts exactly where the panel is
+        /// currently drawn (no visual jump). Takes the TOP-centre point, matching the custom
+        /// pivot (0.5, 1).
         private Vector2 CornerPosToCenter()
         {
             if (_panelRect == null || _uiRoot == null) return Vector2.zero;
             var rootRect = (RectTransform)_uiRoot.transform;
-            var center   = _panelRect.TransformPoint(_panelRect.rect.center);
+            var r        = _panelRect.rect;
+            var topCentre = _panelRect.TransformPoint(new Vector3(r.center.x, r.yMax, 0f));
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rootRect, RectTransformUtility.WorldToScreenPoint(null, center), null, out var local);
+                rootRect, RectTransformUtility.WorldToScreenPoint(null, topCentre), null, out var local);
             return local;
         }
 
@@ -962,7 +1175,10 @@ namespace ValheimServerGuide.Display
         {
             if (_tooltipPanel == null) return;
 
-            bool panelOpen = _panel != null && _panel.activeSelf && !GuidanceDisplay.IntroLockActive;
+            // Titles view only: in Full the description is already printed under every row, so a
+            // tooltip would just repeat it on top of the panel.
+            bool panelOpen = _panel != null && _panel.activeSelf
+                             && _view == TrackerView.Titles && !GuidanceDisplay.IntroLockActive;
             if (!panelOpen)
             {
                 HideTooltip();
@@ -1017,7 +1233,7 @@ namespace ValheimServerGuide.Display
             // Hotkey toggle — fires only on the initial KeyDown frame, no repeat.
             var hotkey = ResolveHotkey();
             if (hotkey != KeyCode.None && Input.GetKeyDown(hotkey))
-                ToggleManual();
+                CycleView();
 
             // Drag-to-move (only while the cursor is free — inventory or ESC menu open).
             UpdateDrag();
@@ -1101,9 +1317,10 @@ namespace ValheimServerGuide.Display
         }
     }
 
-    /// Refreshes the tracker after the local player object is fully initialised and
-    /// m_customData is populated from the save. This ensures in-progress chains that
-    /// survived a session reload appear immediately on login without requiring any action.
+    /// Refreshes the tracker after the local player object is fully initialised. On a host this
+    /// already sees the loaded progress store; on a client the store arrives moments later and
+    /// PlayerProgress repaints again. Either way in-progress chains that survived a session
+    /// reload appear on login without requiring any action.
     [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
     internal static class PlayerOnSpawnedTrackerPatch
     {

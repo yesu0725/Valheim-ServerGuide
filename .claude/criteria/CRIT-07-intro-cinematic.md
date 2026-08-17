@@ -67,7 +67,7 @@ Built once and reused. Never activates the vanilla loading screen.
 GameObject "VSG_IntroOverlay"  (DontDestroyOnLoad)
   └─ Canvas
        renderMode: ScreenSpaceOverlay
-       sortingOrder: 32760          (above all vanilla UI)
+       sortingOrder: UiLayers.Intro (32760 — above all vanilla UI)
   └─ "Black" panel
        RectTransform: anchors (0,0)→(1,1), offsets (0,0)
        Image: color=black, raycastTarget=false
@@ -168,7 +168,7 @@ is never a window where the player is free while the intro is still shown.
 ## Criteria
 
 - [ ] No vanilla loading screen (Hud.m_loadingScreen) is activated during intro.
-- [ ] The custom black overlay sits above ALL other vanilla UI (sortingOrder 32760).
+- [ ] The custom black overlay sits above ALL other vanilla UI (`UiLayers.Intro`).
 - [ ] Fade uses `Time.unscaledDeltaTime` so it works correctly even when the game is paused or slow.
 - [ ] `IntroLockActive = true` and ghost mode are set before anything renders — the player is frozen and hidden from AI from the very first frame of the cinematic (both fade and no-fade paths).
 - [ ] `CharacterDamageIntroPatch` suppresses ALL damage to the local player while `IntroLockActive` is true — the player cannot be harmed during the intro (ghost mode alone does not achieve this).

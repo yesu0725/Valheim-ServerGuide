@@ -15,7 +15,7 @@ See [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATURE_ROADMAP.md) Phase 3.
 1. `NpcConversationTrigger.FindAllEntries(npcSubject, player)` (new) collects every
    `npc_conversation` entry for that NPC whose gates currently pass (same checks as the existing
    single-entry `FindEntry`, just not stopping at the first match).
-2. `NpcConversationHoldDetector.Update()`'s held-threshold branch now calls `FindAllEntries`
+2. The Interact prefix's conversation branch (`NpcConversationTrigger.OpenConversation`) calls `FindAllEntries`
    instead of `FindEntry`:
    - **0 entries** — unchanged: falls back to opening the vanilla store.
    - **1 entry** — unchanged: opens that entry's conversation directly via `GuidanceDisplay.Show`.
@@ -48,7 +48,7 @@ button label. No schema change — this was already nullable.
 
 | File | Change |
 |---|---|
-| `src/Triggers/NpcConversationTrigger.cs` | Add `FindAllEntries`; held-threshold branch in `NpcConversationHoldDetector.Update()` branches on count (0 / 1 / 2+) |
+| `src/Triggers/NpcConversationTrigger.cs` | Add `FindAllEntries`; `OpenConversation` branches on count (1 / 2+) — the 0 case never reaches it, the prefix falls through to the vanilla store |
 | `src/Display/NpcConversationPanel.cs` | Add `OpenSelection(npcDisplayName, entries, npcSubject)`, `AddSelectionButton`, `OnEntrySelected`; `AddChoiceButton` takes an optional `onClick` override so selection rows can bypass the normal `ChoiceSpec.Goto` path |
 | `.claude/criteria/CRIT-17-npc-conversation.md` | Cross-reference this file from the overview |
 

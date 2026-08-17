@@ -72,7 +72,7 @@ guidances:
       mode: conversation
       topic: "Haldor"
     hover_text:
-      default: "[Hold E] Speak of the Fallen Lords"
+      default: "[Shift + E] Speak of the Fallen Lords"
     conversation:
       resume_on_return: true
       nodes:
@@ -129,7 +129,7 @@ guidances:
       mode: conversation
       topic: "Hildir"
     hover_text:
-      default: "[Hold E] Speak of the Fallen Lords"
+      default: "[Shift + E] Speak of the Fallen Lords"
     conversation:
       resume_on_return: true
       nodes:
@@ -212,7 +212,7 @@ guidances:
       mode: conversation
       topic: "The Bog Witch"
     hover_text:
-      default: "[Hold E] Speak of the Fallen Lords"
+      default: "[Shift + E] Speak of the Fallen Lords"
     conversation:
       resume_on_return: true
       nodes:

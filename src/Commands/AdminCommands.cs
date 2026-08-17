@@ -241,8 +241,8 @@ namespace ValheimServerGuide.Commands
         {
             var player = Player.m_localPlayer;
 
-            // 1. Ask the server for a fresh config + chain state. Both arrive asynchronously;
-            //    OnReceive / OnChainStatePush repaint the UI again when they land.
+            // 1. Ask the server for a fresh config + this character's progress file. Both arrive
+            //    asynchronously; OnReceive / OnProgressPush repaint the UI again when they land.
             var requested = false;
             if (ZNet.instance != null && !ZNet.instance.IsServer())
             {
@@ -250,7 +250,7 @@ namespace ValheimServerGuide.Commands
                 requested = true;
             }
             if (player != null)
-                GuidanceSync.RequestChainState(player.GetPlayerName());
+                GuidanceSync.RequestProgressResync();
 
             // 2. Rebuild the Codex UI from scratch (re-resolves the font, re-creates every row).
             if (GuidanceCodex.Instance != null) GuidanceCodex.Instance.Rebuild();
@@ -293,13 +293,20 @@ namespace ValheimServerGuide.Commands
             if (eligible.Count == 0) args.Context.AddString("  (none)");
             else foreach (var id in eligible) args.Context.AddString($"  - {id}");
 
-            // 2. All VSG.* keys in m_customData.
-            args.Context.AddString("-- VSG.* custom-data keys --");
-            var vsgKeys = player.m_customData.Keys
+            // 2. All VSG.* keys in the progress store.
+            args.Context.AddString($"-- VSG.* progress keys (storage: {PlayerProgress.DescribeMode()}) --");
+            var vsgKeys = PlayerProgress.AllKeys(player)
                 .Where(k => k.StartsWith("VSG.", System.StringComparison.Ordinal))
                 .OrderBy(k => k).ToList();
             if (vsgKeys.Count == 0) args.Context.AddString("  (none)");
-            else foreach (var k in vsgKeys) args.Context.AddString($"  - {k} = {player.m_customData[k]}");
+            else foreach (var k in vsgKeys) args.Context.AddString($"  - {k} = {PlayerProgress.Get(player, k)}");
+
+            // 2b. Anything still left behind in the character save — pre-migration leftovers.
+            // Kept as a read-only backup; the mod no longer reads it.
+            var legacyKeys = PlayerProgress.CollectLegacyProgress(player);
+            if (legacyKeys.Count > 0)
+                args.Context.AddString($"-- character-file leftovers: {legacyKeys.Count} key(s) " +
+                                       "(already migrated; unused backup) --");
 
             // 3. Last 10 fired entry ids with timestamps (session-only log).
             args.Context.AddString("-- Last fired (this session) --");

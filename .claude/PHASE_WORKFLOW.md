@@ -28,10 +28,11 @@ After a clean build, post a concise summary:
 
 ## Step 3 — Test Instructions + Write Test guidance.yaml
 
-Write the test YAML **directly** to the r2modman test profile config file:
+Write the test YAML **directly** to the test client's config file. The test client is the Gale
+profile "HB Test" (the same profile `dotnet build` deploys the DLL to):
 
 ```
-C:\Users\yesu0725\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Mod Test Profile\BepInEx\config\ValheimServerGuide\guidance.yaml
+C:\Users\yesu0725\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test\BepInEx\config\ValheimServerGuide\guidance.yaml
 ```
 
 - Read the existing file first, then overwrite it with the full merged content (preserve any existing entries that are still relevant; replace or append the new test entries).

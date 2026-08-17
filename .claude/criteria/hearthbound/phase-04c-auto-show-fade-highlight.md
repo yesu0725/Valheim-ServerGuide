@@ -182,7 +182,7 @@ a sub-canvas with `overrideSorting` sorts **globally** by its own order, ignorin
 order. Sorting order 50 placed the panel below most other UI.
 
 Final fix: all tracker UI (panel, badge, click-overlay) parents to a dedicated **root canvas**
-(`VSG_TrackerRoot`, `sortingOrder = 1000`). The badge was always visible because it had no
+(`VSG_TrackerRoot`, `UiLayers.Tracker`). The badge was always visible because it had no
 nested canvas — the panel was hidden because it did. Removing the nested canvas from the panel
 lets it draw at its root's order (1000) and appear above the crafting UI.
 `OnDestroy` tears down the root canvas since it is a scene-root object (no parent) and is not

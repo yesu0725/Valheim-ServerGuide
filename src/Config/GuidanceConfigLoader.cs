@@ -72,7 +72,7 @@ namespace ValheimServerGuide.Config
         private IEnumerable<string> EnumerateYamlFiles()
         {
             return Directory.EnumerateFiles(_dir, "*", SearchOption.AllDirectories)
-                .Where(IsYamlPath)
+                .Where(p => IsYamlPath(p) && !IsProgressPath(p))
                 // Deterministic, case-insensitive order so duplicate-id resolution and
                 // tracker-section precedence don't depend on filesystem enumeration order.
                 // Order by the path relative to _dir so subfolder files sort predictably
@@ -96,12 +96,22 @@ namespace ValheimServerGuide.Config
                 || ext.Equals(".yml", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// The PlayerProgress subfolder holds per-character save data in the same YAML dialect
+        /// as guidance files, so it sits inside the watched tree but must never be merged as
+        /// config (and must not trigger a reload on every progress save). See CRIT-12.
+        private static bool IsProgressPath(string path)
+        {
+            var sep = Path.DirectorySeparatorChar;
+            return path.IndexOf(sep + State.PlayerProgressStore.FolderName + sep,
+                       StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         // Runs on a background ThreadPool thread — do NOT touch Unity here.
         private void OnFsEvent(object sender, FileSystemEventArgs e)
         {
-            bool relevant = IsYamlPath(e.FullPath);
+            bool relevant = IsYamlPath(e.FullPath) && !IsProgressPath(e.FullPath);
             if (!relevant && e is RenamedEventArgs r)
-                relevant = IsYamlPath(r.OldFullPath); // a yaml renamed to something else
+                relevant = IsYamlPath(r.OldFullPath) && !IsProgressPath(r.OldFullPath); // a yaml renamed to something else
             if (!relevant) return;
 
             _lastEvent = DateTime.UtcNow;

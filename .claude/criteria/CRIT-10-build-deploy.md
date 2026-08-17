@@ -51,7 +51,7 @@ All `<Private>false</Private>` (not copied to output — loaded from game at run
 
 ### Why YamlDotNet.dll is NOT deployed
 
-Jötunn pulls in `ValheimModding-YamlDotNet` as a transitive dependency, which installs `YamlDotNet.dll` into both r2modman profiles and dedicated server plugin folders. Deploying our own copy would cause version conflicts or duplicate-load issues.
+Jötunn pulls in `ValheimModding-YamlDotNet` as a transitive dependency, which installs `YamlDotNet.dll` into both mod-manager profiles and dedicated server plugin folders. Deploying our own copy would cause version conflicts or duplicate-load issues.
 
 The version **must** match Jötunn's bundled version (currently `16.3.0`). If Jötunn updates its bundled version, update `PackageReference` to match.
 
@@ -76,17 +76,23 @@ Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\V
 Override: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim"
 ```
 
-### 2. DeployToR2Modman
+### 2. DeployToTestProfile — the test client
 ```
-Condition: Exists('$(R2MODMAN_PROFILE_DIR)')
-Default: C:\Users\<user>\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Mod Test Profile\BepInEx\plugins\ValheimServerGuide
-Override: dotnet build -p:R2MODMAN_PROFILE_DIR="..."
+Condition: Exists('$(TEST_PROFILE_DIR)')
+Default: C:\Users\<user>\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test
+Installs to: $(TEST_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide
+Override: dotnet build -p:TEST_PROFILE_DIR="..."
 ```
+The test client is the **Gale** profile "HB Test" (it replaced the old r2modman
+`Hearthbound Valheim - Test` profile; that path is no longer written to). The DLL lands in the
+mod's own `TaegukGaming-ValheimServerGuide` subfolder, overwriting the Thunderstore-installed
+copy — not loose in `plugins/`, where BepInEx's recursive scan would see two copies of the same
+GUID and skip one.
 
 ### 3. DeployToDedicatedServer
 ```
 Condition: Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')
-Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server\BepInEx\plugins\ValheimServerGuide
+Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server\BepInEx\plugins\TaegukGaming-ValheimServerGuide
 Override: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..."
 ```
 

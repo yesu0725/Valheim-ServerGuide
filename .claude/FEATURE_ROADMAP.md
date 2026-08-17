@@ -266,7 +266,7 @@ Extends `AdminCommands.cs`. Dumps for a named player:
 - Last 10 fired entry IDs with timestamps
 
 ### 4. NPC Hover Text Override
-Per-entry `hover_text:` field replaces the vanilla "Hold E to interact" string, keyed by state.
+Per-entry `hover_text:` field replaces the default `[Shift + E] Quest` hint, keyed by state.
 
 ```yaml
 hover_text:

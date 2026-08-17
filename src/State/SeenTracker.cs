@@ -1,10 +1,9 @@
 using System.Collections.Generic;
-using System.Linq;
 
 namespace ValheimServerGuide.State
 {
     /// Fire-state tracking.
-    ///   player scope -> per-character via Player.m_customData (rides with character save)
+    ///   player scope -> per-character via PlayerProgress (server-owned progress file)
     ///   global scope -> per-world via ZoneSystem global keys (rides with world save,
     ///                   auto-replicates to clients via vanilla RPC_GlobalKeys)
     public static class SeenTracker
@@ -51,7 +50,7 @@ namespace ValheimServerGuide.State
             var set = GetSet(player);
             if (set.Add(id))
             {
-                player.m_customData[Key] = string.Join(",", set);
+                PlayerProgress.Set(player, Key, string.Join(",", set));
             }
         }
 
@@ -93,8 +92,8 @@ namespace ValheimServerGuide.State
             CooldownExpiry.Remove(id);
             var set = GetSet(player);
             if (!set.Remove(id)) return hadCount;
-            if (set.Count == 0) player.m_customData.Remove(Key);
-            else player.m_customData[Key] = string.Join(",", set);
+            if (set.Count == 0) PlayerProgress.Remove(player, Key);
+            else PlayerProgress.Set(player, Key, string.Join(",", set));
             return true;
         }
 
@@ -102,8 +101,8 @@ namespace ValheimServerGuide.State
         /// existed. vsg_reset must call this or a capped max_fires entry can never fire again.
         public static bool ClearFireCount(Player player, string id)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(id)) return false;
-            return player.m_customData.Remove(FireCountPrefix + id);
+            if (player == null || string.IsNullOrEmpty(id)) return false;
+            return PlayerProgress.Remove(player, FireCountPrefix + id);
         }
 
         /// Clears player-scope fires for this character. Global fires are NOT cleared
@@ -114,29 +113,25 @@ namespace ValheimServerGuide.State
         {
             if (player == null) return 0;
             var count = GetSet(player).Count;
-            player.m_customData.Remove(Key);
+            PlayerProgress.Remove(player, Key);
             // Also wipe every max_fires counter (VSG.fc.*) — otherwise capped entries
             // (e.g. player_death tips) stay blocked after a full reset.
-            var fcKeys = player.m_customData.Keys
-                .Where(k => k.StartsWith(FireCountPrefix)).ToList();
-            foreach (var k in fcKeys) player.m_customData.Remove(k);
+            PlayerProgress.RemoveWithPrefix(player, FireCountPrefix);
             CooldownExpiry.Clear();
             return count;
         }
 
         public static int GetFireCount(Player player, string id)
         {
-            if (player?.m_customData == null) return 0;
-            var key = FireCountPrefix + id;
-            if (!player.m_customData.TryGetValue(key, out var val)) return 0;
+            if (player == null) return 0;
+            if (!PlayerProgress.TryGet(player, FireCountPrefix + id, out var val)) return 0;
             return int.TryParse(val, out var n) ? n : 0;
         }
 
         public static void IncrementFireCount(Player player, string id)
         {
-            if (player?.m_customData == null) return;
-            var key = FireCountPrefix + id;
-            player.m_customData[key] = (GetFireCount(player, id) + 1).ToString();
+            if (player == null) return;
+            PlayerProgress.Set(player, FireCountPrefix + id, (GetFireCount(player, id) + 1).ToString());
         }
 
         public static IReadOnlyCollection<string> GetFiredIds(Player player)
@@ -147,7 +142,7 @@ namespace ValheimServerGuide.State
 
         private static HashSet<string> GetSet(Player player)
         {
-            if (!player.m_customData.TryGetValue(Key, out var csv) || string.IsNullOrEmpty(csv))
+            if (!PlayerProgress.TryGet(player, Key, out var csv) || string.IsNullOrEmpty(csv))
                 return new HashSet<string>();
             return new HashSet<string>(csv.Split(','));
         }

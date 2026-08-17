@@ -7,54 +7,66 @@ using ValheimServerGuide.State;
 
 namespace ValheimServerGuide.Triggers
 {
-    /// Shared hold state between the Harmony patch and the Update-loop detector.
-    internal static class NpcConvHoldState
-    {
-        internal const float HoldThreshold = 0.5f;
-        internal static float HoldStart    = -1f;
-        internal static Trader PendingTrader = null;
-    }
-
     /// Harmony patches on Trader:
-    ///   Interact  — intercepts the very first key-down (hold=false) to start the
-    ///               hold timer, suppressing the store until we know whether it is a
-    ///               short press (open store) or a long hold (open conversation).
-    ///               The Update loop in NpcConversationHoldDetector makes the call.
-    ///   GetHoverText — appends "[Hold E] Quest" when a conversation entry is available.
+    ///   Interact     — Shift + E opens the conversation instead of the store. Plain E is left
+    ///                  entirely to vanilla.
+    ///   GetHoverText — appends "[Shift + E] Quest" when a conversation entry is available.
+    ///
+    /// This replaced a hold-E detector (press E, keep holding past 0.5 s → conversation, release
+    /// early → store). That design had to swallow the first key-down and re-open the store from
+    /// an Update loop to find out which the player meant, so every ordinary trade paid a half
+    /// second of nothing happening. A modifier key is unambiguous on the very first frame: plain
+    /// E never reaches our code at all, and the store opens as instantly as it does in vanilla.
     [HarmonyPatch(typeof(Trader), nameof(Trader.Interact))]
     internal static class NpcConversationTrigger
     {
         [HarmonyPrefix]
         private static bool Prefix(Trader __instance, Humanoid character, bool hold, ref bool __result)
         {
-            // Ensure the Update-loop component is alive before we need it.
-            NpcConversationHoldDetector.EnsureCreated();
-
             var player = character as Player;
             if (player == null || player != Player.m_localPlayer) return true;
 
-            // Does a valid conversation entry exist for this trader?
-            var subject = TriggerUtils.NormalizePrefabName(__instance.gameObject?.name);
-            var entry   = FindEntry(subject, player);
-            if (entry == null) return true; // no conversation — full vanilla path
+            if (hold) return true;          // vanilla ignores held interacts; so do we
+            if (!ConversationModifierHeld()) return true;  // plain E → vanilla store
 
-            if (!hold)
+            var subject = TriggerUtils.NormalizePrefabName(__instance.gameObject?.name);
+            var entries = FindAllEntries(subject, player);
+            if (entries.Count == 0) return true;  // nothing to talk about → vanilla store
+
+            OpenConversation(__instance, player, subject, entries);
+            __result = true;
+            return false; // suppress the store for this press
+        }
+
+        /// True while the player is holding the conversation modifier.
+        ///
+        /// Shift is checked literally so the "[Shift + E]" prompt is always honest, and the
+        /// bound Run button is accepted as well — it is Shift by default, which keeps a
+        /// rebinding player working, and it is the only way a gamepad (no Shift key) can reach
+        /// conversations now that the hold path is gone.
+        private static bool ConversationModifierHeld()
+        {
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return true;
+            return ZInput.GetButton("Run") || ZInput.GetButton("JoyRun");
+        }
+
+        /// Opens the single eligible conversation, or the picker when several are available.
+        internal static void OpenConversation(Trader trader, Player player,
+            string subject, List<GuidanceEntry> entries)
+        {
+            if (entries.Count == 1)
             {
-                // E just pressed (key-down frame).
-                // Start the hold timer and suppress the store for now.
-                // The detector's Update will open the store after a quick release,
-                // or open the conversation after HoldThreshold seconds.
-                NpcConvHoldState.HoldStart    = Time.time;
-                NpcConvHoldState.PendingTrader = __instance;
-                __result = true;
-                return false; // skip Trader.Interact original
+                var entry    = entries[0];
+                var rawText  = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
+                var rendered = GuidanceDispatcher.RenderDisplay(entry, null, rawText, null, player.GetPlayerName());
+                GuidanceDisplay.Show(entry, rendered);
+                return;
             }
-            else
-            {
-                // E still held — the Update loop is driving the logic, suppress.
-                __result = false;
-                return false;
-            }
+
+            // 2+ eligible conversations — show the "what would you like to discuss?" picker.
+            // Selecting an entry there calls GuidanceDispatcher.FireEntry, which opens that
+            // entry's own conversation normally.
+            NpcConversationPanel.Get().OpenSelection(trader.m_name, entries, subject);
         }
 
         /// Finds the first eligible npc_conversation entry for the given NPC prefab name.
@@ -101,11 +113,15 @@ namespace ValheimServerGuide.Triggers
         }
     }
 
-    /// Appends a hold-E hint to the vanilla trader hover tooltip when a conversation
+    /// Appends the Shift+E hint to the vanilla trader hover tooltip when a conversation
     /// entry is available and its gates are satisfied.
     [HarmonyPatch(typeof(Trader), nameof(Trader.GetHoverText))]
     internal static class TraderHoverTextPatch
     {
+        /// The generic prompt, used when an entry has no `hover_text` of its own. Keep it in step
+        /// with NpcConversationTrigger.ConversationModifierHeld — the prompt is a promise.
+        internal const string ConversationHint = "[Shift + E] Quest";
+
         [HarmonyPostfix]
         private static void Postfix(Trader __instance, ref string __result)
         {
@@ -113,7 +129,7 @@ namespace ValheimServerGuide.Triggers
             if (player == null) return;
             var subject = TriggerUtils.NormalizePrefabName(__instance.gameObject?.name);
 
-            // hover_text override (Phase 6) takes priority over the generic "[Hold E] Quest"
+            // hover_text override (Phase 6) takes priority over the generic "[Shift + E] Quest"
             // hint, but is appended below the vanilla hover text (e.g. "[E] Talk") rather than
             // replacing it — the player still sees the normal interact hint plus the quest-
             // specific line. "default" applies to an eligible-but-unfired entry; "after_fire"
@@ -134,7 +150,7 @@ namespace ValheimServerGuide.Triggers
             }
 
             if (eligible != null)
-                __result += "\n[Hold E] Quest";
+                __result += "\n" + ConversationHint;
         }
 
         /// Finds a fired npc_conversation entry for this NPC whose hover_text.after_fire
@@ -160,75 +176,4 @@ namespace ValheimServerGuide.Triggers
         }
     }
 
-    /// Always-active MonoBehaviour that resolves hold-vs-press after the key is down.
-    /// Created lazily on the first Trader interaction; persists across scene loads.
-    internal class NpcConversationHoldDetector : MonoBehaviour
-    {
-        private static NpcConversationHoldDetector _instance;
-
-        internal static void EnsureCreated()
-        {
-            if (_instance != null) return;
-            var go = new GameObject("VSG_NpcConvHold");
-            DontDestroyOnLoad(go);
-            _instance = go.AddComponent<NpcConversationHoldDetector>();
-        }
-
-        private void Update()
-        {
-            if (NpcConvHoldState.PendingTrader == null) return;
-
-            var player = Player.m_localPlayer;
-            if (player == null) { Reset(); return; }
-
-            bool holding = ZInput.GetButton("Use");
-
-            if (!holding)
-            {
-                // Released before threshold → short press → open store normally.
-                var trader = NpcConvHoldState.PendingTrader;
-                Reset();
-                if (StoreGui.instance != null)
-                    StoreGui.instance.Show(trader);
-                return;
-            }
-
-            if (Time.time - NpcConvHoldState.HoldStart >= NpcConvHoldState.HoldThreshold)
-            {
-                // Held long enough → open conversation.
-                var trader = NpcConvHoldState.PendingTrader;
-                Reset();
-
-                var subject = TriggerUtils.NormalizePrefabName(trader.gameObject?.name);
-                var entries = NpcConversationTrigger.FindAllEntries(subject, player);
-                if (entries.Count == 0)
-                {
-                    // No entry available (e.g., YAML reload, gate changed) — fall back to store.
-                    if (StoreGui.instance != null) StoreGui.instance.Show(trader);
-                    return;
-                }
-
-                if (entries.Count == 1)
-                {
-                    var entry    = entries[0];
-                    var rawText  = !string.IsNullOrEmpty(entry.Message) ? entry.Message : entry.Display?.Text;
-                    var rendered = GuidanceDispatcher.RenderDisplay(entry, null, rawText, null, player.GetPlayerName());
-                    GuidanceDisplay.Show(entry, rendered);
-                }
-                else
-                {
-                    // 2+ eligible conversations — show the "what would you like to discuss?"
-                    // picker. Selecting an entry there calls GuidanceDispatcher.FireEntry,
-                    // which opens that entry's own conversation normally.
-                    NpcConversationPanel.Get().OpenSelection(trader.m_name, entries, subject);
-                }
-            }
-        }
-
-        private static void Reset()
-        {
-            NpcConvHoldState.HoldStart    = -1f;
-            NpcConvHoldState.PendingTrader = null;
-        }
-    }
 }

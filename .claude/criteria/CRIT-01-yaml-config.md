@@ -31,6 +31,11 @@ guidances:
     requires: [string]          # list of ids that must have fired first
     stop_when: [string]         # list of ids; if any fired, this entry won't fire
     scope: string               # "player" (default) | "global"
+    description: string         # optional — the objective, in a line or two ("Cull 15 Greylings.")
+                                # Shown under the row in the F10 tracker's Expand Full view and as
+                                # the row's hover tooltip. Chain entries normally carry this per
+                                # step; the entry-level value is the fallback, and the ONLY source
+                                # for non-chain quests (kill counts, item submits, collections).
     summary: string             # optional — short recap shown in Codex body when entry is complete;
                                 # takes priority over the final step's message
     highlight: [HighlightSpec]  # optional — same shape as the top-level block, scoped to this

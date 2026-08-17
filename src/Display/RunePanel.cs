@@ -70,7 +70,7 @@ namespace ValheimServerGuide.Display
 
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 210; // above the conversation panel (200), below the codex (1100)
+            canvas.sortingOrder = UiLayers.Rune;
             go.AddComponent<GraphicRaycaster>();
 
             Instance = go.AddComponent<RunePanel>();
@@ -155,11 +155,10 @@ namespace ValheimServerGuide.Display
             _viewportLe = viewportGo.AddComponent<LayoutElement>();
 
             _contentScroll = viewportGo.AddComponent<ScrollRect>();
-            _contentScroll.horizontal        = false;
-            _contentScroll.vertical          = true;
-            _contentScroll.movementType      = ScrollRect.MovementType.Clamped;
-            _contentScroll.scrollSensitivity = 24f;
-            _contentScroll.viewport          = viewportRt;
+            _contentScroll.horizontal   = false;
+            _contentScroll.vertical     = true;
+            _contentScroll.movementType = ScrollRect.MovementType.Clamped;
+            _contentScroll.viewport     = viewportRt;
 
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(viewportGo.transform, false);
@@ -167,6 +166,12 @@ namespace ValheimServerGuide.Display
             _contentRect.anchorMin = new Vector2(0f, 1f);
             _contentRect.anchorMax = new Vector2(1f, 1f);
             _contentRect.pivot     = new Vector2(0.5f, 1f);
+            // Zero the offsets explicitly. With a horizontal stretch anchor the rect width is
+            // (viewport width + sizeDelta.x), and a freshly added RectTransform does not start at
+            // zero — leaving it made the content wider than the viewport, so the body wrapped at
+            // that oversized width and got clipped on BOTH sides by the RectMask2D below.
+            _contentRect.offsetMin = Vector2.zero;
+            _contentRect.offsetMax = Vector2.zero;
             var contentVlg = contentGo.AddComponent<VerticalLayoutGroup>();
             contentVlg.childControlWidth      = true;
             contentVlg.childForceExpandWidth  = true;
@@ -178,6 +183,10 @@ namespace ValheimServerGuide.Display
             contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             contentFitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
             _contentScroll.content = _contentRect;
+            // Fixed pixels per notch — see WheelScroller for why sensitivity alone does not work.
+            // Also installs the viewport's wheel catcher, which this panel needs: every text here
+            // is raycastTarget = false, so nothing inside the scroll view could receive the event.
+            WheelScroller.Attach(_contentScroll);
 
             // Body / description.
             _bodyText = MakeText(contentGo.transform, "Body", 17f, FontStyles.Normal,
@@ -205,18 +214,31 @@ namespace ValheimServerGuide.Display
 
         /// Create a child TextMeshProUGUI with a LayoutElement-friendly rect (the parent
         /// VerticalLayoutGroup controls its size). Font is applied later in EnsureFont.
+        ///
+        /// Every label wraps and overflows: the panel grows (and past the screen cap, scrolls) to
+        /// fit the text, so no authored line is ever clipped or ellipsised. See CRIT-25.
         private TMP_Text MakeText(Transform parent, string name, float size,
             FontStyles style, Color color, TextAlignmentOptions align)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
-            go.AddComponent<RectTransform>();
+            // Start from a zero-size top-left rect. The parent layout group overwrites this on
+            // the first pass, but an un-initialised RectTransform can carry a stray size into the
+            // TMP wrap measure before that happens.
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot     = new Vector2(0f, 1f);
+            rt.sizeDelta = Vector2.zero;
+
             var tmp = go.AddComponent<TextMeshProUGUI>();
             tmp.fontSize       = size;
             tmp.fontStyle      = style;
             tmp.color          = color;
             tmp.alignment      = align;
             tmp.raycastTarget  = false;
+            tmp.enableWordWrapping = true;
+            tmp.overflowMode       = TextOverflowModes.Overflow;
             return tmp;
         }
 
@@ -258,7 +280,10 @@ namespace ValheimServerGuide.Display
             _bodyText.alignment   = ParseAlign(style?.BodyAlignment, TextAlignmentOptions.TopLeft);
 
             // ── Panel geometry / fill ──
-            var width = Mathf.Clamp(style?.Width ?? 620f, 240f, 1200f);
+            // Never wider than the screen (minus a margin): the body wraps to the panel, so an
+            // oversized `width:` would push the text off both edges instead of stacking lines.
+            var maxWidth = Mathf.Max(240f, CanvasSize().x - 40f);
+            var width = Mathf.Clamp(style?.Width ?? 620f, 240f, Mathf.Min(1200f, maxWidth));
             _panelRect.sizeDelta = new Vector2(width, _panelRect.sizeDelta.y);
             _panelBg.color       = ParseColor(style?.BackgroundColor, DefBackground);
 
@@ -282,6 +307,11 @@ namespace ValheimServerGuide.Display
             // Content was populated while children were (re)built; force a layout pass so the
             // VerticalLayoutGroup + ContentSizeFitter compute the final panel height this frame.
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+            // Labels whose text was assigned while the root was inactive carry a mesh (and a
+            // cached wrap width) from the previous rect. Regenerate them now that the widths are
+            // real, or the first frame re-uses the old line breaks.
+            RefreshTextGeometry();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
             ClampContentHeight();
             LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
 
@@ -303,15 +333,44 @@ namespace ValheimServerGuide.Display
             var needed = LayoutUtility.GetPreferredHeight(_contentRect);
 
             // Everything outside the content area: padding, header, divider, footer, spacing.
-            var chrome = 42f + _headerText.preferredHeight + 2f + 24f
-                       + _footerText.preferredHeight + 24f;
-            var maxContent = Mathf.Max(60f, Screen.height * MaxHeightFraction - chrome);
+            var headerH = _headerText.gameObject.activeSelf ? _headerText.preferredHeight : 0f;
+            var chrome = 42f + headerH + 2f + 24f + _footerText.preferredHeight + 24f;
+            var maxContent = Mathf.Max(60f, CanvasSize().y * MaxHeightFraction - chrome);
 
             _viewportLe.minHeight       = Mathf.Min(needed, maxContent);
             _viewportLe.preferredHeight = Mathf.Min(needed, maxContent);
 
             _contentScroll.enabled = needed > maxContent + 0.5f;
             _contentScroll.verticalNormalizedPosition = 1f;
+        }
+
+        /// Canvas dimensions in the same units the panel is laid out in.
+        ///
+        /// Derived from the screen and the canvas's own `scaleFactor` (1 while this canvas has no
+        /// CanvasScaler, and correct if one is ever added) rather than read off the canvas
+        /// RectTransform: that rect is only filled in once Unity has laid the canvas out, and
+        /// `Open()` sizes the panel while the root is still INACTIVE — where the rect is still the
+        /// default 100×100 a fresh RectTransform carries. Reading it there made `maxWidth` collapse
+        /// to the 240 floor, so the first reading of a session came out as a narrow column no matter
+        /// what `width:` the author asked for.
+        private Vector2 CanvasSize()
+        {
+            var canvas = GetComponent<Canvas>();
+            var scale  = canvas != null && canvas.scaleFactor > 0.01f ? canvas.scaleFactor : 1f;
+            return new Vector2(Screen.width / scale, Screen.height / scale);
+        }
+
+        /// Regenerate every label's geometry against its current rect. Text assigned while the
+        /// root was inactive keeps the wrap points it computed against the old (or zero) width,
+        /// and a layout rebuild alone fixes the rects without re-flowing the glyphs.
+        private void RefreshTextGeometry()
+        {
+            foreach (var t in GetComponentsInChildren<TMP_Text>(includeInactive: true))
+            {
+                if (t == null) continue;
+                t.SetAllDirty();
+                t.ForceMeshUpdate();
+            }
         }
 
         /// Rebuild the bullet list from RuneStyleSpec.Items. The container is toggled inactive

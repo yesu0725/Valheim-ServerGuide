@@ -206,7 +206,7 @@ so this file is additive alongside any existing `guidance.yaml`.
 
 | Step | Trigger | Display | Message summary |
 |---|---|---|---|
-| 1 | `npc_conversation` `Haldor` (Hold E) | `conversation` | TraderOverhaul intro; two dismiss choices |
+| 1 | `npc_conversation` `Haldor` (Shift + E) | `conversation` | TraderOverhaul intro; two dismiss choices |
 | 2 | `npc_interacted` `Hildir` | `message` Center | Hildir's cosmetics and expanding catalog |
 | 3 | `npc_interacted` `BogWitch` | `message` Center | Bog Witch's late-game catalog |
 | 4 | `timed` 120 s (`to_economy_tip`) | `rune` topic "Trader Economy" | All traders accept coins; catalogs expand with boss kills |

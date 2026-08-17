@@ -23,9 +23,11 @@ namespace ValheimServerGuide.Net
         private const string RpcAnnounce = "VSG_AnnounceRequest";
         private const string RpcAdminResetGlobal = "VSG_AdminResetGlobal";
         private const string RpcTimedGuidance = "VSG_TimedGuidance";
-        private const string RpcChainStepUpdate = "VSG_ChainStepUpdate";
-        private const string RpcChainStateRequest = "VSG_ChainStateRequest";
-        private const string RpcChainStatePush = "VSG_ChainStatePush";
+        // Server-side quest-progress store (see CRIT-26): client asks for its character's
+        // progress on spawn, server pushes it, client streams every later change back as deltas.
+        private const string RpcProgressRequest = "VSG_ProgReq";
+        private const string RpcProgressPush = "VSG_ProgPush";
+        private const string RpcProgressDelta = "VSG_ProgDelta";
         private const string RpcCompleteAnnounce = "VSG_CompleteAnnounce";
         private const string RpcRewardDiscord = "VSG_RewardDiscord";
         private const string RpcShareKillProgress = "VSG_ShareKillProgress";
@@ -42,9 +44,9 @@ namespace ValheimServerGuide.Net
         private const string RpcAdminPlayerResetOut = "VSG_APResetOut";
         private static bool _registered;
         private static bool _rpcsBound;
-        // Server-side: player name -> (entryId -> step value or "done")
-        private static readonly Dictionary<string, Dictionary<string, string>> _playerChainData
-            = new Dictionary<string, Dictionary<string, string>>();
+        // Server-side: peer uid -> progress file key, so a disconnect can flush and unload that
+        // character's file without waiting for the periodic save.
+        private static readonly Dictionary<long, string> _peerFileKeys = new Dictionary<long, string>();
 
         public static void Register()
         {
@@ -67,9 +69,9 @@ namespace ValheimServerGuide.Net
             ZRoutedRpc.instance.Register<string, string>(RpcAnnounce, OnAnnounceRequest);
             ZRoutedRpc.instance.Register<string>(RpcAdminResetGlobal, OnAdminResetGlobal);
             ZRoutedRpc.instance.Register<string>(RpcTimedGuidance, OnTimedGuidance);
-            ZRoutedRpc.instance.Register<string, string, string>(RpcChainStepUpdate, OnChainStepUpdate);
-            ZRoutedRpc.instance.Register<string>(RpcChainStateRequest, OnChainStateRequest);
-            ZRoutedRpc.instance.Register<string, string>(RpcChainStatePush, OnChainStatePush);
+            ZRoutedRpc.instance.Register<ZPackage>(RpcProgressRequest, OnProgressRequest);
+            ZRoutedRpc.instance.Register<ZPackage>(RpcProgressPush, OnProgressPush);
+            ZRoutedRpc.instance.Register<ZPackage>(RpcProgressDelta, OnProgressDelta);
             ZRoutedRpc.instance.Register<string, string>(RpcCompleteAnnounce, OnCompleteAnnounce);
             ZRoutedRpc.instance.Register<string>(RpcRewardDiscord, OnRewardDiscord);
             ZRoutedRpc.instance.Register<string, string, Vector3>(RpcShareKillProgress, OnShareKillProgress);
@@ -98,6 +100,12 @@ namespace ValheimServerGuide.Net
                 var config = Deserialize(yaml);
                 Plugin.CurrentConfig = config;
                 GuidanceDisplay.RegisterTutorials(config);
+                // Player-scope `timed` entries are owned by the CLIENT — the dedicated server
+                // deliberately skips them. This is the only place a client ever learns about the
+                // config, so without this call no client ever scheduled one and every
+                // player-scope timer silently did nothing on a dedicated-server setup.
+                // (Plugin.OnConfigChanged also calls this, but returns early on any client.)
+                Triggers.TimedTrigger.OnConfigChanged(config);
                 Plugin.Log.LogInfo($"Received guidance config from server: {config.Guidances.Count} entries.");
 
                 // The HUD is built at Hud.Awake, which can run before this push lands (and runs
@@ -334,108 +342,138 @@ namespace ValheimServerGuide.Net
             GuidanceDispatcher.Raise(new Triggers.TriggerEvent { Type = "timed", Subject = subject });
         }
 
-        // ---- Chain state sync (Client <-> Server) ----
+        // ---- Server-side quest progress (client <-> server) ----
+        //
+        // Progress no longer rides with the character save. On spawn the client asks the server
+        // for its character's progress file and blocks all firing until it arrives (see
+        // PlayerProgress.IsReady); afterwards every state write is streamed back as a delta.
+        // The request carries whatever VSG.* keys are still in the character save so the server
+        // can seed a brand-new file from them exactly once — the migration.
 
-        /// Client → server: notify the server whenever a chain step advances or completes.
-        /// Value is the next step index as a string, or "done" when the chain completes.
-        public static void SendChainStepUpdate(string playerName, string entryId, string value)
+        /// Client → server: "send me character `characterId`'s progress". `legacy` is the
+        /// migration seed (VSG.* keys from the character save); the server uses it only when it
+        /// has no file for this character yet.
+        public static void SendProgressRequest(long characterId, string playerName,
+                                               Dictionary<string, string> legacy)
         {
             if (ZRoutedRpc.instance == null) return;
-            var serverPeer = ZRoutedRpc.instance.GetServerPeerID();
-            ZRoutedRpc.instance.InvokeRoutedRPC(serverPeer, RpcChainStepUpdate, playerName ?? "", entryId ?? "", value ?? "");
+            var pkg = new ZPackage();
+            pkg.Write(characterId);
+            pkg.Write(playerName ?? "");
+            WriteMap(pkg, legacy);
+            ZRoutedRpc.instance.InvokeRoutedRPC(
+                ZRoutedRpc.instance.GetServerPeerID(), RpcProgressRequest, pkg);
         }
 
-        private static void OnChainStepUpdate(long sender, string playerName, string entryId, string value)
+        private static void OnProgressRequest(long sender, ZPackage pkg)
         {
             if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
-            if (string.IsNullOrEmpty(playerName) || string.IsNullOrEmpty(entryId)) return;
-            if (!_playerChainData.TryGetValue(playerName, out var data))
-                _playerChainData[playerName] = data = new Dictionary<string, string>();
-            data[entryId] = value;
-            Plugin.Log.LogInfo($"[chain-sync] stored '{entryId}'='{value}' for player '{playerName}'.");
+
+            var characterId = pkg.ReadLong();
+            var playerName = pkg.ReadString();
+            var legacy = ReadMap(pkg);
+
+            var fileKey = PlayerProgressStore.FileKeyFor(playerName, characterId);
+            _peerFileKeys[sender] = fileKey;
+
+            PlayerProgressStore.Bind(fileKey, playerName, characterId, () => legacy, out var migrated);
+            var data = PlayerProgressStore.Snapshot(fileKey);
+
+            var reply = new ZPackage();
+            reply.Write(characterId);
+            reply.Write(migrated);
+            WriteMap(reply, data);
+            ZRoutedRpc.instance.InvokeRoutedRPC(sender, RpcProgressPush, reply);
+
+            Plugin.Log.LogInfo($"[progress] sent {data.Count} key(s) to '{playerName}' " +
+                               $"(character {characterId}, peer {sender}){(migrated ? " after migrating their character file" : "")}.");
         }
 
-        /// Client → server: request any chain state the server has stored for this player.
-        /// Called on every player spawn so reconnects get server-pushed state back.
-        public static void RequestChainState(string playerName)
+        /// Server → client: here is your character's progress. Replaces the client's mirror.
+        private static void OnProgressPush(long sender, ZPackage pkg)
         {
-            if (ZRoutedRpc.instance == null) return;
-            var serverPeer = ZRoutedRpc.instance.GetServerPeerID();
-            ZRoutedRpc.instance.InvokeRoutedRPC(serverPeer, RpcChainStateRequest, playerName ?? "");
+            if (Player.m_localPlayer == null) return;
+            var characterId = pkg.ReadLong();
+            var migrated = pkg.ReadBool();
+            var data = ReadMap(pkg);
+            PlayerProgress.ApplyServerPush(characterId, data, migrated);
         }
 
-        private static void OnChainStateRequest(long sender, string playerName)
+        /// Client → server: the changes made since the last flush. Called from
+        /// PlayerProgress.Tick, so at most once per frame and only when something changed.
+        public static void SendProgressDelta(long characterId, string playerName,
+                                             List<ProgressDelta> deltas)
         {
-            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
-            if (!_playerChainData.TryGetValue(playerName, out var data) || data.Count == 0) return;
-
-            // Encode as "entryId=value|entryId=value".
-            var parts = new List<string>(data.Count);
-            foreach (var kv in data) parts.Add(kv.Key + "=" + kv.Value);
-            var encoded = string.Join("|", parts);
-            ZRoutedRpc.instance.InvokeRoutedRPC(sender, RpcChainStatePush, playerName, encoded);
-        }
-
-        /// Server → client: apply stored chain state, taking the maximum (server may be ahead
-        /// of the client if a previous session's data was cached server-side).
-        /// Key encoding:
-        ///   "{entryId}=done"             — chain complete
-        ///   "{entryId}={stepNum}"        — step progress
-        ///   "{entryId}:{stepIdx}={count}" — counter progress (Phase 03)
-        private static void OnChainStatePush(long sender, string playerName, string encoded)
-        {
-            var player = Player.m_localPlayer;
-            if (player == null || player.GetPlayerName() != playerName) return;
-            if (string.IsNullOrEmpty(encoded)) return;
-
-            foreach (var part in encoded.Split('|'))
+            if (ZRoutedRpc.instance == null || deltas == null || deltas.Count == 0) return;
+            var pkg = new ZPackage();
+            pkg.Write(characterId);
+            pkg.Write(playerName ?? "");
+            pkg.Write(deltas.Count);
+            foreach (var d in deltas)
             {
-                var eq = part.IndexOf('=');
-                if (eq < 0) continue;
-                var key   = part.Substring(0, eq);
-                var value = part.Substring(eq + 1);
+                pkg.Write(d.Key ?? "");
+                pkg.Write(d.Removed);
+                pkg.Write(d.Value ?? "");
+            }
+            ZRoutedRpc.instance.InvokeRoutedRPC(
+                ZRoutedRpc.instance.GetServerPeerID(), RpcProgressDelta, pkg);
+        }
 
-                // Counter key: "{chainId}:{stepIndex}=count"
-                var colon = key.IndexOf(':');
-                if (colon >= 0)
-                {
-                    var chainId = key.Substring(0, colon);
-                    var stepStr = key.Substring(colon + 1);
-                    if (int.TryParse(stepStr, out var stepIdx) && int.TryParse(value, out var count))
-                    {
-                        var current = ChainState.GetCounter(player, chainId, stepIdx);
-                        if (count > current)
-                        {
-                            ChainState.SetCounter(player, chainId, stepIdx, count);
-                            Plugin.Log.LogInfo($"[chain-sync] server pushed counter {count} for '{chainId}' step {stepIdx} (was {current}).");
-                        }
-                    }
-                    continue;
-                }
+        private static void OnProgressDelta(long sender, ZPackage pkg)
+        {
+            if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
 
-                // Chain done or step progress: "{entryId}=done|{entryId}={stepNum}"
-                var entryId = key;
-                if (value == "done")
-                {
-                    if (!ChainState.IsComplete(player, entryId))
-                    {
-                        ChainState.MarkComplete(player, entryId);
-                        Plugin.Log.LogInfo($"[chain-sync] server pushed complete for '{entryId}'.");
-                    }
-                }
-                else if (int.TryParse(value, out var step))
-                {
-                    var current = ChainState.GetStep(player, entryId);
-                    if (step > current)
-                    {
-                        ChainState.SetStep(player, entryId, step);
-                        Plugin.Log.LogInfo($"[chain-sync] server pushed step {step} for '{entryId}' (was {current}).");
-                    }
-                }
+            var characterId = pkg.ReadLong();
+            var playerName = pkg.ReadString();
+            var count = pkg.ReadInt();
+            var deltas = new List<ProgressDelta>(count);
+            for (var i = 0; i < count; i++)
+            {
+                var key = pkg.ReadString();
+                var removed = pkg.ReadBool();
+                var value = pkg.ReadString();
+                deltas.Add(new ProgressDelta { Key = key, Removed = removed, Value = value });
             }
 
-            // Refresh the HUD tracker now that server-restored state is applied.
-            GuidanceHudTracker.Instance?.Refresh();
+            var fileKey = PlayerProgressStore.FileKeyFor(playerName, characterId);
+            _peerFileKeys[sender] = fileKey;
+            PlayerProgressStore.ApplyDeltas(fileKey, playerName, characterId, deltas);
+        }
+
+        /// Client: re-request the progress file (vsg_refresh). Re-binds the mirror from the
+        /// server without clearing anything locally that the server does not know about.
+        public static void RequestProgressResync()
+        {
+            var player = Player.m_localPlayer;
+            if (player == null) return;
+            if (ZNet.instance == null || ZNet.instance.IsServer()) return; // host/SP owns the file
+            SendProgressRequest(player.GetPlayerID(), player.GetPlayerName(),
+                PlayerProgress.CollectLegacyProgress(player));
+        }
+
+        // ZPackage helpers: a length-prefixed string→string map.
+        private static void WriteMap(ZPackage pkg, Dictionary<string, string> map)
+        {
+            if (map == null) { pkg.Write(0); return; }
+            pkg.Write(map.Count);
+            foreach (var kv in map)
+            {
+                pkg.Write(kv.Key ?? "");
+                pkg.Write(kv.Value ?? "");
+            }
+        }
+
+        private static Dictionary<string, string> ReadMap(ZPackage pkg)
+        {
+            var count = pkg.ReadInt();
+            var map = new Dictionary<string, string>(System.StringComparer.Ordinal);
+            for (var i = 0; i < count; i++)
+            {
+                var key = pkg.ReadString();
+                var value = pkg.ReadString();
+                if (!string.IsNullOrEmpty(key)) map[key] = value;
+            }
+            return map;
         }
 
         // ---- Admin-initiated global reset (vsg_reset <id> from an admin client) ----
@@ -702,37 +740,38 @@ namespace ValheimServerGuide.Net
             if (fired.Count == 0) sb.AppendLine("  (none)");
             else foreach (var id in fired) sb.AppendLine($"  - {id}");
 
+            sb.AppendLine($"Storage: {PlayerProgress.DescribeMode()}");
+
             // max_fires counters (VSG.fc.*)
-            var fcEntries = player.m_customData.Keys
-                .Where(k => k.StartsWith("VSG.fc.")).OrderBy(k => k).ToList();
+            var fcEntries = PlayerProgress.KeysWithPrefix(player, "VSG.fc.").OrderBy(k => k).ToList();
             if (fcEntries.Count > 0)
             {
                 sb.AppendLine($"Fire counts ({fcEntries.Count}):");
                 foreach (var k in fcEntries)
-                    sb.AppendLine($"  - {k.Substring("VSG.fc.".Length)} = {player.m_customData[k]}");
+                    sb.AppendLine($"  - {k.Substring("VSG.fc.".Length)} = {PlayerProgress.Get(player, k)}");
             }
 
             // Chain state (VSG.cd.* = done, VSG.cp.* = step)
-            var chainDone = player.m_customData.Keys.Where(k => k.StartsWith("VSG.cd.")).OrderBy(k => k).ToList();
-            var chainStep = player.m_customData.Keys.Where(k => k.StartsWith("VSG.cp.")).OrderBy(k => k).ToList();
+            var chainDone = PlayerProgress.KeysWithPrefix(player, "VSG.cd.").OrderBy(k => k).ToList();
+            var chainStep = PlayerProgress.KeysWithPrefix(player, "VSG.cp.").OrderBy(k => k).ToList();
             if (chainDone.Count > 0 || chainStep.Count > 0)
             {
                 sb.AppendLine("Chain state:");
                 foreach (var k in chainDone) sb.AppendLine($"  - {k.Substring("VSG.cd.".Length)}: complete");
-                foreach (var k in chainStep) sb.AppendLine($"  - {k.Substring("VSG.cp.".Length)}: step {player.m_customData[k]}");
+                foreach (var k in chainStep) sb.AppendLine($"  - {k.Substring("VSG.cp.".Length)}: step {PlayerProgress.Get(player, k)}");
             }
 
             // Submit state (VSG.is.*)
-            var submitEntries = player.m_customData.Keys.Where(k => k.StartsWith("VSG.is.")).OrderBy(k => k).ToList();
+            var submitEntries = PlayerProgress.KeysWithPrefix(player, "VSG.is.").OrderBy(k => k).ToList();
             if (submitEntries.Count > 0)
             {
                 sb.AppendLine("Submit state:");
                 foreach (var k in submitEntries)
-                    sb.AppendLine($"  - {k.Substring("VSG.is.".Length)}: {player.m_customData[k]} submitted");
+                    sb.AppendLine($"  - {k.Substring("VSG.is.".Length)}: {PlayerProgress.Get(player, k)} submitted");
             }
 
             // Goal state (VSG.ig.*)
-            var goalEntries = player.m_customData.Keys.Where(k => k.StartsWith("VSG.ig.")).OrderBy(k => k).ToList();
+            var goalEntries = PlayerProgress.KeysWithPrefix(player, "VSG.ig.").OrderBy(k => k).ToList();
             if (goalEntries.Count > 0)
             {
                 sb.AppendLine("Goal state:");
@@ -798,10 +837,15 @@ namespace ValheimServerGuide.Net
         {
             private static void Postfix()
             {
+                // Flush any queued progress before the session goes away, then drop the
+                // in-memory store so a join to a different server starts from that server's files.
+                PlayerProgress.EndSession();
+                PlayerProgressStore.SaveAll();
+
                 // ZRoutedRpc is torn down with ZNet; the next ZNet.Awake will create
                 // a fresh instance that we must re-bind to.
                 _rpcsBound = false;
-                _playerChainData.Clear();
+                _peerFileKeys.Clear();
 
                 // On dedicated server (batch mode) the loader was started at plugin Awake
                 // and is independent of any ZNet lifecycle — leave it alone.
@@ -811,16 +855,55 @@ namespace ValheimServerGuide.Net
             }
         }
 
-        /// On every player spawn (initial and respawn) ask the server for any stored chain
-        /// state. The server pushes it back via VSG_ChainStatePush; the client merges it,
-        /// taking the maximum progress. This ensures reconnects pick up where the server left off.
+        /// Bind this character's progress store, and on a pure client ask the server for it.
+        /// Host / single-player binds synchronously off disk; a client stays "not ready"
+        /// (no quest can fire) until the push lands. Idempotent — safe to call every frame.
+        public static void EnsureProgressSession(Player player)
+        {
+            if (player == null) return;
+            if (PlayerProgress.BeginSession(player)) return;
+            SendProgressRequest(PlayerProgress.CharacterId, player.GetPlayerName(),
+                PlayerProgress.CollectLegacyProgress(player));
+        }
+
+        /// A PREFIX, not a postfix: several other patches hook Player.OnSpawned and read state
+        /// (FirstLoginTrigger, the tracker refresh). Harmony does not order patches across
+        /// classes, so binding here guarantees the host's store is live before any of them run.
         [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
         private static class PlayerSpawnedPatch
         {
-            private static void Postfix(Player __instance)
+            private static void Prefix(Player __instance)
             {
                 if (__instance != Player.m_localPlayer) return;
-                RequestChainState(__instance.GetPlayerName());
+                EnsureProgressSession(__instance);
+            }
+        }
+
+        /// Server-side: a peer left. Write their progress file now and drop it from memory
+        /// instead of waiting for the periodic save — a server crash minutes later would
+        /// otherwise lose whatever they did after the last flush.
+        [HarmonyPatch(typeof(ZNet), nameof(ZNet.Disconnect))]
+        private static class ZNetDisconnectPatch
+        {
+            private static void Prefix(ZNet __instance, ZNetPeer peer)
+            {
+                if (peer == null || !__instance.IsServer()) return;
+                if (!_peerFileKeys.TryGetValue(peer.m_uid, out var fileKey)) return;
+                _peerFileKeys.Remove(peer.m_uid);
+                PlayerProgressStore.Unload(fileKey);
+                Plugin.Log.LogInfo($"[progress] saved and unloaded '{fileKey}' ({peer.m_playerName} disconnected).");
+            }
+        }
+
+        /// Client-side: flush queued progress before the world tears down, while ZRoutedRpc is
+        /// still alive. ZNet.OnDestroy also flushes, but by then the RPC channel may be gone.
+        [HarmonyPatch(typeof(Game), nameof(Game.Logout))]
+        private static class GameLogoutPatch
+        {
+            private static void Prefix()
+            {
+                try { PlayerProgress.FlushNow(); }
+                catch (System.Exception ex) { Plugin.Log.LogError($"[progress] logout flush failed: {ex.Message}"); }
             }
         }
 

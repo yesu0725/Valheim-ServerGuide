@@ -1,9 +1,7 @@
-using System.Collections.Generic;
-
 namespace ValheimServerGuide.State
 {
-    /// Persistent "quest-start debug log already sent" latch, stored in
-    /// Player.m_customData alongside the other VSG.* buckets.
+    /// Persistent "quest-start debug log already sent" latch, stored via PlayerProgress
+    /// (server-owned progress file) alongside the other VSG.* buckets.
     ///   Keys: "VSG.qs.{entryId}" = "1" once the start-of-quest Discord log has been posted.
     ///
     /// This exists ONLY to dedupe the quest-start debug webhook (see DiscordAnnouncer
@@ -18,30 +16,27 @@ namespace ValheimServerGuide.State
 
         public static bool WasLogged(Player player, string entryId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(entryId)) return false;
-            return player.m_customData.ContainsKey(Key(entryId));
+            if (player == null || string.IsNullOrEmpty(entryId)) return false;
+            return PlayerProgress.Has(player, Key(entryId));
         }
 
         public static void MarkLogged(Player player, string entryId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(entryId)) return;
-            player.m_customData[Key(entryId)] = "1";
+            if (player == null || string.IsNullOrEmpty(entryId)) return;
+            PlayerProgress.Set(player, Key(entryId), "1");
         }
 
         public static void Clear(Player player, string entryId)
         {
-            player?.m_customData?.Remove(Key(entryId));
+            if (player == null || string.IsNullOrEmpty(entryId)) return;
+            PlayerProgress.Remove(player, Key(entryId));
         }
 
         /// Removes ALL quest-start log latches. Called by vsg_reset all.
         public static void ResetAll(Player player)
         {
-            if (player?.m_customData == null) return;
-            var toRemove = new List<string>();
-            foreach (var key in player.m_customData.Keys)
-                if (key.StartsWith(LoggedPrefix)) toRemove.Add(key);
-            foreach (var key in toRemove)
-                player.m_customData.Remove(key);
+            if (player == null) return;
+            PlayerProgress.RemoveWithPrefix(player, LoggedPrefix);
         }
     }
 }

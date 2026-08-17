@@ -17,6 +17,9 @@ namespace ValheimServerGuide.Triggers
             if (character != Player.m_localPlayer) return;
 
             var player = Player.m_localPlayer;
+            // Don't burn the one-shot guard key against a store that hasn't loaded yet — the
+            // dispatcher would refuse to fire and the key would block it forever after.
+            if (!PlayerProgress.IsReady) return;
             if (SeenTracker.HasFired(player, GuardKey)) return;
             SeenTracker.MarkFired(player, GuardKey);
 

@@ -24,6 +24,10 @@ namespace ValheimServerGuide.Triggers
         {
             if (__instance != Player.m_localPlayer) return;
             if (ZoneSystem.instance == null) return;
+            // The per-location SeenTracker keys below are one-shots; skip the whole poll until
+            // the progress store has loaded so we never mark one the dispatcher can't act on.
+            // The next poll (CheckInterval later) picks it up.
+            if (!State.PlayerProgress.IsReady) return;
             if (Time.time < _nextCheck) return;
             _nextCheck = Time.time + CheckInterval;
 

@@ -127,14 +127,16 @@ Tags shown inline with each configured entry:
 
 ### `vsg_debug` (Phase 6 — see [CRIT-24](/.claude/criteria/CRIT-24-phase6-system-polish.md))
 
-Dumps three diagnostic sections for the current character:
+Dumps the current character's diagnostic sections (storage mode, eligible entries, progress keys,
+recent fires — see CRIT-26 for what the storage modes mean):
 ```
 === VSG Debug (<PlayerName>) ===
 -- Eligible now (gates passing) --
   - arrow_hint
--- VSG.* custom-data keys --
+-- VSG.* progress keys (storage: server-side (mirrored from server)) --
   - VSG.fired = arrow_hint,mine_ore
   - VSG.kc.boar_hunt = 2
+-- character-file leftovers: 7 key(s) (already migrated; unused backup) --
 -- Last fired (this session) --
   - 14:22:07  arrow_hint
 ```
@@ -155,7 +157,7 @@ What it does, in order:
 | Step | Action |
 |---|---|
 | 1 | `GuidanceSync.RequestConfigResync()` — client → server `VSG_ConfigReq`; server re-pushes the current config via the normal `VSG_SyncConfig` path. Skipped on host/single-player (they own the YAML). |
-| 2 | `GuidanceSync.RequestChainState(playerName)` — re-pulls this character's server-side chain progress. |
+| 2 | `GuidanceSync.RequestProgressResync()` — re-pulls this character's server-side progress file (`VSG_ProgReq`; see CRIT-26). Local changes not yet flushed are re-applied on top of the push, so nothing in flight is lost. |
 | 3 | `GuidanceCodex.Instance.Rebuild()` — destroys `VSG_CodexRoot` and builds the panel again, dropping the cached `_font` so it is re-resolved. Reopens the Codex if it was open. |
 | 4 | `GuidanceHudTracker.ApplyLayout()` + `Refresh()` — re-applies the YAML `tracker:` layout and repaints rows. |
 
@@ -244,7 +246,7 @@ This protects against modded/malicious clients crafting the RPC directly without
 - [x] Server re-verifies admin status for `VSG_APListReq` and `VSG_APResetReq` before forwarding.
 - [x] Admin marker `"server"` distinguishes listen-server responses (output to `Console.instance`) from remote admin responses (RPC relay).
 - [x] Tab completion for `vsg_list_player` includes online peer names; `vsg_reset_player` includes peer names + `"all"` + configured IDs.
-- [x] `vsg_debug` lists currently-eligible entries, all `VSG.*` custom-data keys with values, and the last 10 fired ids (session-only) with timestamps.
+- [x] `vsg_debug` lists currently-eligible entries, the active progress-storage mode, all `VSG.*` progress keys with values, any pre-migration character-file leftovers, and the last 10 fired ids (session-only) with timestamps.
 - [x] `vsg_refresh` rebuilds the Codex root and repaints the tracker without touching any `VSG.*` state.
 - [x] `vsg_refresh` requests a config re-push only when the local process is not the server.
 - [x] `VSG_ConfigReq` is server-handled only (`IsServer()` guard) and replies via `SendToPeer` to the requesting peer — no broadcast, no webhook URL in the payload.

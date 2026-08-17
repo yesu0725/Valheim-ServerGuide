@@ -31,6 +31,9 @@ namespace ValheimServerGuide.Triggers
         {
             if (__instance != Player.m_localPlayer) return;
             if (ZoneSystem.instance == null) return;
+            // Same reason as DistanceTrigger: the per-location keys are one-shots, so wait for
+            // the progress store rather than marking one the dispatcher would then refuse.
+            if (!PlayerProgress.IsReady) return;
             if (Time.time < _nextCheck) return;
             _nextCheck = Time.time + CheckInterval;
 

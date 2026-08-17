@@ -2,20 +2,34 @@
 
 **File:** `src/State/SeenTracker.cs`
 
+> **Player-scope state no longer lives in the character save.** Every `VSG.*` key below is now
+> read and written through `PlayerProgress` into a per-character file the **server** owns — see
+> [CRIT-26](/.claude/criteria/CRIT-26-server-side-progress.md) for the storage layout, the sync
+> protocol, and the one-time migration out of `m_customData`. The key vocabulary and semantics
+> documented here are unchanged; only the backing store moved. Read the sections below as
+> describing the *keys*, and read `m_customData` as *"the progress store"* except where this file
+> explicitly says otherwise.
+
 ---
 
 ## What Persists Where
 
 | State type | Storage | Tied to | Survives |
 |---|---|---|---|
-| Player-scope fired IDs (`once`) | `Player.m_customData["VSG.fired"]` | Character `.fch` file | Game restarts, server changes |
-| `max_fires` fire counts | `Player.m_customData["VSG.fc.<id>"]` | Character `.fch` file | Game restarts, server changes |
+| Player-scope fired IDs (`once`) | progress store `"VSG.fired"` | Server progress file (per character) | Game restarts; **not** carried in from single-player |
+| `max_fires` fire counts | progress store `"VSG.fc.<id>"` | Server progress file | Game restarts |
 | Global-scope fired IDs | ZoneSystem global key `"VSG.<id>"` | World `.fwl`/`.db` save | Game restarts, new players joining |
-| Chain progress | `Player.m_customData["VSG.cd/cp/cc.*"]` | Character `.fch` file | Game restarts, server changes |
-| NPC item-submit counts | `Player.m_customData["VSG.is.<id>"]` | Character `.fch` file | Game restarts, server changes |
-| Item-acquired goal started | `Player.m_customData["VSG.ig.<id>"]` | Character `.fch` file | Game restarts, server changes |
-| Codex hidden-quest list | `Player.m_customData["VSG.hid"]` | Character `.fch` file | Game restarts, server changes |
+| Chain progress | progress store `"VSG.cd/cp/cc/cv.*"` | Server progress file | Game restarts |
+| NPC item-submit counts | progress store `"VSG.is.<id>"` | Server progress file | Game restarts |
+| Item-acquired goal started | progress store `"VSG.ig.<id>"` | Server progress file | Game restarts |
+| Conversation node pointer | progress store `"VSG.cn.<id>"` | Server progress file | Game restarts |
+| Tracker pins + panel position | progress store `"VSG.trk"` / `"VSG.tpos"` | Server progress file | Game restarts |
+| Quest-start log latch | progress store `"VSG.qs.<id>"` | Server progress file | Game restarts |
+| Codex hidden-quest list | progress store `"VSG.hid"` | Server progress file | Game restarts |
 | Cooldown timers | `SeenTracker.CooldownExpiry` (in-memory) | Process lifetime | Does NOT survive game restart |
+
+The progress file is per **character** (keyed on `Player.GetPlayerID()`), so the per-character
+independence the old `.fch` storage gave is preserved. What changed is *whose* disk it lives on.
 
 ### `VSG.hid` — Codex "hide from list"
 
@@ -30,9 +44,16 @@ can never sit invisible in the list.
 
 ---
 
-## Player-Scope (`m_customData`)
+## Player-Scope (progress store)
 
-`Player.m_customData` is a `Dictionary<string, string>` serialized inside the character save (`.fch` binary file, in `AppData/LocalLow/IronGate/Valheim/characters/`).
+The progress store is a `Dictionary<string, string>` held by `PlayerProgress` and persisted to
+`<config>/ValheimServerGuide/PlayerProgress/<PlayerName>_<characterId>.yml` by the authoritative
+process. Clients hold a mirror and stream changes to the server (CRIT-26).
+
+Historically this was `Player.m_customData`, serialized inside the character save (`.fch` binary
+file, in `AppData/LocalLow/IronGate/Valheim/characters/`). Those keys are still present in old
+character files as an untouched backup, but the mod no longer reads them — except once, as the
+migration seed.
 
 ### `VSG.fired` — `once` entries
 
@@ -87,7 +108,9 @@ This is **process-local and ephemeral**:
 
 ## What Happens on Character Delete
 
-- All player-scope fired state is lost (character file deleted).
+- The character's progress file is orphaned, not deleted — the server has no way to know the
+  character file is gone. A new character gets a new `characterId` and so a new, empty progress
+  file. Orphans are harmless; delete them by hand if the folder gets untidy.
 - Global-scope state is unaffected (stored in world, not character).
 - A new character on the same world will see global-scope entries as "not fired" — they will trigger the global display again if the world key was cleared, or skip if the world key is still set.
 
@@ -96,20 +119,23 @@ This is **process-local and ephemeral**:
 ## What Happens on World Delete / New World
 
 - All global-scope fired state is lost (world file deleted).
-- Player-scope state on characters is retained (stored in character file).
+- Player-scope progress files are untouched — they live beside the config, not in the world save,
+  and are keyed on character rather than world. A wiped world keeps everyone's quest history.
 - Characters joining a new world will re-trigger global-scope entries (world keys don't exist yet).
 
 ---
 
 ## Criteria
 
-- [x] Player-scope fired IDs survive game restarts (stored in character save).
+- [x] Player-scope fired IDs survive game restarts (stored in the server's progress file).
 - [x] Player-scope state is per-character — two characters on the same account have independent guidance history.
+- [x] Player-scope state does NOT travel with the character save, so single-player progress
+      cannot pre-complete server quests (CRIT-26).
 - [x] Global-scope fired IDs survive server restarts (stored in world save).
 - [x] Global-scope state is per-world — every character on the same world shares it.
 - [x] Cooldown timers do NOT persist across game restarts (in-memory only).
-- [x] `m_customData["VSG.fired"]` is removed (not set to empty) when all player-scope IDs are cleared.
-- [x] Entry IDs must not contain commas (they are used as CSV values in `m_customData`).
+- [x] `"VSG.fired"` is removed (not set to empty) when all player-scope IDs are cleared.
+- [x] Entry IDs must not contain commas (they are used as CSV values in `VSG.fired`).
 - [x] `ClearAllFired` resets cooldowns in addition to clearing fired IDs.
 - [x] Only the server/host writes to ZoneSystem global keys; clients are read-only.
 - [x] `max_fires` fire counts are stored in `VSG.fc.<id>` keys (separate from `VSG.fired`).

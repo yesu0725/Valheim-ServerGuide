@@ -18,7 +18,7 @@ All triggers in this modpack follow a fixed display mode assignment. See
 | `craft`, `item_acquired`, `kill`, `build`, `chest_opened`, `skill_level`, `timed`, `boss_defeated` | `rune` | Player actions — dramatic full-screen acknowledgement; ghost mode protects the reader |
 | `first_login`, `player_death` | `raven` | Environmental/existential events — ambient Hugin delivery |
 | `npc_interacted`, `equip`, `location_entered` | `message` | Brief contextual tips — no disruption needed |
-| `npc_conversation` | `conversation` | Hold-E NPC dialogue — choice-panel format |
+| `npc_conversation` | `conversation` | Shift+E NPC dialogue — choice-panel format |
 
 ### Simple One-Shot Introductions
 *Single entry, fires once per player, no chain needed.*

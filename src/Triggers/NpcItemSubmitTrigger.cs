@@ -148,8 +148,9 @@ namespace ValheimServerGuide.Triggers
                 // Still collecting — persist progress, show feedback, refresh the tracker.
                 SubmitState.Set(player, entry.Id, newCount);
                 var title = !string.IsNullOrEmpty(entry.Title) ? entry.Title : localized;
-                player.Message(MessageHud.MessageType.Center,
-                    $"{title}: {newCount}/{goal} {localized}");
+                // Queued so several deliveries settled in one frame each get their own line —
+                // see CenterToast.
+                Display.CenterToast.Queue($"{title}: {newCount}/{goal} {localized}");
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
             }
         }

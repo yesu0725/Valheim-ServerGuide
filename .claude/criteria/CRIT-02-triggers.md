@@ -148,16 +148,24 @@
 - **YAML field matched:** `trigger.npc`
 
 ### `npc_conversation`
-- **Source:** `NpcConversationTrigger.cs` (not raised via `GuidanceDispatcher.Raise` — opened directly by the hold detector)
+- **Source:** `NpcConversationTrigger.cs` (not raised via `GuidanceDispatcher.Raise` — opened directly from the Interact prefix)
+- **Input:** **Shift + E**. `ConversationModifierHeld()` accepts either literal Shift key, plus the
+  bound `Run` / `JoyRun` button (Shift by default, so rebinding still works and a gamepad has a
+  way in).
 - **Harmony patches:**
-  - `Trader.Interact` Prefix — intercepts `hold=false` (key-down frame) to start a 0.5 s
-    hold timer, suppressing the vanilla store open. `NpcConversationHoldDetector.Update()`
-    resolves outcome each frame: release before threshold → store opens; threshold reached →
-    `GuidanceDisplay.Show()` with `mode: conversation`.
-  - `Trader.GetHoverText` Postfix — appends `"\n[Hold E] Quest"` when a gated entry exists.
+  - `Trader.Interact` Prefix — on the key-down frame with the modifier held and a gated entry
+    available, opens the conversation (or the picker) and returns `false` to suppress the store.
+    Every other press falls straight through to vanilla.
+  - `Trader.GetHoverText` Postfix — appends `"\n[Shift + E] Quest"` when a gated entry exists.
 - **Subject:** trader prefab name (same format as `npc_interacted`)
 - **YAML field matched:** `trigger.npc`
-- **Short-press E** is unaffected — vanilla store opens and `npc_interacted` fires as normal.
+- **Plain E** is untouched — the vanilla store opens immediately and `npc_interacted` fires as normal.
+
+> **Superseded design — hold-E.** This used to be a 0.5 s hold: the prefix swallowed the first
+> key-down and an `NpcConversationHoldDetector.Update()` loop decided, frames later, whether to
+> re-open the store (early release) or the conversation (threshold reached). It made every
+> ordinary trade wait half a second to find out what the player meant. A modifier is unambiguous
+> on frame one, so the detector and its shared hold state are gone.
 
 ### `equip`
 - **Source:** `EquipTrigger.cs`
@@ -229,9 +237,25 @@
 - **Implementation:** `TimedTrigger.OnConfigChanged()` starts coroutines based on scope:
   - **player-scope** — every process (server, host, AND each pure client) starts its own coroutine and raises the event locally via `GuidanceDispatcher.Raise`. Per-player gates (`requires`, `once`, `cooldown`) are evaluated independently on each machine. The dedicated server does **not** broadcast player-scope timers.
   - **global-scope** — server/host starts the coroutine; dedicated server calls `GuidanceSync.BroadcastTimedGuidance(entryId)` so every client receives the event. Pure clients skip global timers (they wait for the RPC).
-- **Subject:** `trigger.id` value from YAML
-- **YAML fields matched:** `trigger.id` (required — stable identifier; becomes evt.Subject; falls back to entry.Id in the coroutine but dispatcher's `Eq` rejects null trigger.id, so omitting it means the entry never fires), `trigger.interval` (`"daily"` | `"hourly"` | raw float **seconds** — shorthand like `"30m"` or `"1h"` is **not** parsed and returns 0, causing the entry to be skipped)
-- **Limitation — chain steps only:** `timed` **cannot be used inside chain steps**. `TimedTrigger.OnConfigChanged` only scans top-level `entry.Trigger`; step-level timed triggers never get a coroutine started and silently never fire. Use `timed` exclusively on **single-entry** (non-chain) guidances. To sequence timed events one after another, convert each step to a standalone entry and gate subsequent entries with `requires: [previous_entry_id]`.
+- **Subject:** `trigger.id`, falling back to `entry.id` when omitted — the same fallback on both the scheduling side (`TimedTrigger`) and the matching side (`GuidanceDispatcher.Matches`).
+- **YAML fields matched:** `trigger.id` (optional), `trigger.interval` — seconds (`900`), a suffixed duration (`30s`, `15m`, `2h`, `1d`), or `daily` / `hourly`. Parsed with the invariant culture; anything else logs a warning and the entry is skipped.
+- **First fire is one full interval after scheduling**, not immediately.
+- **Limitation — top-level entries only:** `timed` cannot be used inside chain steps; `OnConfigChanged` only scans `entry.Trigger`. A step-level `timed` trigger now logs a warning at load instead of failing silently. To sequence timed events, make each one a standalone entry gated with `requires: [previous_entry_id]`.
+
+#### Both halves of the wiring have to be present
+
+This trigger is the one that spans processes, and it has failed twice for the same reason — one
+side of the pair was missing:
+
+| | Scheduling side | Matching side |
+|---|---|---|
+| **Where** | `TimedTrigger.OnConfigChanged`, called from `Plugin.OnConfigChanged` **and `GuidanceSync.OnReceive`** | `GuidanceDispatcher.Matches` |
+| **Was broken because** | `Plugin.OnConfigChanged` returns early on any non-authoritative process, so a **client never scheduled its own player-scope timers** — and the dedicated server deliberately skips them. The entry was scheduled nowhere. | `MatchesTrigger` compared `evt.Subject` against `trigger.id` only, and `Eq` rejects a null left side — so an entry that omitted `trigger.id` fired on schedule with nothing listening. |
+
+Config pushes no longer restart unchanged timers: a server-side YAML edit broadcasts to every
+client, and restarting the coroutine reset the countdown, so a 15-minute timer on a server whose
+config was touched more often than that would never complete an interval. `OnConfigChanged` now
+diffs `(trigger id, interval, scope)` and only stops what actually changed.
 
 ### `player_death`
 - **Source:** `PlayerDeathTrigger.cs`
@@ -418,7 +442,7 @@ these to fire. See CRIT-13 for the full `{token}` list each one makes available.
      npc_item_submit     -> trigger.npc matches evt.Subject; trigger.item matches Extra["item"]
                             (empty trigger.item = match any item submitted to that NPC)
      skill_level         -> trigger.skill matches skill part of "Skill:level"; trigger.level == level part
-     timed               -> trigger.id matches evt.Subject
+     timed               -> trigger.id (or entry.id when omitted) matches evt.Subject
      entry_finished      -> trigger.entry matches evt.Subject (the completed entry's ID)
      dvergr_recruited /
      dvergr_duel_won /
@@ -473,10 +497,10 @@ public string Location;    // location_entered
 public string Skill;       // skill_level
 public int    Level;       // skill_level threshold
 public string Npc;         // npc_interacted | npc_conversation | npc_item_submit
-public string Interval;    // timed: "daily" | "hourly" | raw float seconds ONLY — "30m"/"1h" etc. are NOT parsed
+public string Interval;    // timed: seconds ("900") | suffixed ("30s"/"15m"/"2h"/"1d") | "daily" | "hourly"
 public string Station;     // crafting_table_used | cooking_used (prefab filter; empty = any)
 public string Tag;         // portal_used (portal tag filter; empty = any)
-public string Id;          // timed: REQUIRED — stable identifier matching evt.Subject; null = entry never fires
+public string Id;          // timed: optional stable identifier matching evt.Subject; defaults to entry.Id
 public int    MaxFires;    // optional: cap total fires per player (player_death, others)
 public string Entry;       // entry_finished: the completed entry's ID
 public int    Count = 1;   // npc_item_submit / kill / item_acquired: count required before firing (>1 = progress)
@@ -524,7 +548,11 @@ public string Caste;       // dvergr_recruited | dvergr_duel_won | dvergr_level_
 - [x] `item_acquired` count-goal shows a `current/goal` progress bar in the HUD tracker while `0 < cur < goal`.
 - [x] `item_acquired` count-goal entries are skipped by the normal `GuidanceDispatcher.Raise()` path.
 - [x] `location_entered` fires at most once per location per character (SeenTracker key).
-- [x] `timed` events originate server/host-side only; pure clients receive via RPC.
+- [x] `timed` GLOBAL-scope events originate server/host-side only; pure clients receive via RPC.
+- [ ] `timed` PLAYER-scope entries are scheduled on each client from the config it receives over RPC, not only from a local YAML load.
+- [ ] A `timed` entry with no `trigger.id` still fires (subject falls back to the entry id on both sides).
+- [ ] `interval` accepts seconds, `30s`/`15m`/`2h`/`1d`, and `daily`/`hourly`; anything else warns and skips the entry.
+- [ ] A config push that does not change a timer's schedule leaves its countdown running.
 - [x] `player_death` respects `trigger.max_fires` if set.
 - [x] `time_of_day` fires within `window` of `game_time_fraction`, wrapping correctly across midnight.
 - [x] `day_number` fires once `EnvMan.GetDay()` reaches the configured `day` and morning has started (`GetDayFraction() >= 0.25`).
@@ -541,10 +569,10 @@ public string Caste;       // dvergr_recruited | dvergr_duel_won | dvergr_level_
 - [x] `build` subject is the piece prefab name (`"(Clone)"` stripped); matches `trigger.piece`.
 - [x] `build` piece prefab names have no separators (e.g. `woodwall`, not `wood_wall`); verified in-game.
 - [x] `trigger.entry` matching is case-insensitive; null/absent never matches.
-- [x] `npc_conversation` hold-E suppresses the vanilla store; short-press E still opens the store normally.
-- [x] `npc_conversation` hold threshold is 0.5 s, tracked by `NpcConversationHoldDetector.Update()`.
+- [ ] `npc_conversation` Shift+E suppresses the vanilla store; plain E opens the store with no delay.
+- [ ] `npc_conversation` accepts either Shift key and the bound Run/JoyRun button as the modifier.
 - [x] `npc_conversation` `trigger.npc` matching is case-insensitive.
-- [x] `npc_conversation` trader hover text gains `[Hold E] Quest` when a gated entry exists.
+- [ ] `npc_conversation` trader hover text gains `[Shift + E] Quest` when a gated entry exists.
 - [x] `npc_conversation` falls back to vanilla store when no matching entry exists or gates are not met.
 - [x] `npc_item_submit` fires when the player presses hotbar key 1-8 near a Trader with a configured item.
 - [x] `npc_item_submit` does NOT fire for items already in `trader.m_useItems` (Hildir vanilla quest items).

@@ -67,8 +67,9 @@ display:
 1. **Eligible now (gates passing)** — non-chain entries via the existing `CheckGates`; chain
    entries via `!ChainState.IsComplete && PrerequisiteChecker.AllSatisfied(Requires)` (CheckGates'
    once/cooldown semantics don't apply to chains the same way, so they get their own check).
-2. **`VSG.*` custom-data keys** — every key in `player.m_customData` starting with `VSG.`, with
-   its raw value.
+2. **`VSG.*` progress keys** — every key in the progress store starting with `VSG.`, with its raw
+   value, preceded by the active storage mode. (Originally read from `player.m_customData`; the
+   store moved server-side in CRIT-26.)
 3. **Last fired (this session)** — up to the last 10 `(id, wall-clock time)` pairs from the new
    `DebugFireLog` (`src/State/DebugFireLog.cs`), an in-memory, per-player, session-only ring
    buffer. Deliberately not persisted to `m_customData` — it's pure diagnostics, not state that
@@ -83,8 +84,8 @@ New `hover_text: { default, after_fire }` on a `GuidanceEntry` (`HoverTextSpec`)
    `hover_text.default` set → **appends** it below the vanilla hover text (e.g. `[E] Talk`),
    same as the generic hint it replaces.
 2. A fired, `once: true` entry for this NPC with `hover_text.after_fire` set → appends that instead.
-3. Otherwise, the existing behavior: append `"\n[Hold E] Quest"` when any conversation is available,
-   or leave the vanilla text untouched.
+3. Otherwise, the existing behavior: append `"\n[Shift + E] Quest"` when any conversation is
+   available, or leave the vanilla text untouched.
 
 The vanilla hover line is always kept — `hover_text` only adds a quest-specific line under it,
 it never replaces the player's normal interact hint.
@@ -154,7 +155,7 @@ trigger:
 - [x] `vsg_debug` lists the last 10 fired entry ids with timestamps for the current session.
 - [x] `hover_text.default` is appended below the vanilla hover text (e.g. `[E] Talk`) for an eligible, unfired entry — the vanilla line is never removed.
 - [x] `hover_text.after_fire` is appended the same way for a fired `once: true` entry.
-- [x] An entry without `hover_text` is unaffected — exact prior behavior (vanilla text + optional "[Hold E] Quest" hint).
+- [x] An entry without `hover_text` is unaffected — exact prior behavior (vanilla text + optional "[Shift + E] Quest" hint).
 - [x] `trigger.share_progress: true` on a multi-kill entry credits nearby players' (within 50m) own counters for the same entry when one player lands a kill, without requiring them to land it themselves.
 - [x] A player outside the 50m radius does not receive shared credit.
 - [x] Build is clean: `Build succeeded. 0 Warning(s) 0 Error(s)`.

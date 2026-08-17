@@ -2,7 +2,7 @@
 
 **Status:** `in_progress` (Phase 2 complete; Phase 3 keyboard navigation pending)
 
-A conversation panel triggered by holding E (≥ 0.5 s) near a trader NPC (Haldor, Hildir,
+A conversation panel triggered by **Shift + E** on a trader NPC (Haldor, Hildir,
 BogWitch). Displays a message and a row of choice buttons. Choosing a `goto` entry fires that
 entry automatically via `GuidanceDispatcher.FireById()`.
 
@@ -16,12 +16,16 @@ text+choices block -- see [CRIT-22](/.claude/criteria/CRIT-22-phase4-conversatio
 
 ## Overview
 
-Vanilla short-press E opens the trader store. **Holding E** (≥ 0.5 s) triggers the mod's
-conversation panel instead — the store does **not** open. Normal E (tap) still opens the
-store and fires `npc_interacted` unmodified.
+**Shift + E** on a trader opens the mod's conversation panel and the store does **not** open.
+Plain E is untouched: the vanilla store opens immediately and `npc_interacted` fires unmodified.
 
 When a conversation entry is available and its gates pass, the trader's hover tooltip
-gains an extra line: `[Hold E] Quest`.
+gains an extra line: `[Shift + E] Quest`.
+
+> **Superseded: hold-E.** The original design was a 0.5 s hold on E, resolved by an Update-loop
+> detector that had to swallow the first key-down and re-open the store itself if the player let
+> go early. Every ordinary trade therefore stalled for half a second. A modifier key is decided on
+> frame one, so `NpcConvHoldState` and `NpcConversationHoldDetector` no longer exist.
 
 Supported NPCs: any prefab with a `Trader` component. `trigger.npc` matches the prefab
 name case-insensitively, identical to `npc_interacted`.
@@ -40,34 +44,29 @@ trigger:
 
 ### Source: `src/Triggers/NpcConversationTrigger.cs`
 
-Three classes in this file:
+Two classes in this file:
 
 #### `NpcConversationTrigger` (Harmony `[HarmonyPatch(typeof(Trader), nameof(Trader.Interact))]`)
 
-Prefix on `Trader.Interact(Humanoid character, bool hold, bool alt)`.
+Prefix on `Trader.Interact(Humanoid character, bool hold, bool alt)`. It bails out to vanilla
+(`return true`) unless **all** of these hold on a key-down frame:
 
-- **`hold == false` (key-down frame):** if a gated conversation entry exists, start the hold
-  timer (`NpcConvHoldState.HoldStart = Time.time`), record `PendingTrader`, suppress the
-  original (return `false`, `__result = true`). The `NpcConversationHoldDetector` Update loop
-  now owns the outcome.
-- **`hold == true` (held frame):** suppress unconditionally while a `PendingTrader` is set
-  (return `false`, `__result = false`).
-- If no entry exists or gates are not met: return `true` (full vanilla path).
+1. `character` is the local player,
+2. `hold == false` — vanilla ignores held interacts, so we do too,
+3. `ConversationModifierHeld()` — either Shift key, or the bound `Run` / `JoyRun` button. Shift is
+   checked literally so the `[Shift + E]` prompt is always honest; `Run` (Shift by default) keeps
+   a rebinding player working and is a gamepad's only route in now that hold-E is gone,
+4. `FindAllEntries` returns at least one gate-passing entry.
+
+Then `OpenConversation` runs — one entry opens directly via `GuidanceDisplay.Show`, several open
+the picker via `NpcConversationPanel.OpenSelection` — and the prefix returns `false` with
+`__result = true` so the store stays shut for that press.
 
 #### `TraderHoverTextPatch` (Harmony `[HarmonyPatch(typeof(Trader), nameof(Trader.GetHoverText))]`)
 
-Postfix that appends `"\n[Hold E] Quest"` to the vanilla tooltip whenever a gated
-`npc_conversation` entry exists for that trader.
-
-#### `NpcConversationHoldDetector` (MonoBehaviour, always-active GO `"VSG_NpcConvHold"`)
-
-Created lazily on the first Trader interaction via `EnsureCreated()`.
-
-Each frame while `PendingTrader != null`:
-- `ZInput.GetButton("Use")` is false → **short press** → call `StoreGui.instance.Show(trader)`;
-  clear state.
-- `Time.time − HoldStart >= HoldThreshold (0.5 s)` → **held** → call
-  `GuidanceDisplay.Show(entry, rendered)`; clear state.
+Postfix that appends `TraderHoverTextPatch.ConversationHint` (`"\n[Shift + E] Quest"`) to the
+vanilla tooltip whenever a gated `npc_conversation` entry exists for that trader. Keep the
+constant in step with `ConversationModifierHeld` — the prompt is a promise.
 
 ### `TriggerSpec` — no new fields needed
 
@@ -100,10 +99,10 @@ white text reads against the game world.
 **Header:** `TextMeshProUGUI`, bold, gold `(0.88, 0.75, 0.47)`, from `display.topic` or
 `entry.title`.
 **Divider:** 1 px gold-tinted Image strip.
-**Body:** `TextMeshProUGUI`, `enableWordWrapping = true`, `overflowMode = Ellipsis`.
+**Body:** `TextMeshProUGUI`, `enableWordWrapping = true`, `overflowMode = Overflow` — the panel is content-sized and scrolls past 82% screen height; nothing is ellipsised (CRIT-25).
 **Choices:** `HorizontalLayoutGroup` — all buttons on a single row, equal-width flexible.
   If `conversation.choices` is absent, a default **Dismiss** button is inserted.
-**Canvas:** `ScreenSpaceOverlay`, `sortingOrder = 200`.
+**Canvas:** `ScreenSpaceOverlay`, `UiLayers.Conversation`.
 
 ### Source: `src/Display/NpcConversationPanel.cs`
 
@@ -184,8 +183,8 @@ public ConversationSpec Conversation { get; set; }
 ### `CheckGates(entry, player)` — `internal static bool`
 
 Extracted from the `Raise()` loop. Returns `true` when requires / stop_when / once /
-cooldown / max_fires all pass. Used by `NpcConversationTrigger` and `NpcConversationHoldDetector`
-to avoid duplicating gate logic.
+cooldown / max_fires all pass. Used by `NpcConversationTrigger` (both the Interact prefix and the
+hover-text postfix) to avoid duplicating gate logic.
 
 ### `FireById(entryId)` — `internal static void`
 
@@ -200,7 +199,7 @@ raises `entry_finished` for the fired entry. Used after a choice with a `goto` i
 |---|---|
 | `src/Config/GuidanceConfig.cs` | Added `ConversationSpec`, `ChoiceSpec`; added `Conversation` to `GuidanceEntry` |
 | `src/Triggers/GuidanceDispatcher.cs` | Added `CheckGates()` helper; added `FireById()` method; added `"npc_conversation"` to `MatchesTrigger` |
-| `src/Triggers/NpcConversationTrigger.cs` | New — `NpcConversationTrigger` patch, `TraderHoverTextPatch`, `NpcConversationHoldDetector` |
+| `src/Triggers/NpcConversationTrigger.cs` | New — `NpcConversationTrigger` patch, `TraderHoverTextPatch` (the original `NpcConversationHoldDetector` was removed with hold-E) |
 | `src/Display/NpcConversationPanel.cs` | New — panel build/open/close, cursor management, 4 input-lock patches |
 | `src/Display/GuidanceDisplay.cs` | Added `"conversation"` mode dispatch to `NpcConversationPanel.Get().Open()` |
 | `.claude/criteria/CRIT-02-triggers.md` | Documented `npc_conversation` trigger |
@@ -210,7 +209,7 @@ raises `entry_finished` for the fired entry. Used after a choice with a `goto` i
 
 ## Criteria
 
-### Phase 2 — Hold-E + Basic Panel + Input Lock
+### Phase 2 — Modifier+E + Basic Panel + Input Lock
 
 - [x] Holding E (≥ 0.5 s) near a trader opens the conversation panel instead of the store.
 - [x] Short-press E still opens the trader store normally; `npc_interacted` trigger still fires.
@@ -221,8 +220,8 @@ raises `entry_finished` for the fired entry. Used after a choice with a `goto` i
 - [x] No custom textures or sprites are used; all visuals use `Image` color fills and TMP text.
 - [x] TMP fonts are assigned before `SetActive(true)` to suppress the LiberationSans warning.
 - [x] The store (`StoreGui`) does NOT open when the conversation panel is shown.
-- [x] If no matching `npc_conversation` entry exists for the trader, Hold-E falls through to vanilla behavior.
-- [x] Hover tooltip gains `[Hold E] Quest` line when a gated conversation entry is available.
+- [x] If no matching `npc_conversation` entry exists for the trader, Shift+E falls through to vanilla behavior.
+- [ ] Hover tooltip gains `[Shift + E] Quest` line when a gated conversation entry is available.
 - [x] OS cursor is freed on `Open()` and re-asserted every frame; restored on `Close()`.
 - [x] Player movement, attack, interact-E, and inventory toggle are disabled while panel is open.
 - [x] Camera mouse-look is disabled while panel is open.

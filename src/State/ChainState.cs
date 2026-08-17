@@ -1,6 +1,6 @@
 namespace ValheimServerGuide.State
 {
-    /// Per-player chain progress stored in Player.m_customData alongside SeenTracker data.
+    /// Per-player chain progress stored via PlayerProgress (server-owned progress file).
     /// Step keys   : "VSG.cp.{chainId}"            = next step index (int string)
     /// Done keys   : "VSG.cd.{chainId}"            = "1" when chain complete
     /// Counter keys: "VSG.cc.{chainId}:{stepIdx}"  = current count (int string); absent = not yet activated
@@ -14,61 +14,49 @@ namespace ValheimServerGuide.State
 
         public static int GetStep(Player player, string chainId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return 0;
-            if (!player.m_customData.TryGetValue(StepPrefix + chainId, out var val)) return 0;
+            if (player == null || string.IsNullOrEmpty(chainId)) return 0;
+            if (!PlayerProgress.TryGet(player, StepPrefix + chainId, out var val)) return 0;
             return int.TryParse(val, out var n) ? n : 0;
         }
 
         public static void SetStep(Player player, string chainId, int step)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return;
-            player.m_customData[StepPrefix + chainId] = step.ToString();
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Set(player, StepPrefix + chainId, step.ToString());
         }
 
         public static bool IsComplete(Player player, string chainId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return false;
-            return player.m_customData.TryGetValue(DonePrefix + chainId, out var val) && val == "1";
+            if (player == null || string.IsNullOrEmpty(chainId)) return false;
+            return PlayerProgress.TryGet(player, DonePrefix + chainId, out var val) && val == "1";
         }
 
         public static void MarkComplete(Player player, string chainId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return;
-            player.m_customData[DonePrefix + chainId] = "1";
-            player.m_customData.Remove(StepPrefix + chainId);
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Set(player, DonePrefix + chainId, "1");
+            PlayerProgress.Remove(player, StepPrefix + chainId);
         }
 
         public static void Reset(Player player, string chainId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return;
-            player.m_customData.Remove(StepPrefix + chainId);
-            player.m_customData.Remove(DonePrefix + chainId);
-            player.m_customData.Remove(VersionPrefix + chainId);
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Remove(player, StepPrefix + chainId);
+            PlayerProgress.Remove(player, DonePrefix + chainId);
+            PlayerProgress.Remove(player, VersionPrefix + chainId);
             // Also remove any counter keys for this chain (VSG.cc.<chainId>:*).
-            var counterPrefix = CounterPrefix + chainId + ":";
-            var toRemove = new System.Collections.Generic.List<string>();
-            foreach (var key in player.m_customData.Keys)
-                if (key.StartsWith(counterPrefix)) toRemove.Add(key);
-            foreach (var key in toRemove)
-                player.m_customData.Remove(key);
+            PlayerProgress.RemoveWithPrefix(player, CounterPrefix + chainId + ":");
         }
 
-        /// Removes ALL chain-state keys (step, done, counter, version) from m_customData.
+        /// Removes ALL chain-state keys (step, done, counter, version).
         /// Called by vsg_reset all so a full player-scope reset is truly complete.
         public static void ResetAll(Player player)
         {
-            if (player?.m_customData == null) return;
-            var toRemove = new System.Collections.Generic.List<string>();
-            foreach (var key in player.m_customData.Keys)
-            {
-                if (key.StartsWith(StepPrefix) ||
-                    key.StartsWith(DonePrefix) ||
-                    key.StartsWith(CounterPrefix) ||
-                    key.StartsWith(VersionPrefix))
-                    toRemove.Add(key);
-            }
-            foreach (var key in toRemove)
-                player.m_customData.Remove(key);
+            if (player == null) return;
+            PlayerProgress.RemoveWithPrefix(player, StepPrefix);
+            PlayerProgress.RemoveWithPrefix(player, DonePrefix);
+            PlayerProgress.RemoveWithPrefix(player, CounterPrefix);
+            PlayerProgress.RemoveWithPrefix(player, VersionPrefix);
         }
 
         // ── Version helpers (Phase 10-A) ────────────────────────────────────────
@@ -78,15 +66,15 @@ namespace ValheimServerGuide.State
         /// if current version is >= 1).
         public static int GetCompletedVersion(Player player, string chainId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return 0;
-            if (!player.m_customData.TryGetValue(VersionPrefix + chainId, out var val)) return 0;
+            if (player == null || string.IsNullOrEmpty(chainId)) return 0;
+            if (!PlayerProgress.TryGet(player, VersionPrefix + chainId, out var val)) return 0;
             return int.TryParse(val, out var n) ? n : 0;
         }
 
         public static void SetCompletedVersion(Player player, string chainId, int version)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return;
-            player.m_customData[VersionPrefix + chainId] = version.ToString();
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Set(player, VersionPrefix + chainId, version.ToString());
         }
 
         // ── Counter helpers (Phase 03) ──────────────────────────────────────────
@@ -98,20 +86,21 @@ namespace ValheimServerGuide.State
         /// Returns ≥ 0 once activated; the value is the current count toward the goal.
         public static int GetCounter(Player player, string chainId, int stepIndex)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return -1;
-            if (!player.m_customData.TryGetValue(CounterKey(chainId, stepIndex), out var val)) return -1;
+            if (player == null || string.IsNullOrEmpty(chainId)) return -1;
+            if (!PlayerProgress.TryGet(player, CounterKey(chainId, stepIndex), out var val)) return -1;
             return int.TryParse(val, out var n) ? n : -1;
         }
 
         public static void SetCounter(Player player, string chainId, int stepIndex, int value)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(chainId)) return;
-            player.m_customData[CounterKey(chainId, stepIndex)] = value.ToString();
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Set(player, CounterKey(chainId, stepIndex), value.ToString());
         }
 
         public static void ClearCounter(Player player, string chainId, int stepIndex)
         {
-            player?.m_customData?.Remove(CounterKey(chainId, stepIndex));
+            if (player == null || string.IsNullOrEmpty(chainId)) return;
+            PlayerProgress.Remove(player, CounterKey(chainId, stepIndex));
         }
     }
 }

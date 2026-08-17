@@ -23,7 +23,10 @@ namespace ValheimServerGuide.Rewards
             if (parts.Count == 0) return;
 
             var summary = "Received: " + string.Join(", ", parts);
-            MessageHud.instance.ShowMessage(MessageHud.MessageType.Center, summary);
+            // Queued rather than shown directly: a quest completing in the same frame another one
+            // advances would otherwise overwrite (or be overwritten by) that progress line.
+            // CenterToast widens the vanilla centre text and emits everything as one message.
+            Display.CenterToast.Queue(summary);
         }
 
         private static string Describe(RewardSpec reward)

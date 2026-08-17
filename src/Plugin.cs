@@ -46,6 +46,9 @@ namespace ValheimServerGuide
         public static ConfigEntry<string> TrackerHotkey { get; private set; }
         public static ConfigEntry<bool> TrackerBadgeEnabled { get; private set; }
 
+        // Player progress storage (server-side quest progress files)
+        public static ConfigEntry<string> ProgressPath { get; private set; }
+
         // Discord — server-side only. URL is a secret; do not surface to clients.
         public static ConfigEntry<string> DiscordWebhookUrl { get; private set; }
         public static ConfigEntry<string> DiscordDefaultTemplate { get; private set; }
@@ -130,6 +133,14 @@ namespace ValheimServerGuide
                 "Codex", "CodexKey", "F3",
                 "KeyCode name for the Codex toggle hotkey (e.g. F2, F3). " +
                 "See UnityEngine.KeyCode enum for valid values.");
+
+            ProgressPath = Config.Bind(
+                "PlayerProgress", "ProgressPath", "",
+                "Folder holding one quest-progress file per character (server-side save data). " +
+                "Leave empty for the default: <BepInEx>/config/" + PluginName + "/PlayerProgress. " +
+                "Set an absolute path outside the config tree if your mod manager rewrites config/ " +
+                "on update — these files ARE your players' quest progress, so back them up. " +
+                "Only the authoritative process uses this (dedicated server, host, or single-player).");
 
             DiscordWebhookUrl = Config.Bind(
                 "Discord", "WebhookUrl", "",
@@ -270,11 +281,30 @@ namespace ValheimServerGuide
             GuidanceConfigLoader loader;
             lock (_loaderLock) { loader = _loader; }
             loader?.Tick();
+            // Safety net: if the OnSpawned hook was missed (m_localPlayer assigned late), bind
+            // the progress store here rather than leaving the player unable to fire anything.
+            if (Player.m_localPlayer != null && State.PlayerProgress.CharacterId == 0
+                && State.PlayerProgress.Mode == State.PlayerProgress.StoreMode.Unbound)
+            {
+                GuidanceSync.EnsureProgressSession(Player.m_localPlayer);
+            }
+            // Flush this frame's quest-progress changes to the server (client) and enforce the
+            // progress handshake timeout; then write any dirty progress files (host / server).
+            State.PlayerProgress.Tick();
+            State.PlayerProgressStore.Tick();
             GuidanceDisplay.Tick();
+            // Emit everything queued for the vanilla centre message this frame as one multi-line
+            // toast, so several quests advancing on the same action are all visible.
+            Display.CenterToast.Flush();
         }
 
         private void OnDestroy()
         {
+            // Last chance to get progress onto disk — a server shutdown lands here.
+            try { State.PlayerProgress.FlushNow(); }
+            catch (System.Exception ex) { Log.LogError($"[progress] shutdown flush failed: {ex.Message}"); }
+            State.PlayerProgressStore.SaveAll();
+
             ShutdownLoader();
             _harmony?.UnpatchSelf();
         }

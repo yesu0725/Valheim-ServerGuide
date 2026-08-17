@@ -92,6 +92,11 @@ namespace ValheimServerGuide.Config
         public string Title { get; set; }
         /// Mod/group label for Codex left-panel grouping.
         public string Category { get; set; }
+        /// What the player has to DO, in one or two lines. Shown under the quest's row in the
+        /// F10 tracker's "Expand Full" view and as its hover tooltip. Chain entries normally get
+        /// this per step (GuidanceStep.Description); this is the entry-level fallback, and the
+        /// only source for non-chain entries (kill counts, collection goals, item submits).
+        public string Description { get; set; }
         public TriggerSpec Trigger { get; set; }
         public DisplaySpec Display { get; set; }
         /// Top-level message for single-entry (non-chain) guidance.
@@ -112,7 +117,8 @@ namespace ValheimServerGuide.Config
         /// If any of these IDs has fired for this character, the entry stops firing.
         /// Useful for "show this hint on a cooldown UNTIL the player has done X".
         public List<string> StopWhen { get; set; } = new List<string>();
-        /// "player" (default) -- each player has their own fire state in m_customData.
+        /// "player" (default) -- each character has their own fire state in the server-side
+        ///                       progress file (see CRIT-26).
         /// "global"           -- world-wide. First player to trigger broadcasts the display
         ///                       to every connected player; the fired state is stored in
         ///                       ZoneSystem global keys ("VSG.<id>") and persists with the
@@ -128,7 +134,7 @@ namespace ValheimServerGuide.Config
         /// Short recap shown in the Codex body when the entry is complete.
         /// Reminds the player what the quest was about without re-reading every step.
         public string Summary { get; set; }
-        /// Overrides the vanilla NPC interact hover tooltip ("Hold E to interact") for
+        /// Overrides the vanilla NPC interact hover tooltip ("[E] Talk") for
         /// the entry's trigger.npc, keyed by whether the entry has fired yet. Trader-bound
         /// NPCs only (Phase 6).
         public HoverTextSpec HoverText { get; set; }
@@ -138,7 +144,7 @@ namespace ValheimServerGuide.Config
     }
 
     /// Per-entry NPC hover tooltip override (Phase 6). Null/absent = vanilla behavior
-    /// (plus the existing "[Hold E] Quest" hint when a conversation is available).
+    /// (plus the existing "[Shift + E] Quest" hint when a conversation is available).
     public class HoverTextSpec
     {
         /// Shown while the entry is still eligible to fire (gates passing, not yet fired).

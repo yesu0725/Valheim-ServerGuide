@@ -10,30 +10,27 @@ namespace ValheimServerGuide.State
 
         public static string GetCurrentNode(Player player, string entryId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(entryId)) return null;
-            return player.m_customData.TryGetValue(Prefix + entryId, out var val) ? val : null;
+            if (player == null || string.IsNullOrEmpty(entryId)) return null;
+            return PlayerProgress.TryGet(player, Prefix + entryId, out var val) ? val : null;
         }
 
         public static void SetCurrentNode(Player player, string entryId, string nodeId)
         {
-            if (player?.m_customData == null || string.IsNullOrEmpty(entryId)) return;
-            player.m_customData[Prefix + entryId] = nodeId;
+            if (player == null || string.IsNullOrEmpty(entryId)) return;
+            PlayerProgress.Set(player, Prefix + entryId, nodeId);
         }
 
         public static void Clear(Player player, string entryId)
         {
-            player?.m_customData?.Remove(Prefix + entryId);
+            if (player == null || string.IsNullOrEmpty(entryId)) return;
+            PlayerProgress.Remove(player, Prefix + entryId);
         }
 
         /// Removes ALL conversation-node-state keys. Called by vsg_reset all.
         public static void ResetAll(Player player)
         {
-            if (player?.m_customData == null) return;
-            var toRemove = new System.Collections.Generic.List<string>();
-            foreach (var key in player.m_customData.Keys)
-                if (key.StartsWith(Prefix)) toRemove.Add(key);
-            foreach (var key in toRemove)
-                player.m_customData.Remove(key);
+            if (player == null) return;
+            PlayerProgress.RemoveWithPrefix(player, Prefix);
         }
     }
 }

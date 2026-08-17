@@ -91,7 +91,7 @@ Multi-step quests where each step has its own trigger. Progress is tracked in th
 
 ### HUD Tracker & Codex
 
-A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (default `F3`), select an in-progress quest, and click **Show on Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
+A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
 
 ### NPC Conversations
 

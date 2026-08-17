@@ -136,8 +136,8 @@ guidances:
       mode: conversation
       topic: "Haldor"
     hover_text:
-      default: "[Hold E] Ask about the patrons"
-      after_fire: "[Hold E] Trade"
+      default: "[Shift + E] Ask about the patrons"
+      after_fire: "[Shift + E] Trade"
     message: >-
       Hah! You have the look of someone who was told to come ask me something.
       The patrons, is it? Folk who keep this realm's doors open with coin from

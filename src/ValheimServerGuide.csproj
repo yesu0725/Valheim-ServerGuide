@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>ValheimServerGuide</AssemblyName>
     <RootNamespace>ValheimServerGuide</RootNamespace>
-    <Version>0.11.1</Version>
+    <Version>0.12.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the
@@ -18,9 +18,10 @@
     <ManagedDir>$(VALHEIM_INSTALL)\valheim_Data\Managed</ManagedDir>
     <BepInExDir>$(VALHEIM_INSTALL)\BepInEx</BepInExDir>
     <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
-    <!-- Override on other machines: dotnet build -p:R2MODMAN_PROFILE_DIR="..." -->
-    <R2MODMAN_PROFILE_DIR Condition=" '$(R2MODMAN_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\r2modmanPlus-local\Valheim\profiles\Hearthbound Valheim - Test</R2MODMAN_PROFILE_DIR>
-    <R2ModmanInstallDir>$(R2MODMAN_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</R2ModmanInstallDir>
+    <!-- Test client: the Gale profile "HB Test" (replaced the old r2modman profile).
+         Override on other machines: dotnet build -p:TEST_PROFILE_DIR="..." -->
+    <TEST_PROFILE_DIR Condition=" '$(TEST_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test</TEST_PROFILE_DIR>
+    <TestProfileInstallDir>$(TEST_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</TestProfileInstallDir>
     <!-- Override on other machines: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..." -->
     <VALHEIM_DEDICATED_SERVER_DIR Condition=" '$(VALHEIM_DEDICATED_SERVER_DIR)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server</VALHEIM_DEDICATED_SERVER_DIR>
     <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</DedicatedServerInstallDir>
@@ -119,10 +120,13 @@
     <Message Text="Deployed ValheimServerGuide to $(PluginInstallDir)" Importance="high" />
   </Target>
 
-  <Target Name="DeployToR2Modman" AfterTargets="Build" Condition="Exists('$(R2MODMAN_PROFILE_DIR)')">
-    <MakeDir Directories="$(R2ModmanInstallDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(R2ModmanInstallDir)" />
-    <Message Text="Deployed ValheimServerGuide to $(R2ModmanInstallDir)" Importance="high" />
+  <!-- Test client (Gale profile). The DLL goes in the mod's own subfolder, not straight into
+       plugins/: BepInEx scans recursively, so a second copy loose in plugins/ would be a
+       duplicate of the Thunderstore-installed one and one of them would be skipped. -->
+  <Target Name="DeployToTestProfile" AfterTargets="Build" Condition="Exists('$(TEST_PROFILE_DIR)')">
+    <MakeDir Directories="$(TestProfileInstallDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TestProfileInstallDir)" />
+    <Message Text="Deployed ValheimServerGuide to $(TestProfileInstallDir)" Importance="high" />
   </Target>
 
   <Target Name="DeployToDedicatedServer" AfterTargets="Build" Condition="Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')">

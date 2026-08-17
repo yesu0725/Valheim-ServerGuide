@@ -101,8 +101,14 @@ namespace ValheimServerGuide.Triggers
             else
             {
                 KillCountState.Set(player, entry.Id, newCount);
-                var title = !string.IsNullOrEmpty(entry.Title) ? entry.Title : (displayName ?? creature);
-                player.Message(MessageHud.MessageType.Center, $"{title}: {newCount}/{goal}");
+                // displayName is Character.m_name — a token ("$enemy_greyling") until localized.
+                var title = !string.IsNullOrEmpty(entry.Title)
+                    ? entry.Title
+                    : TriggerUtils.LocalizeName(displayName ?? creature);
+                // Queued, not shown directly: one kill can advance several quests that share the
+                // same creature, and the vanilla centre slot keeps only the last string written
+                // to it. CenterToast merges this frame's lines into one multi-line message.
+                CenterToast.Queue($"{title}: {newCount}/{goal}");
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
             }
         }

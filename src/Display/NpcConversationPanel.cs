@@ -70,7 +70,7 @@ namespace ValheimServerGuide.Display
 
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 200;
+            canvas.sortingOrder = UiLayers.Conversation;
             go.AddComponent<GraphicRaycaster>();
 
             Instance = go.AddComponent<NpcConversationPanel>();
@@ -149,11 +149,10 @@ namespace ValheimServerGuide.Display
             _bodyViewportLe.preferredHeight = MinBodyHeight;
 
             _bodyScroll = viewportGo.AddComponent<ScrollRect>();
-            _bodyScroll.horizontal          = false;
-            _bodyScroll.vertical            = true;
-            _bodyScroll.movementType        = ScrollRect.MovementType.Clamped;
-            _bodyScroll.scrollSensitivity   = 24f;
-            _bodyScroll.viewport            = viewportRt;
+            _bodyScroll.horizontal   = false;
+            _bodyScroll.vertical     = true;
+            _bodyScroll.movementType = ScrollRect.MovementType.Clamped;
+            _bodyScroll.viewport     = viewportRt;
 
             var bodyGo = new GameObject("Body");
             bodyGo.transform.SetParent(viewportGo.transform, false);
@@ -170,6 +169,8 @@ namespace ValheimServerGuide.Display
             _bodyText.enableWordWrapping = true;
             _bodyText.overflowMode       = TextOverflowModes.Overflow;
             _bodyScroll.content = _bodyContentRect;
+            // Fixed pixels per notch — see WheelScroller for why sensitivity alone does not work.
+            WheelScroller.Attach(_bodyScroll);
 
             // ── Choice rows ──────────────────────────────────────────────────────
             // A vertical stack of horizontal rows. AddChoiceButton opens a new row once the
@@ -285,7 +286,9 @@ namespace ValheimServerGuide.Display
             _isOpen = true;
             gameObject.SetActive(true);
 
-            _headerText.text = npcDisplayName ?? "";
+            // Trader.m_name is a localization token ("$npc_haldor"), not a name — the picker
+            // header printed it raw before this.
+            _headerText.text = Triggers.TriggerUtils.LocalizeName(npcDisplayName ?? "");
 
             BeginChoices(entries?.Count ?? 0);
             foreach (var entry in entries) AddSelectionButton(entry, npcSubject);

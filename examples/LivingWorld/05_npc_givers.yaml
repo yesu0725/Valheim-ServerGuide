@@ -1,6 +1,6 @@
 # ==========================================================================
 # Living World — NPC quest-givers (conversation trees)
-# Hold E on Hildir / the Bog Witch opens the multi-quest PICKER (these entries
+# Shift + E on Hildir / the Bog Witch opens the multi-quest PICKER (these entries
 # coexist with the BiomeLords "Lore-keeper of the Lords" trees — titles are
 # distinct so the chooser reads cleanly). Pure flavor + instruction; choices use
 # `goto_node` to navigate. No rewards on node choices (NodeChoiceSpec reward
@@ -28,7 +28,7 @@ guidances:
       mode: conversation
       topic: "Hildir"
     hover_text:
-      default: "[Hold E] Ask after work"
+      default: "[Shift + E] Ask after work"
     conversation:
       resume_on_return: true
       nodes:
@@ -80,7 +80,7 @@ guidances:
       mode: conversation
       topic: "The Bog Witch"
     hover_text:
-      default: "[Hold E] Ask of the day's rites"
+      default: "[Shift + E] Ask of the day's rites"
     conversation:
       resume_on_return: true
       nodes:

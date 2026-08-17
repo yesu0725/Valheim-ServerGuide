@@ -11,12 +11,13 @@ namespace ValheimServerGuide.Triggers
 {
     /// Central match-and-fire logic. Triggers raise a TriggerEvent here; we look up
     /// matching entries from the current config, check gates, and dispatch.
-    /// Player-scope: fires locally, persists in m_customData, optional discord ping.
+    /// Player-scope: fires locally, persists via PlayerProgress into the server-owned
+    /// per-character progress file, optional discord ping.
     /// Global-scope: sends an RPC to the server which marks a world-wide global key
     /// and broadcasts a "play now" RPC to every connected client (including the
     /// originator), so everybody sees the same display.
     /// Chain entries (steps: list): step N fires only after step N-1; progress persists
-    /// in m_customData via ChainState and is synced server-side on each advance.
+    /// via ChainState -> PlayerProgress and streams to the server on each advance.
     public static class GuidanceDispatcher
     {
         public static void Raise(TriggerEvent evt)
@@ -25,6 +26,15 @@ namespace ValheimServerGuide.Triggers
             if (player == null)
             {
                 Plugin.Log.LogDebug($"[dispatch] {evt.Type}/{evt.Subject} ignored: no local player.");
+                return;
+            }
+
+            // Nothing may fire until this character's progress has arrived from the server.
+            // Firing against an empty store would re-run every `once` quest and then persist
+            // those duplicate fires back to the server file.
+            if (!PlayerProgress.IsReady)
+            {
+                Plugin.Log.LogDebug($"[dispatch] {evt.Type}/{evt.Subject} deferred: progress not loaded yet.");
                 return;
             }
 
@@ -201,8 +211,6 @@ namespace ValheimServerGuide.Triggers
 
                 ChainState.SetCounter(player, entry.Id, stepIndex, seed);
                 Plugin.Log.LogInfo($"[chain] '{entry.Id}' step {stepIndex} counter activated (seed: {seed}/{step.ProgressGoal}).");
-                GuidanceSync.SendChainStepUpdate(player.GetPlayerName(),
-                    entry.Id + ":" + stepIndex, seed.ToString());
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
 
                 if (seed >= step.ProgressGoal)
@@ -220,8 +228,6 @@ namespace ValheimServerGuide.Triggers
                 var newCount = System.Math.Min(counter + 1, step.ProgressGoal);
                 ChainState.SetCounter(player, entry.Id, stepIndex, newCount);
                 Plugin.Log.LogInfo($"[chain] '{entry.Id}' step {stepIndex} counter: {newCount}/{step.ProgressGoal}.");
-                GuidanceSync.SendChainStepUpdate(player.GetPlayerName(),
-                    entry.Id + ":" + stepIndex, newCount.ToString());
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
 
                 if (newCount >= step.ProgressGoal)
@@ -275,7 +281,6 @@ namespace ValheimServerGuide.Triggers
                 ChainState.MarkComplete(player, entry.Id);
                 ChainState.SetCompletedVersion(player, entry.Id, entry.Version);
                 Plugin.Log.LogInfo($"[chain] '{entry.Id}' complete (all {entry.Steps.Count} steps done).");
-                GuidanceSync.SendChainStepUpdate(player.GetPlayerName(), entry.Id, "done");
                 GuidanceHudTracker.Instance?.FlashCompletion(entry.Id);
                 DebugFireLog.Record(player.GetPlayerName(), entry.Id);
                 if (entry.DiscordOnComplete)
@@ -288,7 +293,6 @@ namespace ValheimServerGuide.Triggers
             {
                 ChainState.SetStep(player, entry.Id, nextStep);
                 Plugin.Log.LogInfo($"[chain] '{entry.Id}' advanced to step {nextStep}/{entry.Steps.Count}.");
-                GuidanceSync.SendChainStepUpdate(player.GetPlayerName(), entry.Id, nextStep.ToString());
                 GuidanceHudTracker.Instance?.Refresh(fromProgress: true);
             }
         }
@@ -315,6 +319,8 @@ namespace ValheimServerGuide.Triggers
         /// Used by NpcConversationTrigger to validate an entry before opening the panel.
         internal static bool CheckGates(GuidanceEntry entry, Player player)
         {
+            // Same reason as Raise(): an unloaded store reads as "nothing done yet".
+            if (!PlayerProgress.IsReady) return false;
             if (!RequirementsMet(entry, player)) return false;
             if (StopConditionMet(entry, player)) return false;
             if (entry.Once && SeenTracker.HasFired(player, entry.Id, entry.Scope)) return false;
@@ -368,6 +374,11 @@ namespace ValheimServerGuide.Triggers
         {
             var player = Player.m_localPlayer;
             if (player == null || entry == null) return;
+            if (!PlayerProgress.IsReady)
+            {
+                Plugin.Log.LogDebug($"[dispatch] FireEntry '{entry.Id}' deferred: progress not loaded yet.");
+                return;
+            }
 
             if (SeenTracker.IsGlobalScope(entry.Scope))
             {
@@ -423,6 +434,14 @@ namespace ValheimServerGuide.Triggers
         private static bool Matches(GuidanceEntry entry, TriggerEvent evt)
         {
             if (entry.Trigger == null) return false;
+
+            // `timed` identifies itself by trigger.id, and TimedTrigger schedules under
+            // `trigger.id ?? entry.id`. MatchesTrigger only sees the TriggerSpec, so an entry that
+            // omitted trigger.id compared against a null id and never matched — the timer fired on
+            // schedule and nothing listened. Resolve the same fallback here.
+            if (Eq(entry.Trigger.Type, "timed") && string.IsNullOrEmpty(entry.Trigger.Id))
+                return Eq(evt.Type, "timed") && Eq(entry.Id, evt.Subject);
+
             return MatchesTrigger(entry.Trigger, evt);
         }
 
@@ -577,11 +596,17 @@ namespace ValheimServerGuide.Triggers
             string Extra(string key) =>
                 evt?.Extra != null && evt.Extra.TryGetValue(key, out var v) ? v?.ToString() ?? "" : "";
 
+            // Every trigger fills DisplayName straight from the game (Character.m_name,
+            // ItemDrop.m_shared.m_name, Trader.m_name…), and those are localization TOKENS —
+            // "$enemy_greyling", not "Greyling". Resolve here, at the single point where they
+            // reach player-facing text, so no trigger has to remember to do it.
+            var displayName = TriggerUtils.LocalizeName(evt?.DisplayName ?? evt?.Subject ?? "");
+
             var result = template
                 .Replace("{playerName}", playerName ?? "")
                 .Replace("{player_name}", playerName ?? "")
-                .Replace("{itemName}", evt?.DisplayName ?? evt?.Subject ?? "")
-                .Replace("{creatureName}", evt?.DisplayName ?? evt?.Subject ?? "")
+                .Replace("{itemName}", displayName)
+                .Replace("{creatureName}", displayName)
                 .Replace("{biome}", string.IsNullOrEmpty(biomeName) ? (evt?.Subject ?? "") : biomeName)
                 .Replace("{skill}", skillName)
                 .Replace("{level}", levelStr)
@@ -654,6 +679,9 @@ namespace ValheimServerGuide.Triggers
         public static void CheckVersionUpdates(Player player, GuidanceConfig config)
         {
             if (player == null || config?.Guidances == null) return;
+            // An unbound store reports every chain as incomplete, so this would find nothing.
+            // PlayerProgress re-runs it once a client's progress file arrives.
+            if (!PlayerProgress.IsReady) return;
             foreach (var entry in config.Guidances)
             {
                 if (entry.Steps == null || entry.Steps.Count == 0) continue;
@@ -669,7 +697,10 @@ namespace ValheimServerGuide.Triggers
                 var rendered = RenderDisplay(entry, lastStep, rawText, null, player.GetPlayerName());
 
                 if (MessageHud.instance != null)
+                {
+                    Display.GuidanceDisplay.EnsureTopLeftMessageWraps();
                     MessageHud.instance.ShowMessage(MessageHud.MessageType.TopLeft, rendered);
+                }
 
                 Plugin.Log.LogInfo($"[dispatch] Version update for '{entry.Id}': " +
                     $"seen v{seenVersion}, current v{entry.Version}. Re-delivered notification.");
@@ -679,8 +710,8 @@ namespace ValheimServerGuide.Triggers
     }
 
     /// On player spawn, check whether any completed chains have a config version bump
-    /// and re-deliver updated messages as notifications. Runs after the HUD tracker
-    /// refresh so chain state is already loaded from m_customData.
+    /// and re-deliver updated messages as notifications. On a client the progress store is
+    /// still in flight here, so PlayerProgress.OnBecameReady runs this again once it lands.
     [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
     internal static class PlayerOnSpawnedDispatchPatch
     {
@@ -697,7 +728,10 @@ namespace ValheimServerGuide.Triggers
     {
         public string Type;          // craft | pickup | kill | build | biome | ...
         public string Subject;       // prefab name / biome name / "Skill:level"
-        public string DisplayName;   // localized display name when available
+        // Display name as the game stores it — normally a localization TOKEN ("$enemy_greyling").
+        // RenderTemplate resolves it via TriggerUtils.LocalizeName; anything else that shows this
+        // to a player must do the same.
+        public string DisplayName;
         public Dictionary<string, object> Extra;
     }
 }

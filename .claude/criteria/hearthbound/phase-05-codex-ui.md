@@ -40,6 +40,45 @@ guide they've unlocked, and check their chain progress. Vanilla UI components on
 
 ---
 
+## Vanilla Inventory Styling
+
+The codex is drawn as a Valheim window, not as flat boxes: the frame, the interior boxes and the
+buttons are the **player inventory's own art**, read off the live `InventoryGui` at runtime by
+`VanillaUi` (see CRIT-14 for the asset table and the degradation rules). The F10 quest tracker is
+deliberately left on its own lightweight styling — it is a HUD overlay, not a window.
+
+- **Frame:** `woodpanel_playerinventory`. Because Valheim's window art is one bespoke sprite per
+  window rather than a 9-sliced tile, the panel is *fitted to that sprite's aspect ratio*
+  (`ResolvePanelSize`) at ~80% of screen height, clamped to 92% of screen width — it is never
+  stretched. The fit re-runs when the screen resolution **or the game's GUI scale** changes.
+  - Screen-to-canvas conversion comes from `UiScaleFactor()`, which reads the **vanilla HUD**
+    canvas's `scaleFactor`. Our own canvas cannot be asked: a `CanvasScaler` applies itself from
+    `Canvas.preWillRenderCanvases` (render time), so on the frame the codex root is activated our
+    canvas still reports the factor it was created with (1), which fitted the panel to raw pixels
+    and made it ~20% oversized on any display that is not exactly the reference resolution.
+- **Content inset:** `_frameInset` scales with the panel (2.5% of its width, 18–34 px) because the
+  frame's carving scales with it too; every content rect is derived from it in `ApplyGeometry`.
+- **Interior boxes:** the guide list, the description scroll and the Upcoming Steps section sit in
+  `panel_interior_bkg_128` when that sprite is 9-sliceable, else a flat dark fill — which is what
+  the vanilla trophy/skills windows show inside their frames anyway.
+- **Buttons:** Close, the two toggle pills and the footer toggle are vanilla `button` sprites with
+  vanilla's own hover/press/disabled swaps (`Selectable.Transition.SpriteSwap`). They are sized for
+  their text rather than the reverse: 16 px horizontal / 4 px vertical padding inside the sprite
+  (`ButtonPadX` / `ButtonPadY`), a 38 px pill bar, a 42 px footer and a 48 px title band, with 16 pt
+  labels. The pin label is kept short (`[x] Pinned to Tracker`) so it still fits at the narrowest
+  panel size — the "(click to pin)" hint is redundant now that the pills visibly behave as buttons.
+- **Font:** the face the inventory's own labels use, resolved by majority vote over its `TMP_Text`s
+  rather than by name (outline variants skipped — they are for text over the world). The
+  tracker-resolved font remains the fallback until the GUI scene exists, and is treated as
+  provisional so the next `Open()` upgrades to the inventory's font.
+- **Sizes** are matched to that window (title 20, entry title 18, body 16, rows/buttons 14) and
+  **colours** to Valheim's pairing of orange headings on parchment body text (`VanillaUi.Orange` /
+  `Beige` / `Dim` / `Green`).
+- **Upcoming Steps collapses** when the selected guide has no locked steps left, handing its 150 px
+  back to the description — the larger font needs the room.
+
+---
+
 ## New File: `src/Display/GuidanceCodex.cs`
 
 ```csharp
@@ -125,6 +164,14 @@ Clicking on a visible guide in the Codex:
 - [x] Upcoming (locked) steps are listed but clearly marked as not yet unlocked.
 - [x] The codex is read-only — it cannot advance chains or re-fire triggers.
 - [x] Codex uses only vanilla UI sprites and fonts. No custom assets. See CRIT-14.
+- [ ] The codex window is drawn in the vanilla player-inventory frame, with vanilla interior boxes and vanilla buttons (hover/press states included) — no flat boxes while the inventory UI is available.
+- [ ] The panel is never stretched off `woodpanel_playerinventory`'s aspect ratio, and re-fits when the screen resolution or GUI scale changes.
+- [ ] The panel is fitted in canvas units, not raw pixels — it is the same relative size at every resolution and GUI scale.
+- [ ] Every button label clears the sprite's carved border on both axes and is legible at a glance.
+- [ ] Every text in the panel uses the font the vanilla inventory uses, at sizes legible in that face.
+- [ ] A missing or renamed vanilla sprite leaves the codex plainer (flat fills) but fully functional.
+- [ ] The Upcoming Steps section is hidden, and its space given to the description, for guides with no locked steps left.
+- [ ] The F10 quest tracker's styling is unchanged.
 - [x] Codex does not appear during the intro cinematic. See CRIT-07.
 - [x] `CodexEnabled = false` disables the keybind and does not instantiate the panel.
 - [x] The game is not paused in multiplayer when only the codex is open.

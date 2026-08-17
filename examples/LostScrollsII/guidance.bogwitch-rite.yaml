@@ -49,7 +49,7 @@ guidances:
       mode: conversation
       topic: "The Bog Witch"
     hover_text:
-      default: "[Hold E] Ask of the echo in the mire"
+      default: "[Shift + E] Ask of the echo in the mire"
     conversation:
       nodes:
         - id: root
@@ -147,7 +147,7 @@ guidances:
       mode: conversation
       topic: "The Bog Witch"
     hover_text:
-      default: "[Hold E] Ask of the deeper echo"
+      default: "[Shift + E] Ask of the deeper echo"
     conversation:
       nodes:
         - id: root

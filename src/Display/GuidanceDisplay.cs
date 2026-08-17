@@ -117,8 +117,17 @@ namespace ValheimServerGuide.Display
             {
                 if (MessageHud.instance == null) { Plugin.Log.LogWarning("[show] message: MessageHud.instance null."); return; }
                 var position = ParsePosition(entry.Display?.Position);
-                if (position == MessageHud.MessageType.Center) EnsureCenterMessageWraps();
-                MessageHud.instance.ShowMessage(position, renderedText);
+                if (position == MessageHud.MessageType.Center)
+                {
+                    // Via CenterToast: two entries can fire on the same event (one kill matching
+                    // two quests), and the centre slot keeps only the last string written to it.
+                    CenterToast.Queue(renderedText);
+                }
+                else
+                {
+                    EnsureTopLeftMessageWraps();
+                    MessageHud.instance.ShowMessage(position, renderedText);
+                }
                 return;
             }
 
@@ -510,7 +519,7 @@ namespace ValheimServerGuide.Display
 
             var canvas = _overlayObj.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 32760; // above vanilla UI
+            canvas.sortingOrder = UiLayers.Intro;
 
             var panel = new GameObject("Black");
             panel.transform.SetParent(_overlayObj.transform, false);
@@ -709,6 +718,16 @@ namespace ValheimServerGuide.Display
             tmp.overflowMode       = TextOverflowModes.Overflow;
         }
 
+        /// The top-left toast is authored for short vanilla strings ("Picked up Wood"). A full
+        /// guidance line has to wrap there rather than running off the edge of the screen, so
+        /// switch wrapping on and take overflow (extra lines) instead of a clipped tail. The rect
+        /// is left alone — only the wrap behaviour changes, so vanilla's own short messages look
+        /// exactly as they did.
+        internal static void EnsureTopLeftMessageWraps()
+        {
+            AllowOverflow(MessageHud.instance?.m_messageText);
+        }
+
         /// Vanilla's centre message is a single non-wrapping line sized for "Odin's blessing"
         /// style one-liners: a full sentence of guidance simply runs off both edges of the
         /// screen. Widen its rect to a readable measure and turn wrapping on so long text
@@ -718,7 +737,7 @@ namespace ValheimServerGuide.Display
         /// the fade coroutine that makes the message appear at all. It is idempotent and only
         /// ever grows the rect, so vanilla's own centre messages — all far too short to reach
         /// the wrap width — look exactly as they did.
-        private static void EnsureCenterMessageWraps()
+        internal static void EnsureCenterMessageWraps()
         {
             var tmp = MessageHud.instance?.m_messageCenterText;
             if (tmp == null) return;
@@ -871,6 +890,9 @@ namespace ValheimServerGuide.Display
         private static void Postfix()
         {
             GuidanceDisplay.ClearRavenState();
+            // Drop centre-message lines queued in the session's last frame — they belong to the
+            // world being left, not the next one.
+            CenterToast.Clear();
             // Dismiss any open rune reading so it doesn't linger into the next session.
             if (RunePanel.Instance != null) RunePanel.Instance.CloseImmediate();
             // Safety: if the session ends mid-intro (disconnect / logout), make sure the
