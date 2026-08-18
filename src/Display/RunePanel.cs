@@ -24,12 +24,25 @@ namespace ValheimServerGuide.Display
         public static RunePanel Instance { get; private set; }
         public bool IsOpen { get; private set; }
 
-        // ── Themed defaults (match the Codex palette so all VSG UI reads as one system) ──
-        private static readonly Color DefBackground = new Color(0.06f, 0.05f, 0.04f, 0.96f);
-        private static readonly Color DefAccent     = new Color(0.45f, 0.36f, 0.22f, 1f);
-        private static readonly Color DefHeader     = new Color(1f, 0.82f, 0.42f);   // gold
-        private static readonly Color DefBody       = new Color(0.90f, 0.88f, 0.82f); // parchment
-        private static readonly Color DefItem       = new Color(0.86f, 0.80f, 0.62f); // warm
+        // ── Themed defaults ──────────────────────────────────────────────────────
+        // Taken from VanillaUi, so the reading is drawn in the player inventory's own palette —
+        // orange headings over parchment body text — exactly like the Codex. The two fill colours
+        // are only the fallbacks for when the vanilla sprites cannot be resolved.
+        private static readonly Color DefBackground = VanillaUi.PanelFill;
+        private static readonly Color DefAccent     = VanillaUi.DividerCol;
+        private static readonly Color DefHeader     = VanillaUi.Orange;
+        private static readonly Color DefBody       = VanillaUi.Beige;
+        private static readonly Color DefItem       = VanillaUi.Beige;
+        private static readonly Color DefFooter     = VanillaUi.Dim;
+
+        // ── Font sizes ───────────────────────────────────────────────────────────
+        // Matched to the vanilla inventory window (and therefore the Codex), which titles at ~20
+        // and sets body text at 16 in the game's own serif face. The previous numbers were tuned
+        // for a sans fallback and read a step off in that font.
+        private const float FsHeader = 22f;
+        private const float FsBody   = 16f;
+        private const float FsItem   = 15f;
+        private const float FsFooter = 13f;
 
         /// Ceiling for the whole panel as a fraction of screen height. Past this the body/list
         /// area scrolls instead of the panel continuing to grow off the top and bottom edges.
@@ -39,6 +52,7 @@ namespace ValheimServerGuide.Display
         private GameObject _uiRoot;
         private Image _backdrop;
         private Image _panelBg;
+        private Image _contentBg;
         private RectTransform _panelRect;
         private TMP_Text _headerText;
         private Image _divider;
@@ -50,6 +64,9 @@ namespace ValheimServerGuide.Display
         private ScrollRect _contentScroll;
 
         private TMP_FontAsset _font;
+        /// True once `_font` is the inventory window's own font rather than a provisional fallback
+        /// resolved before the GUI scene existed.
+        private bool _fontFromInventory;
         private float _openTime;
 
         // ── Fade ─────────────────────────────────────────────────────────────────
@@ -113,7 +130,21 @@ namespace ValheimServerGuide.Display
             _panelRect.pivot            = new Vector2(0.5f, 0.5f);
             _panelRect.sizeDelta        = new Vector2(620f, 200f);
             _panelRect.anchoredPosition = Vector2.zero;
-            _panelBg = panelGo.AddComponent<Image>();
+
+            // The frame art lives on its own stretched child rather than on the panel root, and is
+            // kept out of the vertical stack with ignoreLayout. `Image` is itself an ILayoutElement
+            // that reports its sprite's NATIVE pixel height, and the root's ContentSizeFitter takes
+            // the largest preferred height it finds on the GameObject — so a carved wood sprite on
+            // the root would size the card to the texture instead of to its text.
+            var bgGo = new GameObject("PanelBg");
+            bgGo.transform.SetParent(panelGo.transform, false);
+            var bgRect = bgGo.AddComponent<RectTransform>();
+            bgRect.anchorMin = Vector2.zero;
+            bgRect.anchorMax = Vector2.one;
+            bgRect.offsetMin = Vector2.zero;
+            bgRect.offsetMax = Vector2.zero;
+            bgGo.AddComponent<LayoutElement>().ignoreLayout = true;
+            _panelBg = bgGo.AddComponent<Image>();
             _panelBg.color = DefBackground;
 
             var vlg = panelGo.AddComponent<VerticalLayoutGroup>();
@@ -130,7 +161,7 @@ namespace ValheimServerGuide.Display
             fitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
 
             // Header.
-            _headerText = MakeText(panelGo.transform, "Header", 26f, FontStyles.Bold,
+            _headerText = MakeText(panelGo.transform, "Header", FsHeader, FontStyles.Bold,
                 DefHeader, TextAlignmentOptions.Center);
 
             // Divider rule.
@@ -152,7 +183,17 @@ namespace ValheimServerGuide.Display
             var viewportRt = viewportGo.AddComponent<RectTransform>();
             viewportRt.pivot = new Vector2(0.5f, 1f);
             viewportGo.AddComponent<RectMask2D>();
+            // The darker interior box the vanilla windows read long text in. Added before
+            // WheelScroller.Attach so it doubles as the viewport's wheel catcher rather than
+            // having a second transparent Image stacked on top of it.
+            _contentBg = viewportGo.AddComponent<Image>();
+            _contentBg.color = VanillaUi.InsetFill;
             _viewportLe = viewportGo.AddComponent<LayoutElement>();
+            // Pinned so the Image above (an ILayoutElement reporting its sprite's native size)
+            // cannot drive the viewport height on the layout passes that run before
+            // ClampContentHeight sets the real one.
+            _viewportLe.minHeight       = 0f;
+            _viewportLe.preferredHeight = 0f;
 
             _contentScroll = viewportGo.AddComponent<ScrollRect>();
             _contentScroll.horizontal   = false;
@@ -179,6 +220,9 @@ namespace ValheimServerGuide.Display
             contentVlg.childForceExpandHeight = false;
             contentVlg.childAlignment         = TextAnchor.UpperLeft;
             contentVlg.spacing                = 12f;
+            // Keeps the text off the interior box's carved edge. Inside the content (not the
+            // viewport) so ClampContentHeight's measure of _contentRect already accounts for it.
+            contentVlg.padding                = new RectOffset(12, 12, 10, 10);
             var contentFitter = contentGo.AddComponent<ContentSizeFitter>();
             contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             contentFitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
@@ -189,7 +233,7 @@ namespace ValheimServerGuide.Display
             WheelScroller.Attach(_contentScroll);
 
             // Body / description.
-            _bodyText = MakeText(contentGo.transform, "Body", 17f, FontStyles.Normal,
+            _bodyText = MakeText(contentGo.transform, "Body", FsBody, FontStyles.Normal,
                 DefBody, TextAlignmentOptions.TopLeft);
             _bodyText.enableWordWrapping = true;
             _bodyText.overflowMode       = TextOverflowModes.Overflow;
@@ -207,8 +251,8 @@ namespace ValheimServerGuide.Display
             listVlg.spacing                = 4f;
 
             // Footer hint.
-            _footerText = MakeText(panelGo.transform, "Footer", 12f, FontStyles.Italic,
-                new Color(0.62f, 0.60f, 0.55f), TextAlignmentOptions.Center);
+            _footerText = MakeText(panelGo.transform, "Footer", FsFooter, FontStyles.Italic,
+                DefFooter, TextAlignmentOptions.Center);
             _footerText.text = "Press [E] to continue";
         }
 
@@ -262,7 +306,7 @@ namespace ValheimServerGuide.Display
                 GuidanceDispatcher.TemplateText(headerRaw, null, playerName), entry) ?? "";
             _headerText.text        = header;
             _headerText.gameObject.SetActive(!string.IsNullOrEmpty(header));
-            _headerText.fontSize    = style?.HeaderFontSize ?? 26f;
+            _headerText.fontSize    = style?.HeaderFontSize ?? FsHeader;
             _headerText.fontStyle   = ParseStyle(style?.HeaderStyle, FontStyles.Bold);
             _headerText.color       = ParseColor(style?.HeaderColor, DefHeader);
             _headerText.alignment   = ParseAlign(style?.HeaderAlignment, TextAlignmentOptions.Center);
@@ -274,7 +318,7 @@ namespace ValheimServerGuide.Display
             // ── Body ──
             _bodyText.text        = renderedText ?? "";
             _bodyText.gameObject.SetActive(!string.IsNullOrEmpty(renderedText));
-            _bodyText.fontSize    = style?.BodyFontSize ?? 17f;
+            _bodyText.fontSize    = style?.BodyFontSize ?? FsBody;
             _bodyText.fontStyle   = ParseStyle(style?.BodyStyle, FontStyles.Normal);
             _bodyText.color       = ParseColor(style?.BodyColor, DefBody);
             _bodyText.alignment   = ParseAlign(style?.BodyAlignment, TextAlignmentOptions.TopLeft);
@@ -285,7 +329,7 @@ namespace ValheimServerGuide.Display
             var maxWidth = Mathf.Max(240f, CanvasSize().x - 40f);
             var width = Mathf.Clamp(style?.Width ?? 620f, 240f, Mathf.Min(1200f, maxWidth));
             _panelRect.sizeDelta = new Vector2(width, _panelRect.sizeDelta.y);
-            _panelBg.color       = ParseColor(style?.BackgroundColor, DefBackground);
+            ApplyVanillaStyle(style);
 
             // ── List ──
             BuildList(style, playerName, entry);
@@ -319,6 +363,30 @@ namespace ValheimServerGuide.Display
                 _fadeRoutine = StartCoroutine(FadeRoutine(_canvasGroup.alpha, 1f, _fadeInDuration, null));
             else
                 _canvasGroup.alpha = 1f;
+        }
+
+        /// Draw the card in the vanilla player-inventory window's art: its carved wood for the
+        /// frame, the darker interior box for the reading itself. Re-run on every Open, because
+        /// the GUI scene the art is read from may not have existed when the panel was built.
+        ///
+        /// An authored `background_color:` wins over the frame — asking for a specific fill and
+        /// getting carved wood tinted with it is not what the author wrote.
+        private void ApplyVanillaStyle(RuneStyleSpec style)
+        {
+            VanillaUi.TryResolve();
+
+            if (string.IsNullOrWhiteSpace(style?.BackgroundColor))
+            {
+                VanillaUi.ApplyPanelFlex(_panelBg);
+            }
+            else
+            {
+                _panelBg.sprite = null;
+                _panelBg.type   = Image.Type.Simple;
+                _panelBg.color  = ParseColor(style.BackgroundColor, DefBackground);
+            }
+
+            VanillaUi.ApplyInset(_contentBg);
         }
 
         /// Sizes the scroll viewport to the body + list. The reading grows to fit whatever the
@@ -394,7 +462,7 @@ namespace ValheimServerGuide.Display
             var prefix    = string.IsNullOrEmpty(bullet) ? "" : bullet + "  ";
             var itemColor = ParseColor(style.ItemColor, DefItem);
             var itemStyle = ParseStyle(style.ItemStyle, FontStyles.Normal);
-            var itemSize  = style.ItemFontSize <= 0f ? 16f : style.ItemFontSize;
+            var itemSize  = style.ItemFontSize <= 0f ? FsItem : style.ItemFontSize;
 
             foreach (var raw in items)
             {
@@ -481,18 +549,39 @@ namespace ValheimServerGuide.Display
             if (_font != null && t != null) t.font = _font;
         }
 
+        /// Resolve the font the vanilla inventory window itself draws with and push it to the
+        /// card's labels.
+        ///
+        /// That font can only be read once the GUI scene is up, so anything resolved before then
+        /// is provisional and re-resolved on the next reading rather than cached for the session —
+        /// the same rule the Codex follows, which is what keeps the two panels in one typeface.
         private void EnsureFont()
         {
-            if (_font == null)
+            if (_font == null || !_fontFromInventory)
             {
-                _font = (GuidanceHudTracker.Instance != null
-                            ? GuidanceHudTracker.Instance.ResolvedFont : null)
-                        ?? GuidanceHudTracker.FindVanillaFontStatic();
+                if (VanillaUi.TryResolve() && VanillaUi.Font != null)
+                {
+                    _font              = VanillaUi.Font;
+                    _fontFromInventory = true;
+                }
+                else if (_font == null)
+                {
+                    _font = (GuidanceHudTracker.Instance != null
+                                ? GuidanceHudTracker.Instance.ResolvedFont : null)
+                            ?? GuidanceHudTracker.FindVanillaFontStatic();
+                }
             }
             if (_font == null) return;
             ApplyFont(_headerText);
             ApplyFont(_bodyText);
             ApplyFont(_footerText);
+            // List rows are rebuilt per reading, but a font that only arrived now has to reach the
+            // ones already on screen too.
+            foreach (Transform child in _listContent)
+            {
+                var t = child.GetComponent<TMP_Text>();
+                if (t != null) ApplyFont(t);
+            }
         }
 
         // ── Parse helpers ───────────────────────────────────────────────────────────

@@ -41,9 +41,11 @@ Uses `MusicMan.instance.StartMusic("intro")` with the vanilla track name — van
 ### Ghost Mode
 Uses `Player.SetGhostMode(true/false)` — vanilla player system.
 
-### Codex Panel Styling — `src/Display/VanillaUi.cs`
+### Panel Styling — `src/Display/VanillaUi.cs`
 
-The Guide Codex is drawn in the vanilla **player inventory** window's own art. Nothing is loaded:
+The Guide Codex, the **rune** reading card and the **NPC conversation** panel are all drawn in the
+vanilla **player inventory** window's own art, so every VSG surface reads as one system. Nothing is
+loaded:
 `VanillaUi.TryResolve()` walks the live `InventoryGui` hierarchy and takes the `Sprite` objects the
 game is *already* drawing with, together with the `Image` settings vanilla renders each one at
 (`type`, material, `pixelsPerUnitMultiplier`). Sprites that are loaded but not currently drawn are
@@ -52,9 +54,13 @@ found with `Resources.FindObjectsOfTypeAll<Sprite>()`. Assets in use:
 | Slot | Vanilla sprite | Used for |
 |---|---|---|
 | `Panel` | `woodpanel_playerinventory` | the codex window frame |
-| `Inset` | `panel_interior_bkg_128` | the guide list / description / upcoming boxes |
-| `Button` | `button` (+ `button_highlight` / `button_pressed` / `button_disabled`) | Close, the two toggle pills, the footer toggle |
-| `Font` | whatever the inventory's own labels use (majority vote, outline variants skipped) | every text in the panel |
+| `PanelFlex` | first 9-sliced wood found (`woodpanel_512x512`, `woodpanel_400_tileable`, …) | the rune card + conversation panel frames |
+| `Inset` | `panel_interior_bkg_128` | the guide list / description / upcoming boxes, the rune card's reading area |
+| `Button` | `button` (+ `button_highlight` / `button_pressed` / `button_disabled`) | Close, the two toggle pills, the footer toggle, every conversation choice |
+| `Font` | whatever the inventory's own labels use (majority vote, outline variants skipped) | every text in all three panels |
+
+Palette (`VanillaUi.Orange` / `Beige` / `Dim` / `Green`) and the flat fills come from the same
+place, so the three panels share one set of colours as well as one typeface.
 
 Rules this follows, and any future styling must too:
 
@@ -63,7 +69,15 @@ Rules this follows, and any future styling must too:
 - **Fixed-aspect art is never stretched.** Valheim has one bespoke panel sprite per window rather
   than a 9-sliced tile, so the codex sizes *itself* to `woodpanel_playerinventory`'s aspect ratio
   (`ResolvePanelSize`). Art that does carry 9-slice borders (`SpriteStyle.Scalable`) may be drawn at
-  any size; art that does not is only used where its own proportions are honoured.
+  any size; art that does not is only used where its own proportions are honoured. A panel whose
+  height comes from its content has no aspect it could fit itself to, so it takes `PanelFlex` —
+  which only ever resolves to 9-sliced art (`FindScalableStyle`) and otherwise stays empty, leaving
+  the panel on `PanelFill`.
+- **Frame art goes on an `ignoreLayout` child, never on a content-sized panel's root.** `Image` is
+  an `ILayoutElement` that reports its sprite's native pixel height, and `ContentSizeFitter` takes
+  the largest preferred height on the GameObject — a sprite on the root sizes the panel to the
+  texture instead of to its text. Same reason a `LayoutElement` next to such an `Image` must set
+  `preferredWidth`/`preferredHeight` explicitly rather than leaving them at `-1`.
 - **The cache is per GUI scene.** Sprites and fonts belong to the scene they were read from, so
   `TryResolve` re-reads them when `InventoryGui.instance` changes (a new session). A sprite from a
   destroyed scene would otherwise sit in the cache reading as "found but null" forever.
@@ -98,6 +112,8 @@ Rules this follows, and any future styling must too:
 - [ ] Sprites are only ever taken from objects the running game already has loaded, never from a bundle (ours or another mod's).
 - [ ] Every `VanillaUi` slot has a flat-colour fallback, so a missing/renamed vanilla sprite makes a panel plainer and never broken.
 - [ ] Fixed-aspect vanilla art is drawn at its own aspect ratio; only `Scalable` (9-sliced) art is stretched to arbitrary sizes.
+- [ ] The Codex, the rune card and the conversation panel all draw in the same vanilla font, palette and frame art.
+- [ ] Frame art on a content-sized panel sits on an `ignoreLayout` child, so the panel is still sized by its text and not by the sprite.
 - [ ] All UI GameObjects are built programmatically using `new GameObject()` + `AddComponent<T>()`.
 - [ ] Music playback uses only `MusicMan.StartMusic(name)` with vanilla track names.
 - [ ] `Player.SetGhostMode` is used for invulnerability/invisibility — not custom collision/layer changes.

@@ -178,13 +178,17 @@ display:
 
 ## Mode: `rune`
 
-- Rendered by the custom **`RunePanel`** (`src/Display/RunePanel.cs`) — a Valheim-themed
-  reading card on a dedicated `ScreenSpaceOverlay` canvas (`UiLayers.Rune`), not the
-  vanilla `TextViewer`. Uses the game font (resolved the same way as the Codex / Conversation
-  panels) plus `Image` color fills. No custom assets (CRIT-14).
+- Rendered by the custom **`RunePanel`** (`src/Display/RunePanel.cs`) — a reading card on a
+  dedicated `ScreenSpaceOverlay` canvas (`UiLayers.Rune`), not the vanilla `TextViewer`.
+- **Drawn in the player inventory's own theme** (`VanillaUi`, CRIT-14), exactly like the Codex:
+  the inventory's font, its palette (orange header, parchment body, dim footer) and its art —
+  `PanelFlex` wood for the card, `Inset` for the interior box the reading sits in. The frame
+  `Image` lives on an `ignoreLayout` child so the card is still sized by its text. Everything
+  degrades to a flat fill when a sprite cannot be resolved.
 - **Layout:** a full-screen darkening backdrop behind a centered card. The card is a
-  `VerticalLayoutGroup` + `ContentSizeFitter` that stacks **header → divider → body → list →
-  footer**; its height grows to fit the content, its width is fixed (`rune.width`, default 620).
+  `VerticalLayoutGroup` + `ContentSizeFitter` that stacks **header → divider → body + list (in the
+  interior box) → footer**; its height grows to fit the content, its width is fixed (`rune.width`,
+  default 620).
 - **`rune.width` is only ever clamped by the real screen** (240 … min(1200, screen − 40)). That
   clamp reads the screen through `CanvasSize()`, which derives it from `Screen` and the canvas's
   `scaleFactor` — **never** from the canvas RectTransform: `Open()` sizes the panel while the root
@@ -193,8 +197,11 @@ display:
   out as a narrow column (its height was fine, since the height clamp runs after activation) while
   every later one was correct.
 - **Default content (no `rune:` block):** header = `display.topic`, body = `message:` / `display.text`,
-  styled with themed defaults (gold header, parchment body on dark stone). The header + divider are
-  hidden when there is no topic; the body is hidden when there is no text; the list is hidden when empty.
+  styled with the vanilla defaults above. The header + divider are hidden when there is no topic;
+  the body is hidden when there is no text; the list is hidden when empty.
+- **An authored `background_color:` wins over the wood frame** — asking for a specific fill and
+  getting carved wood tinted with it is not what the author wrote. Every other `rune:` override
+  (colors, sizes, styles, alignment) simply replaces the vanilla default it corresponds to.
 - Screen darkens; ghost mode is engaged on open (invulnerable + undetected) and released after the
   panel finishes closing. If an intro cinematic takes over, the intro owns the ghost-mode release.
 - **Fade in/out:** a `CanvasGroup` on the panel's root fades the whole card (backdrop + panel) in on
@@ -217,21 +224,21 @@ Strikethrough` (e.g. `"Bold Italic"`). Alignment is `Left | Center | Right`. All
 | Field | Default | Purpose |
 |---|---|---|
 | `header` | `display.topic` | Header text override |
-| `header_color` | gold | Header color |
-| `header_font_size` | `26` | Header size |
+| `header_color` | `VanillaUi.Orange` | Header color |
+| `header_font_size` | `22` | Header size |
 | `header_style` | `Bold` | Header font style |
 | `header_alignment` | `Center` | Header alignment |
-| `body_color` | parchment | Body color |
-| `body_font_size` | `17` | Body size |
+| `body_color` | `VanillaUi.Beige` | Body color |
+| `body_font_size` | `16` | Body size |
 | `body_style` | `Normal` | Body font style |
 | `body_alignment` | `Left` | Body alignment |
 | `items` | — | Bullet-list rows (each styled + templated) |
 | `bullet` | `•` | Row glyph (`""` = none) |
-| `item_color` | warm | List row color |
-| `item_font_size` | `16` | List row size |
+| `item_color` | `VanillaUi.Beige` | List row color |
+| `item_font_size` | `15` | List row size |
 | `item_style` | `Normal` | List row font style |
-| `background_color` | dark stone | Panel fill |
-| `accent_color` | bronze | Header/body divider rule |
+| `background_color` | vanilla wood frame | Panel fill (a value here replaces the frame) |
+| `accent_color` | `VanillaUi.DividerCol` | Header/body divider rule |
 | `width` | `620` | Panel width (px, clamped 240–1200) |
 | `fade_in` | `0.35` | Fade-in duration, seconds (`0` = instant) |
 | `fade_out` | `0.35` | Fade-out duration, seconds (`0` = instant) |
@@ -299,19 +306,33 @@ display:
   the panel grows UPWARD from a fixed baseline as the text gets longer, so it can never slide
   off the bottom of the screen.
 - **Dimensions:** 750 px wide; height is driven entirely by the content via
-  `VerticalLayoutGroup` + `ContentSizeFitter`. Dark fill `(0.02, 0.02, 0.02, 0.97)`.
-- **Header:** `TextMeshProUGUI`, bold, gold, from `display.topic` or `entry.title`. Wraps.
-- **Body:** `TextMeshProUGUI` inside a `ScrollRect`, `enableWordWrapping = true` and
+  `VerticalLayoutGroup` + `ContentSizeFitter`.
+- **Drawn in the player inventory's own theme** (`VanillaUi`, CRIT-14), like the Codex and the rune
+  card: the inventory's font and palette, `PanelFlex` wood for the frame (on an `ignoreLayout`
+  child, so the panel is still sized by its dialogue) and the vanilla `button` sprite with its
+  hover/press/disabled swaps on every choice. All of it degrades to flat fills.
+- **Header:** `TextMeshProUGUI`, bold, `VanillaUi.Orange`, 20 px, from `display.topic` or
+  `entry.title`. Wraps.
+- **Body:** `TextMeshProUGUI` at 16 px in `VanillaUi.Beige`, inside a `ScrollRect`, `enableWordWrapping = true` and
   `overflowMode = Overflow`. **Never `Ellipsis`** — the viewport's `preferredHeight` matches the
   text exactly until the panel would exceed 82% of screen height, and only then clamps and lets
   the body scroll. Text is never cut off. See CRIT-25.
 - **Choices:** a `VerticalLayoutGroup` of rows, each a `HorizontalLayoutGroup`. Up to 3 buttons
   share a row; past 3 choices the row capacity drops to 2 so labels stay readable. Each button
-  grows to fit a label that wrapped onto extra lines. If `conversation.choices` is absent, a
-  default "Dismiss" button is inserted automatically.
-- Font is resolved lazily from `GuidanceHudTracker.FindVanillaFontStatic()` and assigned
-  before any `SetActive(true)` call (TMP Awake rule). The panel is then activated **before**
-  the body is measured — TMP returns zero preferred sizes for an inactive hierarchy.
+  grows to fit a label that wrapped onto extra lines (15 px, `VanillaUi.Beige`, dimmed to
+  `VanillaUi.Dim` when locked). If `conversation.choices` is absent, a default "Dismiss" button is
+  inserted automatically. Each button's `LayoutElement` pins `preferredWidth = 0` so the button
+  sprite's native width cannot make the options uneven — the flexible width shares out the row.
+- **Choice button padding:** the label is inset by `ChoicePadX` / `ChoicePadY` (16 / 10) and the
+  button is never shorter than `ChoiceMinHeight` (44). `EndChoices` then sets each button's
+  preferred height to `label.preferredHeight + 2 × ChoicePadY`, so a label that wrapped onto a
+  second line gets a button two lines tall **plus** its padding — the text is never pressed against
+  the button's carved edge.
+- Font comes from `ApplyTheme()`: the inventory's own font once the GUI scene exists, otherwise a
+  provisional `GuidanceHudTracker.FindVanillaFontStatic()` that is re-resolved on the next
+  conversation. Assigned before any `SetActive(true)` call (TMP Awake rule). The panel is then
+  activated **before** the body is measured — TMP returns zero preferred sizes for an inactive
+  hierarchy.
 - **Cursor:** freed on `Open()` (`GameCamera.m_mouseCapture = false`, `Cursor.lockState = None`,
   `Cursor.visible = true`), re-asserted every frame in `Update()`, restored on `Close()`.
 - **Input lock:** four Harmony patches gated by `NpcConversationPanel.IsOpen`:
@@ -418,4 +439,13 @@ Released by calling `GuidanceDisplay.ReleaseGhostMode()`.
 - [x] `conversation` fires `GuidanceDispatcher.FireById(goto)` after a choice with a `goto` is clicked.
 - [x] `conversation` marks the entry as fired (once / cooldown) on any choice selection.
 - [x] `conversation` inserts a default "Dismiss" button when no choices are defined in YAML.
-- [x] No custom assets used; all visuals are `Image` color fills and TMP text.
+- [ ] `rune` and `conversation` draw in the same vanilla font, palette and frame art as the Codex.
+- [ ] `rune` and `conversation` are still sized by their text with the wood frame applied — the
+      sprite's native height never drives the panel.
+- [ ] `conversation` choice buttons are equal width in a row and use the vanilla button's
+      hover/press/disabled swaps; locked choices read dimmed.
+- [ ] A choice label that wraps onto two lines is fully inside its button, with its padding above
+      and below both lines — the button grows, the text does not spill or clip.
+- [ ] A `rune:` block with `background_color:` still gets that flat fill, not tinted wood.
+- [x] No custom assets used; all visuals are vanilla sprites read off the live game, `Image` color
+      fills and TMP text.

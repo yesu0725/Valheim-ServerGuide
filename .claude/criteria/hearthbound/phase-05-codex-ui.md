@@ -63,10 +63,26 @@ deliberately left on its own lightweight styling — it is a HUD overlay, not a 
   the vanilla trophy/skills windows show inside their frames anyway.
 - **Buttons:** Close, the two toggle pills and the footer toggle are vanilla `button` sprites with
   vanilla's own hover/press/disabled swaps (`Selectable.Transition.SpriteSwap`). They are sized for
-  their text rather than the reverse: 16 px horizontal / 4 px vertical padding inside the sprite
-  (`ButtonPadX` / `ButtonPadY`), a 38 px pill bar, a 42 px footer and a 48 px title band, with 16 pt
-  labels. The pin label is kept short (`[x] Pinned to Tracker`) so it still fits at the narrowest
-  panel size — the "(click to pin)" hint is redundant now that the pills visibly behave as buttons.
+  their text rather than the reverse: 20 px horizontal / 8 px vertical padding inside the sprite
+  (`ButtonPadX` / `ButtonPadY`), a 44 px pill bar, a 50 px footer, a 140x40 Close and a 48 px title
+  band, with 16 pt labels.
+- **Button labels wrap, and the button grows to the wrapped label.** `BuildButtonLabel` turns word
+  wrapping on, so a label too wide for its sprite breaks onto a second line instead of running out
+  past the carving. The two resizable buttons then measure that label and grow to it:
+  - `MeasureToggleBar` sets `_toggleBarHeight` to the taller of the two pills
+    (`wrapped label + 2 x ButtonPadY`, floored at `ToggleBarBaseHeight`). Both pills share the bar,
+    so they share its height. `SetToggleBarTop` and `BodyTopOffset` read the live value, so the
+    body scroll below slides down with it — the same way `LayoutTitleArea` already handles a
+    wrapped quest title.
+  - `LayoutFooter` does the same for the left pane's footer, re-anchoring `_leftListRect` on top of
+    the new height. The pane can be as narrow as 210 px, so `[x] Showing hidden (12)` genuinely
+    does wrap there.
+  Both are re-measured whenever a label changes: `LayoutTitleArea` on every `ShowEntry` and after
+  `ToggleTrackSelected` relabels the pin, `LayoutFooter` from `UpdateFooter`. `Rebuild` resets both
+  heights to their bases so the new panel re-measures from scratch.
+- The pin label is kept short (`[x] Pinned to Tracker`) so it still fits on one line at the
+  narrowest panel size — the "(click to pin)" hint is redundant now that the pills visibly behave
+  as buttons.
 - **Font:** the face the inventory's own labels use, resolved by majority vote over its `TMP_Text`s
   rather than by name (outline variants skipped — they are for text over the world). The
   tracker-resolved font remains the fallback until the GUI scene exists, and is treated as
@@ -168,6 +184,9 @@ Clicking on a visible guide in the Codex:
 - [ ] The panel is never stretched off `woodpanel_playerinventory`'s aspect ratio, and re-fits when the screen resolution or GUI scale changes.
 - [ ] The panel is fitted in canvas units, not raw pixels — it is the same relative size at every resolution and GUI scale.
 - [ ] Every button label clears the sprite's carved border on both axes and is legible at a glance.
+- [ ] A button label that wraps onto two lines is fully inside its button, padded above and below
+      both lines — the pill bar and the footer grow, and what sits below them moves down.
+- [ ] Growing the pill bar or the footer never overlaps the body scroll or the guide list.
 - [ ] Every text in the panel uses the font the vanilla inventory uses, at sizes legible in that face.
 - [ ] A missing or renamed vanilla sprite leaves the codex plainer (flat fills) but fully functional.
 - [ ] The Upcoming Steps section is hidden, and its space given to the description, for guides with no locked steps left.

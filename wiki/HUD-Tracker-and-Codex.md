@@ -102,9 +102,18 @@ The Codex panel has two sections:
 
 Entries marked `category: "Crafting"` in YAML are grouped under "Crafting" in the Codex. Entries without a category appear in a default group.
 
+The panel is drawn in Valheim's **player-inventory window** — its wood frame, interior boxes, font,
+buttons and colours, all read off the running game rather than shipped with the mod. The `rune`
+reading card and the NPC conversation panel use the same look, so every VSG surface matches.
+
+Buttons grow to fit their text: a label that does not fit on one line wraps, and the button gets
+taller to hold it with its padding intact. On a narrow window the "Pin to Tracker" bar and the
+"Show hidden" footer may therefore be a line taller — what sits below them moves down rather than
+being covered.
+
 ### Pinning quests to the Progress Panel
 
-When you select an **in-progress, trackable** quest, a **`Show on Tracker`** pill appears in the right pane:
+When you select an **in-progress, trackable** quest, a **`Pin to Tracker`** pill appears in the right pane:
 
 - Click it to **pin** the quest to the [Progress Panel](#progress-panel-hud-tracker) (F10). Pinning also unhides the panel.
 - Click again to **unpin** it.

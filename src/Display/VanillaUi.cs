@@ -78,6 +78,11 @@ namespace ValheimServerGuide.Display
 
         /// `woodpanel_playerinventory` — the frame the player inventory itself is drawn in.
         internal static SpriteStyle Panel;
+        /// Wood frame that may be drawn at ANY size, i.e. one that carries 9-slice borders.
+        /// Surfaces whose height comes from their content (the rune reading, the conversation
+        /// panel) have no fixed aspect they could fit themselves to, so they take this instead of
+        /// `Panel` — see `ApplyPanelFlex`.
+        internal static SpriteStyle PanelFlex;
         /// Darker interior box: the inset a list or a description sits in.
         internal static SpriteStyle Inset;
         /// Standard vanilla button, with its hover/press/disabled swaps.
@@ -121,6 +126,11 @@ namespace ValheimServerGuide.Display
             Panel = FindStyle(images, "woodpanel_playerinventory", "woodpanel_container",
                 "woodpanel_trophys", "woodpanel_settings", "woodpanel_512x512", "woodpanel_large",
                 "woodpanel_highres");
+            // Generic wood art first — the per-window sprites are bespoke and almost never sliced,
+            // so they are only worth checking as a last resort.
+            PanelFlex = FindScalableStyle(images, "woodpanel_512x512", "woodpanel_400_tileable",
+                "woodpanel_large", "woodpanel_highres", "woodpanel_texts",
+                "woodpanel_playerinventory");
             Inset = FindStyle(images, "panel_interior_bkg_128", "panel_bkg_128", "panel_bkg",
                 "item_background");
             Button = FindStyle(images, "button", "button_small");
@@ -136,8 +146,8 @@ namespace ValheimServerGuide.Display
             // sprite in memory) would find exactly the same nothing, once per Open().
             _resolved = true;
             if (Panel.Valid || Inset.Valid || Button.Valid)
-                Plugin.Log.LogInfo("[vanilla-ui] panel=" + Name(Panel) + " inset=" + Name(Inset)
-                    + " button=" + Name(Button)
+                Plugin.Log.LogInfo("[vanilla-ui] panel=" + Name(Panel) + " flex=" + Name(PanelFlex)
+                    + " inset=" + Name(Inset) + " button=" + Name(Button)
                     + " font=" + (Font != null ? Font.name : "(none)"));
             else
                 Plugin.Log.LogWarning("[vanilla-ui] no vanilla panel sprites found — VSG panels stay"
@@ -161,6 +171,23 @@ namespace ValheimServerGuide.Display
             img.sprite = null;
             img.type   = Image.Type.Simple;
             img.color  = InsetFill;
+        }
+
+        /// Paint the frame of a panel whose size is driven by its own content — the rune reading
+        /// card, the conversation panel — rather than by the art.
+        ///
+        /// Only 9-sliced wood is used, for the same reason `ApplyInset` only uses a sliced
+        /// interior: a bespoke fixed-aspect window sprite drawn at an arbitrary size is stretched
+        /// out of the proportions (and the brightness) it was drawn at. Without one the panel keeps
+        /// the flat carved-wood fill the codex falls back to, which is what vanilla shows inside
+        /// its own frames anyway.
+        internal static void ApplyPanelFlex(Image img)
+        {
+            if (PanelFlex.Scalable) { PanelFlex.Apply(img, Color.white); return; }
+            if (img == null) return;
+            img.sprite = null;
+            img.type   = Image.Type.Simple;
+            img.color  = PanelFill;
         }
 
         /// Style a button with the vanilla button sprite and vanilla's own hover/press swaps.
@@ -225,6 +252,19 @@ namespace ValheimServerGuide.Display
             return default;
         }
 
+        /// First of `names` that carries 9-slice borders, i.e. that can be drawn at an arbitrary
+        /// size without distorting its carving. Art that would have to be stretched is passed over
+        /// rather than returned, so the caller falls back to a flat fill instead (CRIT-14).
+        private static SpriteStyle FindScalableStyle(Image[] images, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var style = FindStyle(images, name);
+                if (style.Scalable) return style;
+            }
+            return default;
+        }
+
         /// Loaded sprites, cached for the duration of one TryResolve pass — the scan walks every
         /// sprite the game has in memory, which is not something to repeat per lookup.
         private static Sprite[] _allSprites;
@@ -275,6 +315,7 @@ namespace ValheimServerGuide.Display
             _resolvedFor    = null;
             _allSprites     = null;
             Panel           = default;
+            PanelFlex       = default;
             Inset           = default;
             Button          = default;
             ButtonHighlight = null;

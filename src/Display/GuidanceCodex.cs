@@ -77,7 +77,13 @@ namespace ValheimServerGuide.Display
         private const float CatRowHeight   = 26f;
         private const float QuestRowHeight = 24f;
         private const float RowSpacing     = 1f;
-        private const float FooterHeight   = 42f;
+        /// Height of the left pane's footer while its label fits on one line: a line of FsFooter
+        /// text, ButtonPadY either side, and the button's own inset inside the footer rect.
+        private const float FooterBaseHeight = 50f;
+        /// Vertical space the footer button gives up to the footer rect (4 below, 6 above).
+        private const float FooterButtonInset = 10f;
+        /// The footer's live height — LayoutFooter raises it when the label wraps.
+        private float _footerHeight = FooterBaseHeight;
         /// Left-pane width minus the list padding (4+4), the row label's left inset (10) and the
         /// scrollbar gutter on the right (8). Quest titles wrap at this measure.
         private float QuestLabelWidth => _leftWidth - 8f - 10f - 8f;
@@ -101,12 +107,17 @@ namespace ValheimServerGuide.Display
         private const float FsFooter      = 15f;
         private const float FsUpcoming    = 13f;
 
-        /// Padding between a button's edge and its label, on both axes. Buttons are sized so this
-        /// survives: the text never sits on the sprite's carved border.
-        private const float ButtonPadX = 16f;
-        private const float ButtonPadY = 4f;
+        /// Padding between a button's edge and its label, on both axes. Every button is sized so
+        /// this survives even when the label wraps: the text never sits on the sprite's carved
+        /// border, and a two-line label gets ButtonPadY above and below the PAIR of lines rather
+        /// than being squeezed into a box built for one.
+        private const float ButtonPadX = 20f;
+        private const float ButtonPadY = 8f;
 
         private TMP_Text _showHiddenText;
+        /// Footer rect and the list above it, both re-pinned by LayoutFooter when the footer grows.
+        private RectTransform _footerRect;
+        private RectTransform _leftListRect;
         private bool _showHidden;   // when true, hidden quests are listed (dimmed) so they can be unhidden
         private ScrollRect _listScroll;
         private readonly List<ListItem> _items = new List<ListItem>();
@@ -139,8 +150,12 @@ namespace ValheimServerGuide.Display
         private RectTransform _titleDivRect;
         private RectTransform _bodyScrollRect;
         private const float TitleAreaBaseHeight = 54f;
-        /// Height of the toggle-pill bar under the title.
-        private const float ToggleBarHeight = 38f;
+        /// Height of the toggle-pill bar under the title while both labels fit on one line: a
+        /// line of FsButton text plus ButtonPadY above and below it.
+        private const float ToggleBarBaseHeight = 44f;
+        /// The bar's live height. MeasureToggleBar raises it above the base whenever a pill's
+        /// label wraps, so a two-line "Pinned to Tracker" still sits inside its button.
+        private float _toggleBarHeight = ToggleBarBaseHeight;
         /// Height reserved at the bottom of the right pane for the "Upcoming Steps" section while
         /// it has anything to show. The body scroll takes the space back when it does not.
         private const float UpcomingHeight = 150f;
@@ -278,7 +293,7 @@ namespace ValheimServerGuide.Display
             closeRect.anchorMin = new Vector2(1f, 0.5f);
             closeRect.anchorMax = new Vector2(1f, 0.5f);
             closeRect.pivot     = new Vector2(1f, 0.5f);
-            closeRect.sizeDelta = new Vector2(132f, 34f);
+            closeRect.sizeDelta = new Vector2(140f, 40f);
             closeRect.anchoredPosition = new Vector2(-2f, 0f);
             var closeImg = closeGo.AddComponent<Image>();
             var closeBtn = closeGo.AddComponent<Button>();
@@ -323,7 +338,11 @@ namespace ValheimServerGuide.Display
             tmp.fontSize           = fontSize;
             tmp.color              = color;
             tmp.alignment          = TextAlignmentOptions.Center;
-            tmp.enableWordWrapping = false;
+            // Wraps rather than running out past the button's edge. The callers that own a
+            // resizable button (the toggle pills, the left-pane footer) measure the wrapped label
+            // and grow the button to it, so a second line lands inside the sprite with its
+            // padding intact instead of overhanging the carving.
+            tmp.enableWordWrapping = true;
             tmp.overflowMode       = TextOverflowModes.Overflow;
             tmp.raycastTarget      = false;
             return tmp;
@@ -419,9 +438,10 @@ namespace ValheimServerGuide.Display
             var listGo = new GameObject("VSG_LeftList");
             listGo.transform.SetParent(leftGo.transform, false);
             var listRect = listGo.AddComponent<RectTransform>();
+            _leftListRect = listRect;
             listRect.anchorMin = new Vector2(0f, 0f);
             listRect.anchorMax = new Vector2(1f, 1f);
-            listRect.offsetMin = new Vector2(0f, FooterHeight);
+            listRect.offsetMin = new Vector2(0f, _footerHeight);
             listRect.offsetMax = new Vector2(0f, -28f); // below the 28px Categories header
             listGo.AddComponent<RectMask2D>();
 
@@ -523,10 +543,11 @@ namespace ValheimServerGuide.Display
             var footerGo = new GameObject("VSG_LeftFooter");
             footerGo.transform.SetParent(leftGo, false);
             var footerRect = footerGo.AddComponent<RectTransform>();
+            _footerRect                 = footerRect;
             footerRect.anchorMin        = new Vector2(0f, 0f);
             footerRect.anchorMax        = new Vector2(1f, 0f);
             footerRect.pivot            = new Vector2(0.5f, 0f);
-            footerRect.sizeDelta        = new Vector2(0f, FooterHeight);
+            footerRect.sizeDelta        = new Vector2(0f, _footerHeight);
             footerRect.anchoredPosition = Vector2.zero;
 
             // Divider along the top edge of the footer.
@@ -660,7 +681,7 @@ namespace ValheimServerGuide.Display
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0.62f, 1f);
             rect.pivot     = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(8f, -(TitleAreaBaseHeight + 4f + ToggleBarHeight));
+            rect.offsetMin = new Vector2(8f, -(TitleAreaBaseHeight + 4f + _toggleBarHeight));
             rect.offsetMax = new Vector2(-3f, -(TitleAreaBaseHeight + 4f));
 
             var img = _trackToggleGo.AddComponent<Image>();
@@ -685,7 +706,7 @@ namespace ValheimServerGuide.Display
             rect.anchorMin = new Vector2(0.62f, 1f);
             rect.anchorMax = new Vector2(1f, 1f);
             rect.pivot     = new Vector2(0.5f, 1f);
-            rect.offsetMin = new Vector2(3f, -(TitleAreaBaseHeight + 4f + ToggleBarHeight));
+            rect.offsetMin = new Vector2(3f, -(TitleAreaBaseHeight + 4f + _toggleBarHeight));
             rect.offsetMax = new Vector2(-8f, -(TitleAreaBaseHeight + 4f));
 
             var img = _hideToggleGo.AddComponent<Image>();
@@ -982,8 +1003,8 @@ namespace ValheimServerGuide.Display
 
         /// Distance from the top of the right pane to the top of the body scroll, for a title band
         /// of `titleHeight`: the band itself, then the toggle-pill bar with a gap either side.
-        private static float BodyTopOffset(float titleHeight)
-            => titleHeight + 8f + ToggleBarHeight;
+        private float BodyTopOffset(float titleHeight)
+            => titleHeight + 8f + _toggleBarHeight;
 
         // ── Data population ───────────────────────────────────────────────────────────────────
 
@@ -1264,6 +1285,35 @@ namespace ValheimServerGuide.Display
                 _showHiddenText.color = _showHidden ? ColGreen
                     : hiddenCount > 0 ? ColText : ColLocked;
             }
+            LayoutFooter();
+        }
+
+        /// Grow the footer so a "show hidden" label that wrapped onto a second line keeps its
+        /// padding above and below, and re-anchor the guide list on top of it. The left pane is
+        /// only 210–320 px wide, so at the vanilla font size that label genuinely does wrap on a
+        /// narrow panel — without this it would print over the divider and the rows above it.
+        private void LayoutFooter()
+        {
+            if (_footerRect == null) return;
+
+            var height = FooterBaseHeight;
+            if (_showHiddenText != null && _showHiddenText.font != null
+                && !string.IsNullOrEmpty(_showHiddenText.text)
+                && _showHiddenText.gameObject.activeInHierarchy)
+            {
+                var width = _showHiddenText.rectTransform.rect.width;
+                if (width < 40f) width = _leftWidth - 8f - 2f * ButtonPadX;
+                float textH;
+                try { textH = _showHiddenText.GetPreferredValues(_showHiddenText.text, width, 0f).y; }
+                catch (System.Exception) { textH = 0f; }
+                height = Mathf.Max(FooterBaseHeight,
+                    Mathf.Ceil(textH) + 2f * ButtonPadY + FooterButtonInset);
+            }
+
+            _footerHeight         = height;
+            _footerRect.sizeDelta = new Vector2(0f, height);
+            if (_leftListRect != null)
+                _leftListRect.offsetMin = new Vector2(0f, height);
         }
 
         private void ToggleShowHidden()
@@ -1478,6 +1528,9 @@ namespace ValheimServerGuide.Display
             if (_titleDivRect != null)
                 _titleDivRect.anchoredPosition = new Vector2(0f, -height);
 
+            // Measured before the pills are placed: the bar's own height is what decides where
+            // they end and where the body scroll below them starts.
+            MeasureToggleBar();
             SetToggleBarTop(_trackToggleGo, height);
             SetToggleBarTop(_hideToggleGo,  height);
 
@@ -1487,12 +1540,44 @@ namespace ValheimServerGuide.Display
         }
 
         /// Re-pin a toggle pill to sit just under a title band of `titleHeight` (4px gap).
-        private static void SetToggleBarTop(GameObject pill, float titleHeight)
+        private void SetToggleBarTop(GameObject pill, float titleHeight)
         {
             var rect = pill != null ? pill.GetComponent<RectTransform>() : null;
             if (rect == null) return;
             rect.offsetMax = new Vector2(rect.offsetMax.x, -(titleHeight + 4f));
-            rect.offsetMin = new Vector2(rect.offsetMin.x, -(titleHeight + 4f + ToggleBarHeight));
+            rect.offsetMin = new Vector2(rect.offsetMin.x, -(titleHeight + 4f + _toggleBarHeight));
+        }
+
+        /// Set `_toggleBarHeight` to whatever the taller of the two pills needs for its wrapped
+        /// label. The pills share the bar, so they share its height — a wrapped "Pin to Tracker"
+        /// makes the "Hide from list" beside it just as tall, which is what keeps the row even.
+        private void MeasureToggleBar()
+        {
+            var height = ToggleBarBaseHeight;
+            // Fractions match the anchors the pills were built with (62% / 38% of the pane).
+            height = Mathf.Max(height, MeasurePillHeight(_trackToggleGo, _trackToggleText, 0.62f));
+            height = Mathf.Max(height, MeasurePillHeight(_hideToggleGo,  _hideToggleText,  0.38f));
+            _toggleBarHeight = height;
+        }
+
+        /// Height one pill needs: its wrapped label plus `ButtonPadY` above and below. Zero for a
+        /// pill that is not showing. `widthFraction` is that pill's share of the right pane, used
+        /// only until the label's own rect has been laid out and can be measured directly.
+        private float MeasurePillHeight(GameObject pill, TMP_Text label, float widthFraction)
+        {
+            if (pill == null || !pill.activeSelf) return 0f;
+            if (label == null || label.font == null || string.IsNullOrEmpty(label.text)) return 0f;
+            if (!label.gameObject.activeInHierarchy) return 0f;
+
+            var width = label.rectTransform.rect.width;
+            if (width < 40f)
+                width = (_panelWidth - 2f * _frameInset - _leftWidth - PaneGap) * widthFraction
+                        - 2f * ButtonPadX;
+
+            float textH;
+            try { textH = label.GetPreferredValues(label.text, width, 0f).y; }
+            catch (System.Exception) { return 0f; }
+            return Mathf.Ceil(textH) + 2f * ButtonPadY;
         }
 
         // ── Tracker pin toggle ────────────────────────────────────────────────────────────────
@@ -1552,6 +1637,8 @@ namespace ValheimServerGuide.Display
             var now = !TrackedQuestState.IsTracked(player, _selected.Id);
             GuidanceHudTracker.Instance?.SetTracked(_selected.Id, now);
             UpdateTrackToggle(_selected, player, false);
+            // The new label may wrap where the old one did not, so re-measure the bar.
+            LayoutTitleArea();
         }
 
         /// True when an entry would actually render a row on the HUD tracker: an in-progress quest
@@ -1954,7 +2041,12 @@ namespace ValheimServerGuide.Display
             _hideToggleGo     = null;
             _hideToggleText   = null;
             _showHiddenText   = null;
+            _footerRect       = null;
+            _leftListRect     = null;
             _listScroll       = null;
+            // Back to their one-line heights; the rebuilt panel re-measures both from its labels.
+            _toggleBarHeight  = ToggleBarBaseHeight;
+            _footerHeight     = FooterBaseHeight;
             _guideRows.Clear();
             _items.Clear();
             _selected = null;

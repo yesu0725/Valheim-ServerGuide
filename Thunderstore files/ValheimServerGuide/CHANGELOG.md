@@ -1,4 +1,57 @@
 # Changelog
+## 0.13.0
+
+Purely a looks-and-readability update. No YAML field, trigger, reward or command behaves
+differently, and no quest progress is touched — you can update the server and the players in any
+order.
+
+### The rune reading and the NPC conversation panel now match the rest of the game
+
+The Guide Codex has been drawn in Valheim's own player-inventory window for a while: its carved wood
+frame, its font, its orange-on-parchment colours. The `rune` reading card and the `conversation`
+panel were still using their own hand-picked greys and golds, so opening one after the other looked
+like two different mods.
+
+They now take all of it from the same place the Codex does — read off the live game at runtime, with
+no new asset shipped:
+
+- **The game's own font**, the one the inventory window's labels use.
+- **The game's colours** — orange headings, parchment body text, dim for locked or secondary lines.
+- **The game's wood frame** behind both panels, and the darker interior box behind the rune card's
+  text.
+- **Vanilla buttons** for every conversation choice, with the real hover, pressed and disabled
+  states instead of a flat highlight.
+
+If Valheim's UI cannot be read for any reason, every one of those falls back to a plain dark fill
+and the panel simply looks plainer — it never breaks.
+
+### Text is a step larger, to match
+
+The old sizes were picked for a fallback sans font and read slightly small in Valheim's serif. Rune
+body text goes 17 to 16 but in a larger-looking face, conversation body text 15 to 16, and
+conversation choice labels 13 to 15.
+
+**If you set any `rune:` size or colour yourself, nothing changes** — your value still wins. These
+are only the defaults for guides that do not specify one. The full list of new defaults is in the
+wiki's Display Modes page.
+
+One deliberate exception: setting `background_color:` on a `rune:` block gives you that flat colour
+instead of the wood frame. Asking for a specific fill and getting wood tinted with it is not what
+you asked for.
+
+### Buttons have room for their text
+
+Buttons across the Codex and the conversation panel had tight padding, and a label that did not fit
+ran straight out past the button's edge.
+
+- Padding inside every button is larger on both axes.
+- Labels now wrap to a second line instead of overflowing.
+- **The button grows to fit the wrapped label**, with its padding kept above and below both lines.
+  In the Codex the "Pin to Tracker" / "Hide from list" bar and the "Show hidden" footer grow, and
+  what sits below them moves down rather than being painted over.
+
+This mostly shows up on a narrow window or at a high UI scale, where labels wrap that used to fit.
+
 ## 0.12.0
 
 **Before you update:** quest progress moves out of player character files and into files your server

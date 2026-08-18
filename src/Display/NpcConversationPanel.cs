@@ -30,7 +30,36 @@ namespace ValheimServerGuide.Display
         public static NpcConversationPanel Instance { get; private set; }
         internal static bool IsOpen => Instance != null && Instance._isOpen;
 
+        // ── Palette ────────────────────────────────────────────────────────────
+        // Taken from VanillaUi so the conversation reads in the player inventory's own colours —
+        // orange for the speaker, parchment for what they say — matching the Codex and the rune
+        // card. ColBg is only the fallback for when the vanilla wood cannot be resolved.
+        private static readonly Color ColHeader  = VanillaUi.Orange;
+        private static readonly Color ColBody    = VanillaUi.Beige;
+        private static readonly Color ColLocked  = VanillaUi.Dim;
+        private static readonly Color ColDivider = VanillaUi.DividerCol;
+
+        // ── Font sizes ─────────────────────────────────────────────────────────
+        // The vanilla inventory scale, same as the Codex: a ~20 window title over 16 body text in
+        // the game's serif face. Choice labels sit one step below the body so a long option still
+        // fits its button on one or two lines.
+        private const float FsHeader = 20f;
+        private const float FsBody   = 16f;
+        private const float FsChoice = 15f;
+
         private const float PanelWidth = 750f;
+        /// Left/right padding inside the panel frame. Also what `SetBody` subtracts to get the
+        /// width the body text wraps at, so the two must stay in step.
+        private const float PanelPadX = 18f;
+
+        /// Padding between a choice button's edge and its label, on both axes. Generous on
+        /// purpose: a label that wraps onto a second line has to clear the button sprite's carved
+        /// border top and bottom, not just sit inside the rect.
+        private const float ChoicePadX = 16f;
+        private const float ChoicePadY = 10f;
+        /// Floor for a choice button's height — one line of label plus `ChoicePadY` either side.
+        /// `EndChoices` raises it from there to whatever the wrapped label actually needs.
+        private const float ChoiceMinHeight = 44f;
         /// Ceiling for the whole panel, as a fraction of screen height. Beyond this the body
         /// scrolls rather than the panel continuing to grow.
         private const float MaxPanelHeightFraction = 0.82f;
@@ -43,7 +72,11 @@ namespace ValheimServerGuide.Display
         private List<ConversationNodeSpec> _nodes; // Phase 4 multi-node conversations
 
         private TMP_FontAsset _font;
+        /// True once `_font` is the inventory window's own font rather than a provisional fallback
+        /// resolved before the GUI scene existed.
+        private bool _fontFromInventory;
         private RectTransform _bgRect;
+        private Image _bgImage;
         private TMP_Text _headerText;
         private TMP_Text _bodyText;
         private RectTransform _bodyContentRect;
@@ -94,9 +127,23 @@ namespace ValheimServerGuide.Display
             _bgRect.pivot            = new Vector2(0.5f, 0f);
             _bgRect.sizeDelta        = new Vector2(PanelWidth, 185f);
             _bgRect.anchoredPosition = new Vector2(0f, 110f);
-            var bgImg = bg.AddComponent<Image>();
-            // Darker, more opaque fill so the white body text reads clearly.
-            bgImg.color = new Color(0.02f, 0.02f, 0.02f, 0.97f);
+
+            // The frame art lives on its own stretched child, kept out of the vertical stack with
+            // ignoreLayout. `Image` is itself an ILayoutElement reporting its sprite's NATIVE pixel
+            // height, and the root's ContentSizeFitter takes the largest preferred height on the
+            // GameObject — so carved wood on the root would size the panel to the texture rather
+            // than to the dialogue.
+            var bgArt = new GameObject("BGArt");
+            bgArt.transform.SetParent(bg.transform, false);
+            var bgArtRect = bgArt.AddComponent<RectTransform>();
+            bgArtRect.anchorMin = Vector2.zero;
+            bgArtRect.anchorMax = Vector2.one;
+            bgArtRect.offsetMin = Vector2.zero;
+            bgArtRect.offsetMax = Vector2.zero;
+            bgArt.AddComponent<LayoutElement>().ignoreLayout = true;
+            _bgImage = bgArt.AddComponent<Image>();
+            // Flat fallback until the vanilla wood is resolved in ApplyVanillaStyle.
+            _bgImage.color = VanillaUi.PanelFill;
 
             var vlg = bg.AddComponent<VerticalLayoutGroup>();
             vlg.childControlWidth      = true;
@@ -105,7 +152,9 @@ namespace ValheimServerGuide.Display
             vlg.childForceExpandHeight = false;
             vlg.childAlignment         = TextAnchor.UpperLeft;
             vlg.spacing                = 8f;
-            vlg.padding                = new RectOffset(12, 12, 8, 10);
+            // Wider than it needs to be for a flat fill: this is what keeps the dialogue clear of
+            // the carved edge of the vanilla wood frame. PanelPadX must track the left/right value.
+            vlg.padding                = new RectOffset((int)PanelPadX, (int)PanelPadX, 14, 14);
 
             var fitter = bg.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained; // width is fixed
@@ -116,10 +165,10 @@ namespace ValheimServerGuide.Display
             headerGo.transform.SetParent(bg.transform, false);
             headerGo.AddComponent<RectTransform>();
             _headerText = headerGo.AddComponent<TextMeshProUGUI>();
-            _headerText.fontSize  = 20f;
+            _headerText.fontSize  = FsHeader;
             _headerText.fontStyle = FontStyles.Bold;
             _headerText.alignment = TextAlignmentOptions.Left;
-            _headerText.color     = new Color(0.88f, 0.75f, 0.47f); // gold
+            _headerText.color     = ColHeader;
             // A long NPC name or topic wraps onto a second line rather than being clipped.
             _headerText.enableWordWrapping = true;
             _headerText.overflowMode       = TextOverflowModes.Overflow;
@@ -129,7 +178,7 @@ namespace ValheimServerGuide.Display
             rule.transform.SetParent(bg.transform, false);
             rule.AddComponent<RectTransform>();
             var ruleImg = rule.AddComponent<Image>();
-            ruleImg.color         = new Color(0.88f, 0.75f, 0.47f, 0.30f);
+            ruleImg.color         = ColDivider;
             ruleImg.raycastTarget = false;
             var ruleLe = rule.AddComponent<LayoutElement>();
             ruleLe.minHeight       = 1f;
@@ -163,9 +212,9 @@ namespace ValheimServerGuide.Display
             _bodyContentRect.offsetMin = Vector2.zero;
             _bodyContentRect.offsetMax = Vector2.zero;
             _bodyText = bodyGo.AddComponent<TextMeshProUGUI>();
-            _bodyText.fontSize           = 15f;
+            _bodyText.fontSize           = FsBody;
             _bodyText.alignment          = TextAlignmentOptions.TopLeft;
-            _bodyText.color              = Color.white;
+            _bodyText.color              = ColBody;
             _bodyText.enableWordWrapping = true;
             _bodyText.overflowMode       = TextOverflowModes.Overflow;
             _bodyScroll.content = _bodyContentRect;
@@ -195,14 +244,14 @@ namespace ValheimServerGuide.Display
             _bodyText.text = text ?? "";
 
             // The text needs a resolved width before its height means anything.
-            var innerWidth = PanelWidth - 24f; // VerticalLayoutGroup left+right padding
+            var innerWidth = PanelWidth - 2f * PanelPadX; // VerticalLayoutGroup left+right padding
             _bodyContentRect.sizeDelta = new Vector2(0f, _bodyContentRect.sizeDelta.y);
             _bodyText.ForceMeshUpdate();
 
             var needed = _bodyText.GetPreferredValues(_bodyText.text, innerWidth, 0f).y;
 
             // Everything except the body: padding, header, rule, spacing, choice rows.
-            var chrome = 26f + Mathf.Max(_headerText.preferredHeight, 24f) + 1f + 24f
+            var chrome = 28f + Mathf.Max(_headerText.preferredHeight, 24f) + 1f + 24f
                        + EstimateChoiceHeight();
             var maxBody = Mathf.Max(MinBodyHeight, Screen.height * MaxPanelHeightFraction - chrome);
 
@@ -218,7 +267,9 @@ namespace ValheimServerGuide.Display
         /// Rough height of the choice block, used to budget the body's share of the screen.
         /// Exact values are not needed — it only decides when scrolling kicks in.
         private float EstimateChoiceHeight()
-            => _rowCount <= 0 ? 46f : _rowCount * 46f + (_rowCount - 1) * 6f;
+            => _rowCount <= 0
+                ? ChoiceMinHeight
+                : _rowCount * ChoiceMinHeight + (_rowCount - 1) * 6f;
 
         // ── Public API ─────────────────────────────────────────────────────────
 
@@ -234,12 +285,7 @@ namespace ValheimServerGuide.Display
             _currentEntry = entry;
 
             // Lazily resolve vanilla font (same logic as GuidanceHudTracker).
-            if (_font == null) _font = GuidanceHudTracker.FindVanillaFontStatic();
-            if (_font != null)
-            {
-                if (_headerText != null) _headerText.font = _font;
-                if (_bodyText   != null) _bodyText.font   = _font;
-            }
+            ApplyTheme();
 
             // Activate before laying anything out. TMP's GetPreferredValues and
             // LayoutRebuilder both return zeroes for an inactive hierarchy, which would leave
@@ -276,12 +322,7 @@ namespace ValheimServerGuide.Display
         {
             _currentEntry = null;
 
-            if (_font == null) _font = GuidanceHudTracker.FindVanillaFontStatic();
-            if (_font != null)
-            {
-                if (_headerText != null) _headerText.font = _font;
-                if (_bodyText   != null) _bodyText.font   = _font;
-            }
+            ApplyTheme();
 
             _isOpen = true;
             gameObject.SetActive(true);
@@ -333,12 +374,7 @@ namespace ValheimServerGuide.Display
         {
             var player = Player.m_localPlayer;
 
-            if (_font == null) _font = GuidanceHudTracker.FindVanillaFontStatic();
-            if (_font != null)
-            {
-                if (_headerText != null) _headerText.font = _font;
-                if (_bodyText   != null) _bodyText.font   = _font;
-            }
+            ApplyTheme();
 
             _headerText.text = Template(entry.Display?.Topic ?? entry.Title ?? "", entry);
 
@@ -402,8 +438,11 @@ namespace ValheimServerGuide.Display
                 if (i >= _choiceButtonLayouts.Count) continue;
                 var le = _choiceButtonLayouts[i];
                 if (le == null) continue;
-                // 8 px of vertical breathing room around the wrapped label.
-                le.preferredHeight = Mathf.Max(40f, label.preferredHeight + 8f);
+                // The label's own padding, given back as height: a two-line label ends up in a
+                // button two lines tall PLUS ChoicePadY above and below, so the text is never
+                // pressed against the button's edge.
+                le.preferredHeight =
+                    Mathf.Max(ChoiceMinHeight, label.preferredHeight + 2f * ChoicePadY);
             }
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
@@ -526,6 +565,40 @@ namespace ValheimServerGuide.Display
 
         // ── Private helpers ────────────────────────────────────────────────────
 
+        /// Take the panel's look from the live player-inventory window: its font and its carved
+        /// wood frame. Called at the top of every open/render path, always BEFORE the root is
+        /// activated, so each TMP label Awakes with a font already assigned.
+        ///
+        /// The inventory's own font can only be read once the GUI scene is up, so a font resolved
+        /// from anywhere else is provisional and re-resolved on the next conversation rather than
+        /// cached for the session — the same rule the Codex and the rune card follow, which is what
+        /// keeps all three panels in one typeface.
+        private void ApplyTheme()
+        {
+            VanillaUi.TryResolve();
+
+            if (_font == null || !_fontFromInventory)
+            {
+                if (VanillaUi.Font != null)
+                {
+                    _font              = VanillaUi.Font;
+                    _fontFromInventory = true;
+                }
+                else if (_font == null)
+                {
+                    _font = GuidanceHudTracker.FindVanillaFontStatic();
+                }
+            }
+
+            if (_font != null)
+            {
+                if (_headerText != null) _headerText.font = _font;
+                if (_bodyText   != null) _bodyText.font   = _font;
+            }
+
+            VanillaUi.ApplyPanelFlex(_bgImage);
+        }
+
         /// Expand {playerName}/{player_name}/… and apply the entry's `highlight:` rules to the
         /// panel chrome (header topic/title and choice labels). Body text is rendered by its own
         /// call site. `entry` is null for the multi-quest picker, which has no single entry.
@@ -540,26 +613,26 @@ namespace ValheimServerGuide.Display
             // The row's HorizontalLayoutGroup controls width; the LayoutElement below carries
             // the height, which EndChoices raises to fit a label that wrapped onto extra lines.
             var btnRt = btnGo.AddComponent<RectTransform>();
-            btnRt.sizeDelta = new Vector2(0f, 40f);
+            btnRt.sizeDelta = new Vector2(0f, ChoiceMinHeight);
 
             var bg = btnGo.AddComponent<Image>();
-            bg.color = new Color(1f, 1f, 1f, 0.07f);
 
             var btn = btnGo.AddComponent<Button>();
             btn.interactable = interactable;
-            var cols = btn.colors;
-            cols.normalColor      = Color.white;
-            cols.highlightedColor = new Color(0.88f, 0.75f, 0.47f, 0.28f);
-            cols.pressedColor     = new Color(0.70f, 0.60f, 0.35f, 0.50f);
-            cols.disabledColor    = new Color(1f, 1f, 1f, 0.25f);
-            btn.colors        = cols;
-            btn.targetGraphic = bg;
+            // The vanilla button sprite plus vanilla's own hover / press / disabled swaps — the
+            // same treatment the Codex gives its buttons. Degrades to a flat fill with no
+            // transition when the sprite cannot be resolved.
+            VanillaUi.StyleButton(btn, bg);
 
             var le = btnGo.AddComponent<LayoutElement>();
             le.flexibleWidth   = 1f;
             le.minWidth        = 60f;
-            le.minHeight       = 40f;
-            le.preferredHeight = 40f;
+            // Zero, not unset: LayoutElement outranks the Image beside it, so leaving this at -1
+            // would let the button sprite's native width drive the row and make the options uneven.
+            // The flexible width is what actually shares the row out between them.
+            le.preferredWidth  = 0f;
+            le.minHeight       = ChoiceMinHeight;
+            le.preferredHeight = ChoiceMinHeight;
             _choiceButtonLayouts.Add(le);
 
             var labelGo = new GameObject("Label");
@@ -567,15 +640,17 @@ namespace ValheimServerGuide.Display
             var labelRt = labelGo.AddComponent<RectTransform>();
             labelRt.anchorMin = Vector2.zero;
             labelRt.anchorMax = Vector2.one;
-            labelRt.offsetMin = new Vector2(6f, 2f);
-            labelRt.offsetMax = new Vector2(-6f, -2f);
+            // Inset enough that the label never sits on the button sprite's carved border —
+            // including its second line, which is what ChoicePadY is really sized for.
+            labelRt.offsetMin = new Vector2(ChoicePadX, ChoicePadY);
+            labelRt.offsetMax = new Vector2(-ChoicePadX, -ChoicePadY);
 
             var label = labelGo.AddComponent<TextMeshProUGUI>();
             if (_font != null) label.font = _font;
             label.text             = Template(choice.Text ?? "", _currentEntry);
-            label.fontSize         = 13f;
+            label.fontSize         = FsChoice;
             label.alignment        = TextAlignmentOptions.Center;
-            label.color            = interactable ? Color.white : new Color(1f, 1f, 1f, 0.45f);
+            label.color            = interactable ? ColBody : ColLocked;
             // Fixed small font + word wrap so longer labels (picker entry titles, locked-hint
             // suffixes) flow onto a second line inside the button instead of being clipped.
             // NOT auto-sizing: TMP auto-size resolves the largest font that fits on ONE line

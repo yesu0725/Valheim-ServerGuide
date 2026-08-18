@@ -101,6 +101,54 @@ display:
 - Ghost mode is restored when the viewer closes (click-through, ESC, or auto-hide).
 - `display.topic` is used as the heading/title above the text body.
 - Text tokens are supported.
+- The card is drawn in Valheim's **player-inventory window**: its font, its orange-on-parchment
+  colours and its carved wood frame, with the reading itself in the darker interior box the game
+  uses for long text. Nothing is shipped with the mod — it is read off the running game, and falls
+  back to a plain dark panel if it cannot be.
+- Long readings **scroll** rather than being cut off. The card grows to fit the text until it would
+  reach 86% of the screen height, then the body scrolls with the mouse wheel.
+
+### Customizing the card — `display.rune`
+
+Every field is optional. Anything you leave out uses the vanilla default in the table below, so a
+guide with no `rune:` block simply looks like the rest of the game.
+
+```yaml
+display:
+  mode: rune
+  topic: "The Elder's Charge"
+  text: "Heed these trials, {player_name}, and Valhalla awaits."
+  rune:
+    header_font_size: 26
+    body_style: "Italic"
+    width: 680
+    bullet: "◆"
+    items:
+      - "Slay the Elder in the Black Forest."
+      - "Recover the swamp key from Bonemass."
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `header` | `display.topic` | Heading text, if you want it different from the topic |
+| `header_color` | vanilla orange | Heading colour (`#RRGGBB` or `#RRGGBBAA`) |
+| `header_font_size` | `22` | Heading size |
+| `header_style` | `Bold` | `Normal` / `Bold` / `Italic` / `Underline` / `Uppercase` / `Strikethrough`, combinable (`"Bold Italic"`) |
+| `header_alignment` | `Center` | `Left` / `Center` / `Right` |
+| `body_color` | vanilla parchment | Body colour |
+| `body_font_size` | `16` | Body size |
+| `body_style` | `Normal` | Body font style |
+| `body_alignment` | `Left` | Body alignment |
+| `items` | — | Bullet-list rows under the body; each is templated like any other text |
+| `bullet` | `•` | Row glyph (`""` for none) |
+| `item_color` | vanilla parchment | Row colour |
+| `item_font_size` | `15` | Row size |
+| `item_style` | `Normal` | Row font style |
+| `background_color` | the vanilla wood frame | Setting this gives you a **flat colour instead of** the frame |
+| `accent_color` | vanilla divider | The rule between heading and body |
+| `width` | `620` | Card width in pixels (clamped 240–1200, and never wider than the screen) |
+| `fade_in` | `0.35` | Fade-in seconds (`0` = instant) |
+| `fade_out` | `0.35` | Fade-out seconds (`0` = instant) |
 
 ---
 
@@ -146,6 +194,12 @@ display:
 - Requires a `conversation:` block in the entry to define the choice buttons.
 - While the panel is open, player movement, attacks, inventory, camera, and the pause menu are all disabled.
 - If no choices are defined, a default "Dismiss" button is shown.
+- The panel uses the **player-inventory window's** font, colours and wood frame, and the game's own
+  button art for the choices — including their hover, pressed and disabled states.
+- Choice buttons **grow to fit their label.** A long option wraps onto a second line and the button
+  gets taller to hold it, so nothing is clipped. Up to three options share a row; past three, two
+  per row, so each label stays wide enough to read.
+- Long body text scrolls once the panel would pass 82% of the screen height. Nothing is truncated.
 - See [NPC Conversations](NPC-Conversations) for full setup.
 
 ---
