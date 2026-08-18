@@ -90,6 +90,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.13.0:_ the **rune reading card and the NPC dialogue panel now match the Guide Codex** — all three are drawn in Valheim's player-inventory window, using its font, its orange-on-parchment colours, its carved wood frame and its real buttons (hover, pressed and disabled states included). Nothing is added to the download; it is read off the running game and falls back to a plain dark panel if it cannot be. Text is a step larger to suit that font, and **buttons now grow to fit a label that wraps onto a second line** instead of the text running out past the button's edge. Any `rune:` size or colour you set yourself still wins — only the defaults moved.
+
 _New in 0.12.0:_ **quest progress is saved on the server**, in one readable file per character under `BepInEx/config/ValheimServerGuide/PlayerProgress/`. Previously it rode along inside each player's own character save, which meant quests finished in single-player showed up as already done when they rejoined your server. Existing progress migrates automatically the first time each character logs in — nothing resets. Back this folder up (or point `ProgressPath` outside `config/`): it *is* your players' quest progress.
 
 _New in 0.12.0:_ the **Guide Codex is drawn in the game's own window** — the player inventory's carved frame, interior boxes, buttons and font, so it matches your install and adds nothing to the download. Its text is a size or two larger to suit that font, its buttons are sized for their labels, and the window now scales with your resolution and GUI scale instead of coming out oversized. Rune readings also use the `width:` you set — the first one of each session used to come out as a narrow column.
@@ -128,5 +130,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.12.0
+**Version:** 0.13.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide
