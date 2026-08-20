@@ -25,6 +25,8 @@
     <!-- Override on other machines: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..." -->
     <VALHEIM_DEDICATED_SERVER_DIR Condition=" '$(VALHEIM_DEDICATED_SERVER_DIR)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server</VALHEIM_DEDICATED_SERVER_DIR>
     <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</DedicatedServerInstallDir>
+    <!-- The Thunderstore package folder: the single source of truth for manifest.json. -->
+    <ThunderstorePackageDir>$(MSBuildProjectDirectory)\..\Thunderstore files\ValheimServerGuide</ThunderstorePackageDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -124,6 +126,37 @@
     </PropertyGroup>
     <Error Condition="!$(_PluginSource.Contains('$(_ExpectedVersionConst)'))"
            Text="Plugin.cs does not declare [$(_ExpectedVersionConst)]. The &lt;Version&gt; property is $(Version), so set PluginVersion in Plugin.cs to match — otherwise the mod reports the old version in-game and in mod managers while the assembly and Thunderstore manifest say $(Version)." />
+  </Target>
+
+  <!-- Fourth version string. VerifyPluginVersion covers <Version> vs Plugin.cs; this covers
+       <Version> vs the Thunderstore manifest, which is the one every mod manager DISPLAYS.
+       Without it the manifest silently stays a release behind and Gale/r2modman keep reporting
+       the old version over a new DLL. -->
+  <Target Name="VerifyManifestVersion" BeforeTargets="Build"
+          Condition="Exists('$(ThunderstorePackageDir)\manifest.json')">
+    <PropertyGroup>
+      <_ManifestSource>$([System.IO.File]::ReadAllText('$(ThunderstorePackageDir)\manifest.json'))</_ManifestSource>
+      <_ExpectedManifestVersion>"version_number": "$(Version)"</_ExpectedManifestVersion>
+    </PropertyGroup>
+    <Error Condition="!$(_ManifestSource.Contains('$(_ExpectedManifestVersion)'))"
+           Text="Thunderstore manifest.json does not declare [$(_ExpectedManifestVersion)]. The &lt;Version&gt; property is $(Version), so set version_number in &quot;Thunderstore files/ValheimServerGuide/manifest.json&quot; to match — otherwise mod managers report the old version over the new DLL." />
+  </Target>
+
+  <!-- Every deploy target that was installed by a mod manager carries its own manifest.json,
+       and THAT is the version Gale / r2modman show in their mod list — not the assembly. The
+       DLL-only copy below used to leave it untouched, so a freshly built target kept reporting
+       the previous release. Keep the manifest in step with the DLL wherever one exists. -->
+  <Target Name="DeployManifest" AfterTargets="Build"
+          Condition="Exists('$(ThunderstorePackageDir)\manifest.json')">
+    <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
+          DestinationFolder="$(TestProfileInstallDir)"
+          Condition="Exists('$(TestProfileInstallDir)\manifest.json')" />
+    <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
+          DestinationFolder="$(DedicatedServerInstallDir)"
+          Condition="Exists('$(DedicatedServerInstallDir)\manifest.json')" />
+    <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
+          DestinationFolder="$(PluginInstallDir)"
+          Condition="Exists('$(PluginInstallDir)\manifest.json')" />
   </Target>
 
   <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
