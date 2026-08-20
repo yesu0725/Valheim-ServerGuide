@@ -22,7 +22,7 @@ namespace ValheimServerGuide
         /// The version players see: BepInEx registers the plugin under it, the startup log line
         /// reports it, and mod managers display it. Must match <Version> in the .csproj — the
         /// VerifyPluginVersion build target fails the build if it does not.
-        public const string PluginVersion = "0.13.0";
+        public const string PluginVersion = "0.13.1";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }

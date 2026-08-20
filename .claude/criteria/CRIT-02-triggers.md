@@ -296,9 +296,25 @@ diffs `(trigger id, interval, scope)` and only stops what actually changed.
 - **Source:** `DistanceTrigger.cs`
 - **Harmony patch:** `Player.Update` Postfix — polled every 5 seconds.
 - **Guard:** per-location SeenTracker key `"dist_{prefabName}"` — fires at most once per location per character.
-- **Subject:** location prefab name from `ZoneSystem.instance.m_locationInstances` (e.g., `"Vendor_BlackForest"`).
+- **Subject:** location prefab name (e.g., `"Vendor_BlackForest"`).
+- **Candidate sources (all three polled each tick, de-duplicated by prefab name):**
+  1. `Location.s_allLocations` — location prefabs actually spawned in the scene. The **only**
+     source that works on a client connected to a dedicated server, so it is the primary path.
+     `(Clone)` is stripped via `TriggerUtils.NormalizePrefabName`. Limited to the zones loaded
+     around the player, which is far beyond the 50 m default radius.
+  2. `ZoneSystem.instance.m_locationInstances` — the world's full location list. It is filled by
+     world generation, which runs **server-side only**, so on a dedicated-server client it is
+     permanently empty (vanilla itself branches on `ZNet.IsServer()` before reading it — see
+     `ZoneSystem.GetLocationIcons`). Useful on single-player / listen-server hosts, where it also
+     catches placed-but-not-yet-spawned locations and prefabs with no `Location` component.
+  3. `ZoneSystem.instance.m_locationIcons` — the position + name list the server pushes to every
+     client over the vanilla `"LocationIcons"` RPC. Icon-bearing locations only (boss altars,
+     vendors, …), but at any range, so a large `trigger.radius` still works for those on a
+     dedicated server.
 - **YAML fields matched:** `trigger.location` (trailing `*` wildcard supported), `trigger.radius` (metres; default 50 when absent or zero).
 - **Note:** `trigger.radius` is checked inside the trigger before the event is raised. The dispatcher matches only on location name.
+- **Note:** the poll returns immediately when no entry in the config uses a `distance` trigger, and
+  candidates farther away than the largest configured radius are dropped before per-entry matching.
 
 ### `time_of_day`
 - **Source:** `TimeTrigger.cs`

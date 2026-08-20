@@ -1,4 +1,37 @@
 # Changelog
+## 0.13.1
+
+A bug fix for one trigger. Nothing else changed — no YAML field, reward or command behaves
+differently, and no quest progress is touched.
+
+### `distance` triggers now fire on dedicated servers
+
+If your server is a dedicated server, every `type: distance` entry has been silently dead: walking
+right up to a boss altar, a crypt or a vendor never fired anything, while the same YAML worked fine
+in single-player or on a listen server. Nothing appeared in the log, because as far as the mod could
+tell there were no locations in the world at all.
+
+The reason is that Valheim only builds its list of world locations on the machine that generated the
+world. A player connected to a dedicated server never receives that list, so the one place this
+trigger was looking was permanently empty for them.
+
+It now finds locations three ways instead of one:
+
+- **Locations actually standing in the world around you** — the reliable path, and the one that
+  works for every player on every kind of server. This covers the whole loaded area around your
+  character, far past the 50 m default radius.
+- **The world's full location list**, as before, on single-player and listen servers, which also
+  catches a location that is placed but has not spawned in yet.
+- **Map-icon locations** — boss altars, vendors and anything else the server marks on the map. These
+  are known at any distance, so a large `radius:` still works for them even on a dedicated server.
+
+One thing worth knowing for a dedicated server: for a location that has no map icon, a very large
+`radius:` is still limited by how much world your game has loaded around you, so in practice it
+behaves as "when you get near enough for it to load". Boss altars and vendors are not affected.
+
+Each location found in range is also written to the log at Debug level now, so if a `distance` entry
+is not firing you can turn on debug logging and read off the exact prefab names the game is using.
+
 ## 0.13.0
 
 Purely a looks-and-readability update. No YAML field, trigger, reward or command behaves
