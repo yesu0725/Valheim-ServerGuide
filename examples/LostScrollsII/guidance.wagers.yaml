@@ -1,0 +1,90 @@
+# Lost Scrolls II — Wagered tournaments & staked duel invites.
+#
+# WHAT THIS FILE IS FOR, AND WHAT IT IS NOT
+#
+# Almost all of the wager system's Discord output does NOT come from here. The
+# mod posts it straight to the server's ServerGuide webhook, because those events
+# (a tournament opening, a bracket draw, a duel starting, the end-of-event
+# summary) are server-wide facts, not something that happened to one player.
+# There is nothing to configure for them beyond setting `DiscordWebhookUrl` in
+# the ServerGuide config — see docs/Wagers.md in the mod repo.
+#
+# This file covers the two things that genuinely target ONE player:
+#
+#   1. Teaching the system  — a Codex page so players know what the F7 panel does
+#      and what a duel actually costs before they spend anything.
+#
+#   2. The Valcoin champion's purse — `dvergr_tournament_prize`. Lost Scrolls II
+#      never states a Valcoin amount, by long-standing design: the mod fires this
+#      trigger and the guidance entry below sets `VC.Q.ls_tournament_prize`, which
+#      Valheim Donations reads and prices from its OWN valcoin_quests.yaml. That
+#      is the only place allowed to decide what a Valcoin reward is worth.
+#
+#      >>> SERVER SETUP REQUIRED <<<
+#      Add this to BepInEx/config/valcoin_quests.yaml on the server:
+#
+#        quests:
+#          ls_tournament_prize:
+#            name: "Tournament Champion"
+#            coins: 100          # keep in step with Wagers/TournamentValcoinPrize
+#            period: daily       # once per UTC day
+#            capped: false       # <- REQUIRED, see below
+#
+#      `capped: false` is not optional for a prize this size. The donations
+#      backend clamps ordinary `daily` quests to its 8-coin daily allowance, so
+#      without it a 100-coin purse pays 8 at best and nothing at all to a champion
+#      who already did their dailies. The flag needs donations plugin 5.20.0 +
+#      backend 0.10.0; an older backend ignores it and caps the prize again.
+#
+#      Uncapped still means once per UTC day per quest id (the dedup is what
+#      bounds these now that the coin cap doesn't).
+#
+#      Without any entry the champion wins nothing and the donations plugin logs
+#      an "unknown quest" warning. Coin tournaments need no setup — the mod
+#      grants vanilla Coins itself.
+#
+#      Note that a STAKED DUEL's purse needs no entry here at all: it is exactly
+#      the two stakes that were collected, so the mod simply moves them.
+#
+# Trigger contract (docs/ServerGuide-Integration.md):
+#   dvergr_tournament_prize — subject = the currency key ("valcoin").
+#                             {mode} = currency, {bracketSize} = the configured purse.
+
+guidances:
+  # -------------------------------------------------------------------
+  # How wagered events work — taught once, after a player has a companion.
+  # -------------------------------------------------------------------
+  - id: ls_wager_howto
+    category: Tournaments
+    title: "Staking a Companion"
+    version: 1
+    requires: [ls_companion_commands]
+    trigger:
+      type: dvergr_recruited
+    display:
+      mode: raven
+      topic: "Staking a Companion"
+    message: "Anyone can put a companion on the line. Seal it into a Communion Totem first (at an Incinerator, or in the field with a Dead Raiser and a Wisp), then press [F7]. There you can open a tournament — one Coin tournament and one Valcoin tournament may run at a time — or post a duel invite that any player can accept by matching your stake. Opening a tournament also pays your own entry; the bracket is a fixed four players and starts by itself the moment it fills. If it never fills, every stake and totem comes back. Duels are fought where YOU choose: meet your opponent anywhere you like, both press Ready to Fight, and your companions are summoned beside you at full health to settle it. The winner of a duel invite takes both stakes; the tournament champion takes the purse."
+    summary: "Seal a companion into a totem, press [F7], then open or enter a staked tournament (fixed 4 players) or post a duel invite. You and your opponent pick where each duel happens — both press Ready to Fight. Unfilled tournaments refund everything."
+
+  # -------------------------------------------------------------------
+  # The Valcoin champion's purse. The ONLY reward here is the quest-key
+  # bridge — the donations mod owns the amount (see the header).
+  # -------------------------------------------------------------------
+  - id: ls_tourney_valcoin_prize
+    category: Tournaments
+    title: "Champion's Purse"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_tournament_prize
+    display:
+      mode: chat
+    message: "Champion! Your Valcoin purse is being paid out."
+    rewards:
+      # Valheim Donations watches for this key, looks the id up in its own
+      # valcoin_quests.yaml, and credits the coins. Do not add a coin amount here
+      # — this mod is deliberately not allowed to price a Valcoin reward.
+      - type: set_player_key
+        key: VC.Q.ls_tournament_prize
