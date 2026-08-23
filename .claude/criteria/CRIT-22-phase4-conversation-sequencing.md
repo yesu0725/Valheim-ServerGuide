@@ -124,6 +124,38 @@ at `nodes[0]`). Cleared whenever the conversation ends (any terminal choice).
   identical to the flat `OnChoiceSelected` path), clears `ConversationNodeState` for this entry,
   and — if a cross-entry `goto` was given — calls `GuidanceDispatcher.FireById`.
 
+### Choice label key: `label:` or `text:`
+
+A node choice's label may be written either way. The flat `ChoiceSpec` has always used `text:`
+while `NodeChoiceSpec` declared `label:`, and because the loader runs with
+`IgnoreUnmatchedProperties()` a node choice written as `text:` was **dropped without a warning** —
+`Label` stayed null and the button rendered completely blank. `NodeChoiceSpec.Text` is now an
+alias property that writes through to `Label` (a non-empty `label:` still wins if both are given),
+so either spelling works. It round-trips through `GuidanceSync`'s serialize/deserialize too: the
+wire form carries both keys with the same value.
+
+`AddChoiceButton` also logs a warning naming the entry when a choice's label resolves to empty,
+and renders `…` rather than an invisible button, so this class of authoring mistake can never be
+silent again.
+
+### Button geometry — vanilla dialog buttons
+
+Choices are laid out **one per row at full panel width** (`_rowCapacity = 1`). Packing three
+across left each label ~230 px, so an ordinary spoken reply wrapped onto three lines and the
+button grew to swallow them — the runaway heights. At full width a choice fits one line and sits
+at `ChoiceHeight` (36 px), matching vanilla's own dialog buttons (the Yes/No pair on "Log out from
+server?"): bold, centred, `VanillaUi.Orange` at `FsChoice` = 16 on the vanilla button sprite.
+
+`EndChoices` measures each label with `GetPreferredValues(text, labelWidth, 0f)` against a width
+it computes itself (`PanelWidth - 2*PanelPadX - 2*ChoicePadX`) — the same technique `SetBody`
+uses. It must NOT use `label.preferredHeight`: that reports the wrap at whatever width the rect
+holds at that instant, and during this pass the rect is still mid-layout, so a label could be
+measured against a near-zero width, "wrap" onto many lines, and freeze a button several times
+taller than its text. Both `minHeight` and `preferredHeight` are written, because a
+`VerticalLayoutGroup` compresses toward `minHeight`. The summed block height feeds
+`EstimateChoiceHeight`, so the body's screen-height budget now uses the real figure instead of a
+row-count guess.
+
 ### Button label wrap
 
 `AddChoiceButton`'s label previously was single-line (`enableWordWrapping = false`), which let

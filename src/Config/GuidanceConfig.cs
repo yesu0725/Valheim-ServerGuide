@@ -240,6 +240,10 @@ namespace ValheimServerGuide.Config
         /// optional caste name filter (Rogue | FireMage | IceMage | SupportMage).
         /// Empty = match any caste. For dvergr_duel_won this filters on the winner's caste.
         public string Caste { get; set; }
+        /// dvergr_bounty_resolved / dvergr_bounty_valcoin (Lost Scrolls II bounty hunting):
+        /// optional difficulty-tier filter (1-5). 0/absent = match any tier. Lets one
+        /// guidance entry per tier carry its own reward bundle.
+        public int Tier { get; set; }
     }
 
     public class ConversationSpec
@@ -277,6 +281,16 @@ namespace ValheimServerGuide.Config
     public class NodeChoiceSpec
     {
         public string Label { get; set; }
+        /// `text:` is what the flat `ChoiceSpec` calls this same field, so authors reasonably
+        /// write either one under a node's `choices:`. The loader ignores unmatched keys without
+        /// a word, so a node choice written as `text:` used to leave Label null and render a
+        /// button with no label at all. Accept both spellings; `label:` still wins if both are
+        /// given and non-empty.
+        public string Text
+        {
+            get => Label;
+            set { if (!string.IsNullOrEmpty(value)) Label = value; }
+        }
         /// Jump to another node in the same conversation; the panel stays open.
         public string GotoNode { get; set; }
         /// Cross-entry goto — closes this conversation and fires another entry by ID,

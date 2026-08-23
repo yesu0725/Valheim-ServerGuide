@@ -1,0 +1,329 @@
+# Lost Scrolls II — Bounty Hunting rewards.
+#
+# EVERY bounty reward lives in this file. The mod itself contains no loot table:
+# it fires a trigger carrying the bounty's tier, and the entries below decide what
+# that's worth — the same split the ranking and tournament content already uses.
+#
+# TRIGGER CONTRACT (see the mod's docs/Bounty-Hunting.md)
+# ------------------------------------------------------
+#   dvergr_bounty_resolved — a bounty target was KILLED or COMMUNED.
+#     subject = the effective tier ("1".."5"); filter with `tier:` (0/absent = any).
+#     Templating: {tier} {tierName} {bountyBiome} {method} {player_name}
+#     {method} is "killed" or "communed" — freeing a target with the Communion Rite
+#     is a legitimate way to answer a posting, and pays the same.
+#
+#   dvergr_bounty_valcoin — fired ONLY when the payout roll already succeeded.
+#     The chance is decided by the mod (from the hunter's duel/tournament standing),
+#     so entries here must NOT try to add chance logic — just grant.
+#     Templating: {tier} {tierName} {player_name}
+#
+# VALCOIN SETUP (required for the coin half to pay anything)
+# ---------------------------------------------------------
+# ServerGuide has no currency reward. The coin entries below set a player key that
+# the Valheim Donations plugin watches; that plugin's BACKEND owns the ledger and
+# decides the payout. For these to be worth anything, the donations side's
+# valcoin_quests.yaml needs matching ids:
+#     ls_bounty_t1 … ls_bounty_t5
+# A key with no matching entry there is silently worth nothing (the server logs
+# "Unknown quest '<id>'"), so the failure is harmless but silent — check that log
+# line if coins never arrive.
+#
+# !! NEVER PROMISE COINS IN THE TEXT BELOW. The backend applies its own daily caps,
+# so a completion does not always pay. Say what happened in-world and let the
+# donation plugin talk about coins — it is the only half that knows what was paid.
+# (Same rule as guidance.valcoin-quests.yaml.)
+#
+# ITEM IDS: these are vanilla prefab ids chosen to satisfy "things that need
+# cooking, crafting or smelting". An id that doesn't exist is skipped with a
+# warning rather than breaking the reward — so if a bundle seems light, check the
+# server log for a skipped item and correct the id here.
+
+guidances:
+
+  # ===================================================================
+  # Reference page — what bounty hunting is. Fires on the first bounty
+  # answered, at any tier.
+  # ===================================================================
+  - id: ls_bounty_intro
+    category: Bounty
+    title: "The Wanted Board"
+    version: 1
+    once: true
+    trigger:
+      type: dvergr_bounty_resolved
+    display:
+      mode: raven
+      topic: "The Wanted Board"
+    message: >-
+      Not every Dvergr waits to be found. Some turned the corruption into a weapon
+      long ago and hunt the roads on orders no one alive remembers giving. Those are
+      posted on the Wanted Board, and answering a posting pays — in goods a smith or
+      a cook would sweat for, and sometimes in the patrons' coin. Kill them, or free
+      them with the Rite. The board does not care which; the road is safer either way.
+    summary: >-
+      Hardened Dvergr are posted as bounties. Answer one by killing it or freeing it
+      with the Communion Rite — both pay, and harder postings pay better.
+
+  # ===================================================================
+  # TIER 1 — "Wanted" (Black Forest by default)
+  # ===================================================================
+  - id: ls_bounty_reward_t1
+    category: Bounty
+    title: "Bounty Answered"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_resolved
+      tier: 1
+    display:
+      mode: message
+      position: TopLeft
+    message: "{tierName} bounty answered in the {bountyBiome} ({method})."
+    rewards:
+      - type: item
+        item: Coal
+        amount: 15
+      - type: item
+        item: Bronze
+        amount: 3
+      - type: item
+        item: Sausages
+        amount: 3
+      - type: item
+        item: Coins
+        amount: 50
+
+  # ===================================================================
+  # TIER 2 — "Notorious" (Swamp by default)
+  # ===================================================================
+  - id: ls_bounty_reward_t2
+    category: Bounty
+    title: "Bounty Answered"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_resolved
+      tier: 2
+    display:
+      mode: message
+      position: TopLeft
+    message: "{tierName} bounty answered in the {bountyBiome} ({method})."
+    rewards:
+      - type: item
+        item: Iron
+        amount: 4
+      - type: item
+        item: Coal
+        amount: 20
+      - type: item
+        item: BloodPudding
+        amount: 3
+      - type: item
+        item: MeadPoisonResist
+        amount: 2
+      - type: item
+        item: Coins
+        amount: 100
+
+  # ===================================================================
+  # TIER 3 — "Feared" (Mountains by default)
+  # ===================================================================
+  - id: ls_bounty_reward_t3
+    category: Bounty
+    title: "Bounty Answered"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_resolved
+      tier: 3
+    display:
+      mode: rune
+      topic: "Bounty Answered"
+    message: >-
+      The {tierName} one is answered — {method} in the {bountyBiome}. Word travels
+      faster than you do; someone will have your share ready.
+    rewards:
+      - type: item
+        item: Silver
+        amount: 4
+      - type: item
+        item: Chain
+        amount: 2
+      - type: item
+        item: MeadFrostResist
+        amount: 3
+      - type: item
+        item: SerpentStew
+        amount: 2
+      - type: item
+        item: Coins
+        amount: 150
+
+  # ===================================================================
+  # TIER 4 — "Dread" (Plains by default)
+  # ===================================================================
+  - id: ls_bounty_reward_t4
+    category: Bounty
+    title: "Bounty Answered"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_resolved
+      tier: 4
+    display:
+      mode: rune
+      topic: "Dread Bounty Answered"
+    message: >-
+      The {tierName} one is answered — {method} in the {bountyBiome}. That one had a
+      name once, before the shadow kept it. Few hunters come back from a posting
+      like it.
+    rewards:
+      - type: item
+        item: BlackMetal
+        amount: 4
+      - type: item
+        item: LoxPie
+        amount: 3
+      - type: item
+        item: MeadHealthMedium
+        amount: 3
+      - type: item
+        item: Coins
+        amount: 250
+      - type: buff
+        effect: Rested
+        duration_override: 180
+
+  # ===================================================================
+  # TIER 5 — "Accursed" (the elite posting; rank-gated from Phase H)
+  # ===================================================================
+  - id: ls_bounty_reward_t5
+    category: Bounty
+    title: "Accursed Bounty Answered"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_resolved
+      tier: 5
+    display:
+      mode: intro
+      topic: "Accursed Bounty Answered"
+    message: >-
+      The Accursed one is answered — {method} in the {bountyBiome}. It had carried
+      the shadow so long there was little else left of it. Whatever it was owed, the
+      road has collected.
+    rewards:
+      - type: item
+        item: BlackMetal
+        amount: 6
+      - type: item
+        item: Silver
+        amount: 6
+      - type: item
+        item: LoxPie
+        amount: 5
+      - type: item
+        item: MeadHealthMedium
+        amount: 5
+      - type: item
+        item: Coins
+        amount: 400
+      - type: buff
+        effect: Rested
+        duration_override: 300
+      - type: chat_message
+        message: "{player_name} has answered an Accursed bounty — the worst of the hardened Dvergr is down."
+      - type: discord
+        message: "☠ {player_name} answered an **Accursed** bounty ({method}) in the {bountyBiome}."
+
+  # ===================================================================
+  # VALCOIN — one entry per tier, so a harder posting is worth a bigger
+  # payout on the donations side. These fire ONLY when the mod's roll has
+  # already succeeded, so there is no chance logic here.
+  #
+  # Text deliberately says nothing about coins (see the header rule).
+  # ===================================================================
+  - id: ls_bounty_coin_t1
+    category: Bounty
+    title: "The Patrons Take Notice"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_valcoin
+      tier: 1
+    display:
+      mode: chat
+    message: "Someone who keeps the ledgers heard about the {tierName} one."
+    rewards:
+      - type: set_player_key
+        key: VC.Q.ls_bounty_t1
+
+  - id: ls_bounty_coin_t2
+    category: Bounty
+    title: "The Patrons Take Notice"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_valcoin
+      tier: 2
+    display:
+      mode: chat
+    message: "Someone who keeps the ledgers heard about the {tierName} one."
+    rewards:
+      - type: set_player_key
+        key: VC.Q.ls_bounty_t2
+
+  - id: ls_bounty_coin_t3
+    category: Bounty
+    title: "The Patrons Take Notice"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_valcoin
+      tier: 3
+    display:
+      mode: chat
+    message: "Someone who keeps the ledgers heard about the {tierName} one."
+    rewards:
+      - type: set_player_key
+        key: VC.Q.ls_bounty_t3
+
+  - id: ls_bounty_coin_t4
+    category: Bounty
+    title: "The Patrons Take Notice"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_valcoin
+      tier: 4
+    display:
+      mode: chat
+    message: "Someone who keeps the ledgers heard about the {tierName} one."
+    rewards:
+      - type: set_player_key
+        key: VC.Q.ls_bounty_t4
+
+  - id: ls_bounty_coin_t5
+    category: Bounty
+    title: "The Patrons Take Notice"
+    version: 1
+    once: false
+    cooldown: 5
+    trigger:
+      type: dvergr_bounty_valcoin
+      tier: 5
+    display:
+      mode: chat
+    message: "Someone who keeps the ledgers heard about the {tierName} one."
+    rewards:
+      - type: set_player_key
+        key: VC.Q.ls_bounty_t5

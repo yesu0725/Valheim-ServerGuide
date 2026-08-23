@@ -501,6 +501,12 @@ namespace ValheimServerGuide.Triggers
                 case "dvergr_tournament_joined":
                 case "dvergr_tournament_match":
                 case "dvergr_tournament_won": return string.IsNullOrEmpty(t.Caste) ? true : Eq(t.Caste, evt.Subject);
+                // Bounty hunting (subject = the bounty's tier, "1".."5") — optional
+                // `tier:` filter so one guidance entry per tier can carry its own
+                // reward bundle. dvergr_bounty_valcoin is fired ONLY when the payout
+                // roll already succeeded, so its entry needs no chance logic of its own.
+                case "dvergr_bounty_resolved":
+                case "dvergr_bounty_valcoin": return t.Tier <= 0 ? true : Eq(t.Tier.ToString(), evt.Subject);
                 // Type-only matches — no subject filter.
                 case "first_login":
                 case "chest_opened":
@@ -622,6 +628,13 @@ namespace ValheimServerGuide.Triggers
                 .Replace("{opponent}", Extra("opponent"))
                 .Replace("{mode}", Extra("mode"))
                 .Replace("{bracketSize}", Extra("bracketSize"))
+                // Bounty hunting. {bountyBiome} is explicit rather than reusing
+                // {biome}: that one reports the LOCAL PLAYER's current biome, which
+                // is only incidentally the bounty's.
+                .Replace("{tier}", Extra("tier"))
+                .Replace("{tierName}", Extra("tierName"))
+                .Replace("{method}", Extra("method"))
+                .Replace("{bountyBiome}", Extra("bountyBiome"))
                 .Replace("{caste}", evt?.Subject ?? "");
 
             if (step >= 0)  result = result.Replace("{step}",  step.ToString());

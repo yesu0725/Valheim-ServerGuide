@@ -49,6 +49,13 @@ directly and skip highlighting entirely.
 | `{round}` | `Extra["round"]` | `dvergr_tournament_match` |
 | `{mode}` | `Extra["mode"]` | `dvergr_tournament_won` |
 | `{bracketSize}` | `Extra["bracketSize"]` | `dvergr_tournament_won` |
+| `{tier}` | `Extra["tier"]` | `dvergr_bounty_resolved`, `dvergr_bounty_valcoin` |
+| `{tierName}` | `Extra["tierName"]` | `dvergr_bounty_resolved`, `dvergr_bounty_valcoin` |
+| `{method}` | `Extra["method"]` | `dvergr_bounty_resolved`, `dvergr_bounty_valcoin` |
+| `{bountyBiome}` | `Extra["bountyBiome"]` | `dvergr_bounty_resolved`, `dvergr_bounty_valcoin` |
+
+`{bountyBiome}` is deliberately NOT a reuse of `{biome}`: `{biome}` reports the local player's
+current biome, which is only incidentally where the bounty was.
 
 All `Extra`-backed tokens resolve to `""` (not an error) when the key is absent from
 `evt.Extra` or `evt` itself is `null` — safe to use in any template regardless of trigger type.
@@ -130,6 +137,10 @@ internal static string TemplateText(string template, TriggerEvent evt, string pl
         .Replace("{opponent}", Extra("opponent"))
         .Replace("{mode}", Extra("mode"))
         .Replace("{bracketSize}", Extra("bracketSize"))
+        .Replace("{tier}", Extra("tier"))
+        .Replace("{tierName}", Extra("tierName"))
+        .Replace("{method}", Extra("method"))
+        .Replace("{bountyBiome}", Extra("bountyBiome"))
         .Replace("{caste}", evt?.Subject ?? "");
 
     if (step >= 0)  result = result.Replace("{step}",  step.ToString());

@@ -90,6 +90,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.14.0:_ **NPC dialogue options with no text are fixed**, and the choice buttons now match Valheim's own dialog buttons. A node choice written `text:` used to render a blank button (only `label:` was accepted there); both spellings work now, in every conversation shape. Choices also get one full-width row each instead of being packed three across, which is what used to wrap an ordinary reply onto three lines and inflate the button to match. Bounty triggers gained an optional `tier:` filter (1–5) plus the `{tier}`, `{tierName}`, `{method}` and `{bountyBiome}` tokens.
+
 _Fixed in 0.13.1:_ **`type: distance` entries now fire on dedicated servers.** Valheim only builds its list of world locations on the machine that generated the world, so a player connected to a dedicated server never received it and the trigger sat silent no matter how close they walked. It now also spots locations standing in the world around the player, and map-icon locations (boss altars, vendors) at any range. On a dedicated server, a very large `radius:` on a location with no map icon is still bounded by how much world the player has loaded.
 
 _New in 0.13.0:_ the **rune reading card and the NPC dialogue panel now match the Guide Codex** — all three are drawn in Valheim's player-inventory window, using its font, its orange-on-parchment colours, its carved wood frame and its real buttons (hover, pressed and disabled states included). Nothing is added to the download; it is read off the running game and falls back to a plain dark panel if it cannot be. Text is a step larger to suit that font, and **buttons now grow to fit a label that wraps onto a second line** instead of the text running out past the button's edge. Any `rune:` size or colour you set yourself still wins — only the defaults moved.
@@ -132,5 +134,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.13.1
+**Version:** 0.14.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

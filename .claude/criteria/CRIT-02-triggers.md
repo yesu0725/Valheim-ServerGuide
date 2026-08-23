@@ -419,6 +419,21 @@ these to fire. See CRIT-13 for the full `{token}` list each one makes available.
 - **YAML field matched:** `trigger.caste` (empty = match any).
 - **`Extra`:** `mode`, `bracketSize`.
 
+### `dvergr_bounty_resolved`
+- **Raised by:** Lost Scrolls II when a bounty contract is closed out.
+- **Subject:** the bounty's difficulty tier as a string, `"1"`–`"5"`.
+- **YAML field matched:** `trigger.tier` (int, 1–5). `0`/absent = match any tier, so one entry
+  per tier can carry its own reward bundle.
+- **`Extra`:** `tier`, `tierName`, `method`, `bountyBiome`.
+
+### `dvergr_bounty_valcoin`
+- **Raised by:** Lost Scrolls II **only when the Valcoin payout roll has already succeeded** — the
+  chance is rolled on that side, so an entry on this trigger needs no chance logic of its own.
+- **Subject / fields / `Extra`:** identical to `dvergr_bounty_resolved`.
+
+> `{bountyBiome}` is a separate token rather than a reuse of `{biome}`: `{biome}` reports the
+> LOCAL PLAYER's current biome, which is only incidentally the bounty's.
+
 ---
 
 ## Placeholder Types (not yet implemented)

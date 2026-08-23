@@ -45,21 +45,23 @@ namespace ValheimServerGuide.Display
         // fits its button on one or two lines.
         private const float FsHeader = 20f;
         private const float FsBody   = 16f;
-        private const float FsChoice = 15f;
+        /// Choice labels match the vanilla dialog button (the Yes/No pair on "Log out from
+        /// server?"): the body size, bold, in the window's orange.
+        private const float FsChoice = 16f;
 
         private const float PanelWidth = 750f;
         /// Left/right padding inside the panel frame. Also what `SetBody` subtracts to get the
         /// width the body text wraps at, so the two must stay in step.
         private const float PanelPadX = 18f;
 
-        /// Padding between a choice button's edge and its label, on both axes. Generous on
-        /// purpose: a label that wraps onto a second line has to clear the button sprite's carved
-        /// border top and bottom, not just sit inside the rect.
-        private const float ChoicePadX = 16f;
-        private const float ChoicePadY = 10f;
-        /// Floor for a choice button's height — one line of label plus `ChoicePadY` either side.
-        /// `EndChoices` raises it from there to whatever the wrapped label actually needs.
-        private const float ChoiceMinHeight = 44f;
+        /// Padding between a choice button's edge and its label, on both axes — enough to clear
+        /// the button sprite's carved border without inflating a one-line button.
+        private const float ChoicePadX = 14f;
+        private const float ChoicePadY = 7f;
+        /// Height of a one-line choice button. Sized to vanilla's own dialog buttons rather than
+        /// to our padding, so a choice sits next to a "Log out from server?" Yes/No and looks like
+        /// the same control. `EndChoices` raises it only for a label that genuinely wraps.
+        private const float ChoiceHeight = 36f;
         /// Ceiling for the whole panel, as a fraction of screen height. Beyond this the body
         /// scrolls rather than the panel continuing to grow.
         private const float MaxPanelHeightFraction = 0.82f;
@@ -88,8 +90,11 @@ namespace ValheimServerGuide.Display
         // Buttons are packed into rows so a long list wraps instead of squeezing each button
         // down to an unreadable sliver. Rebuilt on every Open/RenderNode.
         private Transform _currentChoiceRow;
-        private int _rowCapacity = 3;
+        private int _rowCapacity = 1;
         private int _rowCount;
+        /// Total height of the built choice block, summed in EndChoices once every button's
+        /// height is final. Feeds the body's screen-height budget.
+        private float _choiceBlockHeight;
 
         // ── Factory ────────────────────────────────────────────────────────────
 
@@ -264,12 +269,11 @@ namespace ValheimServerGuide.Display
             _bodyScroll.verticalNormalizedPosition = 1f;
         }
 
-        /// Rough height of the choice block, used to budget the body's share of the screen.
-        /// Exact values are not needed — it only decides when scrolling kicks in.
+        /// Height of the choice block, used to budget the body's share of the screen. Measured
+        /// in EndChoices, which runs before SetBody on every path, so this is the real figure
+        /// rather than a row-count guess.
         private float EstimateChoiceHeight()
-            => _rowCount <= 0
-                ? ChoiceMinHeight
-                : _rowCount * ChoiceMinHeight + (_rowCount - 1) * 6f;
+            => _choiceBlockHeight <= 0f ? ChoiceHeight : _choiceBlockHeight;
 
         // ── Public API ─────────────────────────────────────────────────────────
 
@@ -399,9 +403,13 @@ namespace ValheimServerGuide.Display
             SetBody(GuidanceDispatcher.RenderLocal(entry, node.Text) ?? "");
         }
 
-        /// Clears the previous choice rows and picks how many buttons share a row. Three across
-        /// stays readable at 750 px; past that, two per row keeps each label wide enough to read
-        /// instead of squeezing every option into a sliver.
+        /// Clears the previous choice rows. One choice per row, full panel width.
+        ///
+        /// Packing three across used to leave each label about 230 px to work with, so a normal
+        /// spoken reply ("What do you mean, not all of them?") wrapped onto three lines and the
+        /// button grew to swallow them — the runaway heights. A choice is a sentence, not a
+        /// Yes/No, so it gets the full width and almost always fits on one line at
+        /// `ChoiceHeight`, which is what makes these read as vanilla dialog buttons.
         ///
         /// The container stays inactive while rows are created so each TMP label Awakes only when
         /// EndChoices reactivates it, by which point the font is assigned (TMP Awake font rule).
@@ -413,22 +421,30 @@ namespace ValheimServerGuide.Display
             foreach (Transform child in _choiceContainer.transform)
                 Destroy(child.gameObject);
 
-            _currentChoiceRow = null;
-            _rowCount    = 0;
-            _rowCapacity = expectedCount <= 3 ? Mathf.Max(1, expectedCount) : 2;
+            _currentChoiceRow  = null;
+            _rowCount          = 0;
+            _rowCapacity       = 1;
+            _choiceBlockHeight = 0f;
         }
 
-        /// Reactivates the rows, settles the layout, then grows any button whose label wrapped
-        /// onto extra lines so no choice text is ever clipped by its own button.
+        /// Reactivates the rows and gives every button its final height: one line at
+        /// `ChoiceHeight`, more only when the label genuinely wraps at the real button width.
+        ///
+        /// The height comes from `GetPreferredValues` against a width we compute ourselves —
+        /// the same trick `SetBody` uses — NOT from `label.preferredHeight`. The latter reports
+        /// the wrap at whatever width the label's rect happens to hold at that instant, and
+        /// during this pass the rect is still mid-layout, so a label could be measured against
+        /// a near-zero width, "wrap" onto half a dozen lines and freeze a button several times
+        /// taller than the text it holds. Measuring at an explicit width cannot drift.
         private void EndChoices()
         {
             _choiceContainer.SetActive(true);
 
-            var containerRect = (RectTransform)_choiceContainer.transform;
-            LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+            // Full panel width less the frame padding and the button's own inset: exactly the
+            // space a label has to wrap in, whatever state the layout is in right now.
+            var labelWidth = PanelWidth - 2f * PanelPadX - 2f * ChoicePadX;
 
-            // Labels are built against a stale rect width (the container was inactive), so the
-            // first wrap pass can break at the wrong column — redo it now that widths are real.
+            _choiceBlockHeight = 0f;
             for (var i = 0; i < _choiceLabels.Count; i++)
             {
                 var label = _choiceLabels[i];
@@ -438,14 +454,23 @@ namespace ValheimServerGuide.Display
                 if (i >= _choiceButtonLayouts.Count) continue;
                 var le = _choiceButtonLayouts[i];
                 if (le == null) continue;
-                // The label's own padding, given back as height: a two-line label ends up in a
-                // button two lines tall PLUS ChoicePadY above and below, so the text is never
-                // pressed against the button's edge.
-                le.preferredHeight =
-                    Mathf.Max(ChoiceMinHeight, label.preferredHeight + 2f * ChoicePadY);
+
+                var textHeight = label.GetPreferredValues(label.text, labelWidth, 0f).y;
+                // A wrapped label gets its extra lines PLUS ChoicePadY above and below, so the
+                // text never sits on the button sprite's carved border.
+                var height = Mathf.Max(ChoiceHeight, Mathf.Ceil(textHeight) + 2f * ChoicePadY);
+                // Both, not just preferred: a VerticalLayoutGroup compresses toward minHeight,
+                // so leaving min at one line lets a wrapped button collapse and clip its label.
+                le.minHeight       = height;
+                le.preferredHeight = height;
+
+                _choiceBlockHeight += height;
             }
 
-            LayoutRebuilder.ForceRebuildLayoutImmediate(containerRect);
+            // Row spacing, so the body budget accounts for the whole block.
+            if (_rowCount > 1) _choiceBlockHeight += (_rowCount - 1) * 6f;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)_choiceContainer.transform);
         }
 
         /// Returns the row a new button should join, opening another one when the current row
@@ -613,7 +638,7 @@ namespace ValheimServerGuide.Display
             // The row's HorizontalLayoutGroup controls width; the LayoutElement below carries
             // the height, which EndChoices raises to fit a label that wrapped onto extra lines.
             var btnRt = btnGo.AddComponent<RectTransform>();
-            btnRt.sizeDelta = new Vector2(0f, ChoiceMinHeight);
+            btnRt.sizeDelta = new Vector2(0f, ChoiceHeight);
 
             var bg = btnGo.AddComponent<Image>();
 
@@ -631,8 +656,8 @@ namespace ValheimServerGuide.Display
             // would let the button sprite's native width drive the row and make the options uneven.
             // The flexible width is what actually shares the row out between them.
             le.preferredWidth  = 0f;
-            le.minHeight       = ChoiceMinHeight;
-            le.preferredHeight = ChoiceMinHeight;
+            le.minHeight       = ChoiceHeight;
+            le.preferredHeight = ChoiceHeight;
             _choiceButtonLayouts.Add(le);
 
             var labelGo = new GameObject("Label");
@@ -645,12 +670,27 @@ namespace ValheimServerGuide.Display
             labelRt.offsetMin = new Vector2(ChoicePadX, ChoicePadY);
             labelRt.offsetMax = new Vector2(-ChoicePadX, -ChoicePadY);
 
+            var text = Template(choice.Text ?? "", _currentEntry);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                // Never render a silently blank button. The usual cause is a YAML key the loader
+                // dropped (it ignores unmatched keys without a word) — name the entry so the
+                // author can find it instead of staring at an empty option.
+                Plugin.Log.LogWarning(
+                    $"[conversation] entry '{_currentEntry?.Id ?? "(picker)"}' has a choice with no " +
+                    "label — check that it uses `text:` (or `label:`) and that the value is not empty.");
+                text = "…";
+            }
+
             var label = labelGo.AddComponent<TextMeshProUGUI>();
             if (_font != null) label.font = _font;
-            label.text             = Template(choice.Text ?? "", _currentEntry);
+            label.text             = text;
             label.fontSize         = FsChoice;
+            label.fontStyle        = FontStyles.Bold;
             label.alignment        = TextAlignmentOptions.Center;
-            label.color            = interactable ? ColBody : ColLocked;
+            // Vanilla's dialog buttons carry orange text, not parchment — matching them is what
+            // makes a choice read as the same control as a "Log out from server?" Yes/No.
+            label.color            = interactable ? ColHeader : ColLocked;
             // Fixed small font + word wrap so longer labels (picker entry titles, locked-hint
             // suffixes) flow onto a second line inside the button instead of being clipped.
             // NOT auto-sizing: TMP auto-size resolves the largest font that fits on ONE line

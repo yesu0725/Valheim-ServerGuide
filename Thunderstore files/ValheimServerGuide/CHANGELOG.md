@@ -1,4 +1,50 @@
 # Changelog
+## 0.14.0
+
+Two conversation fixes and one new trigger filter. No quest progress is touched, and every
+existing YAML keeps working — you can update the server and the players in any order.
+
+### NPC dialogue options showed no text
+
+A node choice written with `text:` produced a button with nothing on it. The flat
+`conversation.choices:` shape has always used `text:`, but the newer node-tree `choices:` only
+accepted `label:` — the same idea under two different key names — and an unrecognised key is
+dropped without so much as a warning, so the label simply vanished.
+
+Both spellings now work everywhere. Nothing in your YAML needs changing, whichever one you used.
+If a label does end up empty for any other reason, the log now says so and names the entry
+instead of leaving you looking at a blank button.
+
+### Dialogue buttons were sometimes enormous
+
+Choices were packed three to a row, which left each one about a third of the panel to work with.
+A normal spoken reply — "What do you mean, not all of them?" — wrapped onto three lines, and the
+button grew to swallow all three. Occasionally a button came out taller still, for a label that
+plainly did not need it.
+
+Choices now get **one full-width row each**, so an ordinary reply fits on a single line, and the
+buttons are sized and coloured to match Valheim's own dialog buttons — the Yes/No pair on "Log
+out from server?". Bold, centred, orange, on the game's carved button frame. A genuinely long
+label still wraps and the button still grows to fit it; it is simply no longer the normal case.
+
+### Bounty triggers can filter by tier
+
+`dvergr_bounty_resolved` and `dvergr_bounty_valcoin` accept an optional `tier:` filter (1–5) so a
+separate guidance entry per tier can carry its own reward bundle. Leave it out to match any tier.
+
+```yaml
+trigger:
+  type: dvergr_bounty_resolved
+  tier: 4
+```
+
+Four new text tokens come with them: `{tier}`, `{tierName}`, `{method}` and `{bountyBiome}`.
+`{bountyBiome}` is its own token rather than a reuse of `{biome}`, which reports where the
+*player* is standing rather than where the bounty was.
+
+`dvergr_bounty_valcoin` fires only when the payout roll has already succeeded, so an entry on it
+needs no chance logic of its own.
+
 ## 0.13.1
 
 A bug fix for one trigger. Nothing else changed — no YAML field, reward or command behaves

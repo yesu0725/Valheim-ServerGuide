@@ -1,0 +1,166 @@
+# Lost Scrolls II — The Warden's Commission (the bounty-hunting quest gate).
+#
+# This is the way IN to bounty hunting. Until a player finishes it, the Wanted
+# Board (F8 / the inventory button) shows only an explanation of how to start.
+#
+# HOW THE GATE ACTUALLY WORKS
+# ---------------------------
+# ServerGuide has no reverse-query API ("has this player finished chain X?"), and
+# this design deliberately doesn't need one. The handoff is one-directional in
+# BOTH places:
+#
+#   1. This file -> the mod: the final dialogue choice grants a stock
+#      `set_player_key` reward, `LS_BountyStart`. Lost Scrolls II watches for that
+#      key, posts a guaranteed tier 1 bounty near the player, marks their map, and
+#      clears the key. No custom trigger type is involved.
+#
+#   2. The mod -> itself: answering that first bounty sets `LS_BountyUnlocked`,
+#      which is the real gate. The mod posted that bounty and sees it resolve, so
+#      it never has to ask ServerGuide anything.
+#
+# Both are Valheim unique keys, so they persist per character with the save.
+#
+# WHY HALDOR, AND WHY hold-[E]
+# ----------------------------
+# `npc_conversation` patches Trader.Interact: a SHORT press opens the vanilla
+# store, HOLDING [E] (~0.5s) opens the conversation. Haldor is used because he
+# exists in every world with no extra dependency. (The server previously ran
+# ProfMags-HaldorBounties on the same NPC; it is being retired in favour of this
+# system, so there is no longer a conflict to avoid.)
+#
+# TONE
+# ----
+# Lost Scrolls II's lore says every Dvergr can be freed by the Rite. Bounty
+# targets do NOT contradict that — they are Dvergr who turned the corruption into
+# a weapon, and the commission explicitly leaves the choice open: kill them, or
+# free them. Both close a posting. Keep that even-handedness in any edit here;
+# it's the whole reason bounties fit the mod's theme instead of fighting it.
+
+guidances:
+
+  # ===================================================================
+  # The conversation. A short node tree: the warden explains the threat,
+  # the player can ask about it, and accepting takes the commission.
+  #
+  # Uses `nodes:` for the branching middle, but the ACCEPT choice carries
+  # the reward — node-based conversations end through OnNodeConversationEnd,
+  # which never calls RewardDispatcher, so a reward placed on a node's own
+  # end would silently never fire. The reward must sit on a ChoiceSpec.
+  # ===================================================================
+  - id: ls_bounty_commission
+    category: Bounty
+    title: "The Warden's Commission"
+    version: 1
+    once: true
+    scope: player
+    trigger:
+      type: npc_conversation
+      npc: Haldor
+    display:
+      mode: conversation
+      topic: "The Warden's Commission"
+    description: >-
+      Haldor keeps a list of Dvergr that no one will go near. Hold [E] to ask him
+      about it.
+    conversation:
+      resume_on_return: true
+      nodes:
+        - id: start
+          text: >-
+            You have been out among them, then. The little grey folk in the deep
+            places — you have seen how they toil, and how they turn on anyone who
+            comes close.
+
+            Most of them are only held. Bound to work that ended an age ago, and
+            angry the way a sleeper is angry when you shake him awake. Those you
+            can free, if you have the patience for it.
+
+            But not all of them.
+          choices:
+            - text: "What do you mean, not all of them?"
+              goto_node: hardened
+            - text: "I've freed a few. What of it?"
+              goto_node: hardened
+            - text: "Another time."
+
+        - id: hardened
+          text: >-
+            Some stopped being held a long while ago. They took the thing inside
+            them and made it a tool — sharpened it, learned its use. They do not
+            wait in the dark to be found. They watch the roads, and they choose
+            when to come out of them.
+
+            I keep a list. Names, where they were last seen, what the folk who
+            survived them were willing to pay. I do not send strangers after that
+            list.
+          choices:
+            - text: "Then send me after one, and see."
+              goto_node: offer
+            - text: "Why keep the list at all?"
+              goto_node: why
+            - text: "Not my trouble."
+
+        - id: why
+          text: >-
+            Because the roads are how the rest of us live. A trader who cannot walk
+            them is a trader no longer.
+
+            And because I have watched you free them. There are not many who would
+            rather unbind a thing than put it down. That is the sort I want holding
+            the list — someone who can still tell the difference between a creature
+            that is bound and one that has chosen.
+          choices:
+            - text: "Give me the first one."
+              goto_node: offer
+            - text: "I'll think on it."
+
+        - id: offer
+          text: >-
+            One, then. Close by — I will not send you across the world to prove a
+            thing you can prove within the day.
+
+            Kill it, or free it with your Rite. The board does not care which, and
+            neither do I. The road is safer either way, and the pay is the same.
+
+            Come back to me when it is done, and the rest of the list is yours.
+          choices:
+            # The reward lives HERE, on the choice — see the note above.
+            - text: "Mark it on my map."
+              rewards:
+                - type: set_player_key
+                  key: LS_BountyStart
+            - text: "Later."
+
+  # ===================================================================
+  # Reference page — how bounty hunting works, delivered once the board
+  # actually opens (the mod fires dvergr_bounty_resolved on the first
+  # answered bounty, which for a new hunter is the commission itself).
+  #
+  # NOTE this duplicates nothing from guidance.bounty-rewards.yaml: that
+  # file owns the REWARD bundles, this one owns the quest + the how-to.
+  # ===================================================================
+  - id: ls_bounty_howto
+    category: Bounty
+    title: "Hunting the Hardened"
+    version: 1
+    once: true
+    requires: [ls_bounty_commission]
+    trigger:
+      type: dvergr_bounty_resolved
+    display:
+      mode: rune
+      topic: "Hunting the Hardened"
+    message: >-
+      The warden's list is open to you now. Press <color=#FFD24A>[F8]</color>, or
+      use the <color=#FFD24A>Bounty Board</color> button in your inventory, to read
+      the postings — each one names how dangerous the quarry is and where it was
+      last seen. Take one and it is marked on your map; travel there and it will
+      find you before you find it.
+
+      Kill it or free it with the Rite; both close a posting and both pay the same.
+      Harder postings pay better, and the hunters who answer the most of them are
+      remembered on the board.
+    summary: >-
+      Press [F8] or use the Bounty Board button in your inventory. Take a posting,
+      travel to the mark, and either kill the Dvergr or free it with the Communion
+      Rite — both count.
