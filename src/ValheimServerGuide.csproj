@@ -159,6 +159,19 @@
           Condition="Exists('$(PluginInstallDir)\manifest.json')" />
   </Target>
 
+  <!-- Release only: put the built DLL straight into the Thunderstore package folder, so that
+       folder is a complete, self-consistent package the moment the build finishes.
+       Deploy step 7 used to do this by hand AFTER the build, which left a window where the
+       folder held the new manifest.json next to the PREVIOUS release's DLL — and the project's
+       post-build zip hook fires exactly in that window, so the date-stamped snapshot it wrote
+       was a 0.14.0 manifest packaged around a 0.13.1 DLL. Debug builds are excluded: a Debug
+       binary must never end up in the published package. -->
+  <Target Name="DeployToThunderstorePackage" AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release' And Exists('$(ThunderstorePackageDir)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ThunderstorePackageDir)" />
+    <Message Text="Deployed ValheimServerGuide to $(ThunderstorePackageDir)" Importance="high" />
+  </Target>
+
   <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
        ValheimModding-YamlDotNet package that's a transitive dep of Jötunn. -->
   <Target Name="DeployToBepInEx" AfterTargets="Build" Condition="Exists('$(BepInExDir)')">
