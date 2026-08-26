@@ -304,6 +304,17 @@ namespace ValheimServerGuide.Config
         public bool HiddenWhenLocked { get; set; }
         /// Optional hint appended to a locked, visible button's label.
         public string LockedHint { get; set; }
+        /// Rewards granted when this choice is selected — same shape and semantics as
+        /// ChoiceSpec.Rewards, and granted whether the choice ends the conversation or
+        /// jumps on to another node.
+        ///
+        /// This property is load-bearing in a way that is easy to miss: the loader runs
+        /// with IgnoreUnmatchedProperties(), so before it existed a `rewards:` block
+        /// written under a node choice was discarded at parse time with no warning, and
+        /// the reward simply never happened. Authors had every reason to expect it to
+        /// work — the flat `choices:` form has always supported it. Do not remove this
+        /// without also making the loader complain about the orphaned key.
+        public List<RewardSpec> Rewards { get; set; } = new List<RewardSpec>();
     }
 
     public class RewardSpec

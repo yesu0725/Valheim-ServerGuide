@@ -117,12 +117,45 @@ at `nodes[0]`). Cleared whenever the conversation ends (any terminal choice).
     system — vanilla UI only).
   - No choices at all → a single default "Dismiss" button, same convention as the flat path.
 - Selecting a choice (`OnNodeChoiceSelected`):
+  - **First**, `GrantChoiceRewards` pays out `choice.Rewards` (see below) — before any branch, so
+    a reward works the same whichever of the three cases follows.
   - `goto_node` set → `RenderNode` on the target node; panel stays open, no fire/mark yet.
   - else `goto` set → `OnNodeConversationEnd(entry, choice.Goto)`.
   - else → `OnNodeConversationEnd(entry, null)`.
 - `OnNodeConversationEnd` closes the panel, marks the entry fired (`once`/`cooldown`/`max_fires`,
   identical to the flat `OnChoiceSelected` path), clears `ConversationNodeState` for this entry,
   and — if a cross-entry `goto` was given — calls `GuidanceDispatcher.FireById`.
+
+### Choice rewards: `rewards:` on a node choice
+
+A node choice takes a `rewards:` block with the same shape and reward types as the flat
+`ChoiceSpec.Rewards`. **This did not work before 0.15.0** and failed in the worst possible way:
+`NodeChoiceSpec` had no `Rewards` property, the loader's `IgnoreUnmatchedProperties()` discarded
+the block while reading the file, and `OnNodeChoiceSelected` never called `RewardDispatcher`
+anyway. The dialogue played correctly, the player picked the option, and nothing happened — no
+error, no log line, no reward. It is the same silent-drop mechanism as the `label:`/`text:` bug
+below, but far harder to notice: a blank button is visible immediately, a missing reward is not
+visible at all.
+
+Two rules govern the payout:
+
+- **Granted before the branch**, not on the way out. The flat path can only reward as the panel
+  closes because a flat choice always closes it; a node tree has a middle, and a reward handed
+  over partway through a branching conversation is a legitimate shape.
+- **At most once per open conversation**, latched on the `NodeChoiceSpec` instance in
+  `_rewardedChoices` (cleared in `OpenNodeConversation`). Node trees can loop — an "ask me again"
+  choice returning to an earlier node is normal — and without the latch a loop through a
+  rewarding choice would pay every pass, turning any item reward into a farm. How often the
+  *conversation* may be had stays the job of the entry's `once:` / `cooldown:` / `max_fires:`.
+
+`GrantChoiceRewards` logs the entry id, the choice label and the reward count on every grant, and
+logs at debug when the latch suppresses a repeat — so a silent failure here would now be visible
+in the log.
+
+Both grant sites (`OnChoiceSelected` for flat, `GrantChoiceRewards` for nodes) deliberately call
+the same plain `RewardDispatcher.Grant(rewards, player)` with no token expander or highlighter, so
+the two choice shapes behave identically. If choice rewards ever gain templating, both call sites
+change together — see invariant 20 in `CLAUDE.md`.
 
 ### Choice label key: `label:` or `text:`
 
@@ -207,5 +240,13 @@ build-while-inactive rect.
 - [x] Ending a multi-node conversation (any terminal choice) clears its `VSG.cn.<id>` save.
 - [x] `vsg_reset <id>` and `vsg_reset all` clear `VSG.cn.*`; same for `vsg_reset_player`.
 - [x] An entry without `conversation.nodes` is unaffected — exact Phase 2/3 flat behavior.
+- [ ] A node choice with `rewards:` grants them when selected (0.15.0) — verified against
+      `set_player_key`, which is what the Lost Scrolls II bounty commission needs.
+- [ ] The reward is granted for a choice that jumps (`goto_node`) as well as one that ends the
+      conversation, since the grant runs before the branch.
+- [ ] Looping back to a rewarding choice within one conversation does **not** pay a second time;
+      the debug log says the latch suppressed it.
+- [ ] Closing and legitimately re-entering the conversation (`once: false` + a cooldown) *does*
+      pay again — the latch is per-open, not persistent.
 - [x] Build is clean: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 - [x] All choice button labels (flat choices, multi-quest picker, node choices) wrap and shrink-to-fit so text never overflows the button's width or height.

@@ -1,4 +1,67 @@
 # Changelog
+## 0.15.0
+
+One quest-breaking fix and one new way into the codex. No quest progress is touched, and every
+existing YAML keeps working — you can update the server and the players in any order.
+
+### Rewards on a dialogue choice were silently ignored
+
+If you wrote a `rewards:` block on a choice inside a node-based conversation, it never happened.
+Not "failed with an error" — nothing at all: the dialogue played perfectly, the player picked the
+option, and the reward quietly went nowhere. No warning in the log, no hint that anything was
+wrong.
+
+Two things were needed to make it work, and neither was there. Node choices had no `rewards:`
+field to parse into, and unknown keys are dropped without comment, so the block was thrown away
+while the file was still being read. Even a parsed reward would have gone nowhere, because the
+node path never asked the reward system for anything.
+
+Both are fixed. A node choice now takes `rewards:` exactly the way the flat `conversation.choices:`
+form always has, with the same reward types and the same syntax:
+
+```yaml
+nodes:
+  - id: offer
+    text: "Take the commission, then."
+    choices:
+      - text: "Mark it on my map."
+        rewards:
+          - type: set_player_key
+            key: MY_QUEST_STARTED
+```
+
+Two things worth knowing:
+
+- **The reward is granted the moment the choice is picked**, whether that choice ends the
+  conversation, jumps to another node, or hands off to another entry. A reward partway through a
+  branching conversation works.
+- **A choice pays out at most once per conversation.** Node trees can loop — "ask me again"
+  options are a normal shape — and without this a loop back through a rewarding choice would pay
+  every time round. Use the entry's own `once:`, `cooldown:` or `max_fires:` to control how often
+  the conversation itself can be had.
+
+The log now names the entry and the choice whenever rewards are granted, so this failing silently
+again would be obvious.
+
+> **If you have a quest that was affected**, players who already went through the dialogue have it
+> recorded as done and will not be offered it again. `vsg_reset <entry_id>` clears it for the
+> character running the command, and `vsg_reset_player <playerName> <entry_id>` does it for
+> someone else on the server.
+
+### A "Quests" button on the inventory screen
+
+The Guide Codex was reachable only by pressing **F3**. A key nobody mentions is not discoverable
+— a player who never reads the server's config or wiki had no way to learn the codex was there at
+all.
+
+There is now a **Quests** button on the inventory screen that opens it. It is a clone of the
+inventory's own Take All button, so it looks like part of the game rather than something bolted
+on, and it is rebuilt on every world load so it survives relogs and respawns. **F3 still works.**
+
+Running Lost Scrolls II as well? The button parks itself directly under that mod's Tournaments
+button and follows that row wherever it has been nudged, so the two mods read as one menu instead
+of two rows fighting over the same corner.
+
 ## 0.14.0
 
 Two conversation fixes and one new trigger filter. No quest progress is touched, and every

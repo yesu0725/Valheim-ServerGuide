@@ -91,7 +91,7 @@ Multi-step quests where each step has its own trigger. Progress is tracked in th
 
 ### HUD Tracker & Codex
 
-A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
+A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (the **Quests** button on the inventory screen, or default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
 
 ### NPC Conversations
 
@@ -323,6 +323,7 @@ src/
 │   ├── GuidanceDisplay.cs           All display modes + Harmony patches for raven/intro/music
 │   ├── GuidanceHudTracker.cs        Objective tracker widget (HUD)
 │   ├── GuidanceCodex.cs             Codex browser panel (F3)
+│   ├── InventoryCodexButton.cs      "Quests" button on the inventory screen; opens the Codex
 │   └── NpcConversationPanel.cs      Hold-E conversation panel with choice navigation
 ├── Rewards/
 │   ├── RewardDispatcher.cs          Grant items / skill exp / buffs on entry completion

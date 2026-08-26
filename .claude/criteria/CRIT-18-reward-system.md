@@ -43,7 +43,11 @@ local player. A reward notification is shown after granting.
       duration_override: 600    # seconds; omit to use the effect's default duration
 ```
 
-### On `ChoiceSpec` (NPC conversation — CRIT-17)
+### On `ChoiceSpec` (flat NPC conversation — CRIT-17)
+
+> Node conversations (`conversation.nodes:`) take the same `rewards:` block on their
+> `choices:` — see CRIT-22. That path was added in 0.15.0; before then the block was
+> silently discarded at load and no reward was ever granted.
 
 ```yaml
 conversation:
@@ -184,7 +188,9 @@ public static class RewardDispatcher
 Called from:
 - `GuidanceDispatcher.Raise()` after a single entry fires (if `entry.Rewards.Count > 0`).
 - `GuidanceDispatcher.AdvanceChain()` when the final chain step completes (if `entry.Rewards.Count > 0`).
-- `NpcConversationPanel` when a choice with `Rewards` is confirmed.
+- `NpcConversationPanel.OnChoiceSelected` when a flat `ChoiceSpec` choice is confirmed.
+- `NpcConversationPanel.GrantChoiceRewards` when a node `NodeChoiceSpec` choice is selected
+  (0.15.0 — before 0.15.0 node choices could not reward at all; see CRIT-22).
 
 ---
 

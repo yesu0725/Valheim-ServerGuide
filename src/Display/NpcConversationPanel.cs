@@ -71,6 +71,9 @@ namespace ValheimServerGuide.Display
 
         private bool _isOpen;
         private GuidanceEntry _currentEntry;
+        /// Node choices already paid out during THIS open conversation, so a tree that
+        /// loops back through a rewarding choice cannot be farmed. See GrantChoiceRewards.
+        private readonly HashSet<NodeChoiceSpec> _rewardedChoices = new HashSet<NodeChoiceSpec>();
         private List<ConversationNodeSpec> _nodes; // Phase 4 multi-node conversations
 
         private TMP_FontAsset _font;
@@ -351,6 +354,7 @@ namespace ValheimServerGuide.Display
         {
             _currentEntry = entry;
             _nodes = nodes;
+            _rewardedChoices.Clear();
 
             ConversationNodeSpec startNode = null;
             if (entry.Conversation.ResumeOnReturn)
@@ -508,6 +512,14 @@ namespace ValheimServerGuide.Display
 
         private void OnNodeChoiceSelected(GuidanceEntry entry, NodeChoiceSpec choice)
         {
+            // Granted BEFORE the branching below, so a reward works the same whether the
+            // choice ends the conversation, jumps to another node, or hands off to another
+            // entry. The flat ChoiceSpec path can only reward on the way out because
+            // selecting a flat choice always closes the panel; a node tree has a middle,
+            // and a choice partway through it is a perfectly reasonable place to hand
+            // something over.
+            GrantChoiceRewards(entry, choice);
+
             if (!string.IsNullOrEmpty(choice.GotoNode))
             {
                 var next = FindNode(choice.GotoNode);
@@ -530,6 +542,36 @@ namespace ValheimServerGuide.Display
             // No goto_node and no goto — this choice ends the conversation (same
             // "no goto = dismiss" rule as the flat ChoiceSpec path).
             OnNodeConversationEnd(entry, fireGoto: null);
+        }
+
+        /// Pays out a node choice's `rewards:` block, at most once per open conversation.
+        ///
+        /// The once-per-conversation latch exists because a node tree can legitimately
+        /// loop — "ask me again" choices are a normal shape — and without it a loop back
+        /// through a rewarding choice would hand out items on every pass. The entry-level
+        /// `once:` / `cooldown:` / `max_fires:` settings remain the way to control how
+        /// often the conversation itself can be had; this only stops one visit paying
+        /// twice for the same choice.
+        private void GrantChoiceRewards(GuidanceEntry entry, NodeChoiceSpec choice)
+        {
+            if (choice?.Rewards == null || choice.Rewards.Count == 0) return;
+
+            var player = Player.m_localPlayer;
+            if (player == null || entry == null) return;
+
+            if (!_rewardedChoices.Add(choice))
+            {
+                Plugin.Log.LogDebug(
+                    $"[conversation] '{entry.Id}' choice '{choice.Label}' already rewarded this conversation — skipping.");
+                return;
+            }
+
+            Plugin.Log.LogInfo(
+                $"[conversation] '{entry.Id}' choice '{choice.Label}' granting {choice.Rewards.Count} reward(s).");
+            // Deliberately the same plain Grant the flat ChoiceSpec path uses, so the two
+            // kinds of choice reward behave identically. If choice rewards ever gain
+            // templating or highlighting, both call sites should change together.
+            Rewards.RewardDispatcher.Grant(choice.Rewards, player);
         }
 
         /// Closes the panel, marks the entry fired (once/cooldown/max_fires), clears its

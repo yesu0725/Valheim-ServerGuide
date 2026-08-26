@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.14.0` |
+| Version | `0.15.0` |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
 | BepInEx dep | `5.x` (HarmonyX included) |
@@ -146,3 +146,13 @@ The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATU
     managers actually display). The first three are guarded at build time; the fourth is deployed
     by `DeployManifest`. Verify every zip in the tree, not just the release zip. See CRIT-10.
 19. **Nothing may fire while `PlayerProgress.IsReady` is false** — an unbound store reads as "this player has done nothing", so every `once` quest would re-run *and persist the duplicate fires to the server*. Any new trigger that marks a guard key before dispatching must check `IsReady` itself, and any new spawn-time work belongs in `PlayerProgress.OnBecameReady()`. See CRIT-26.
+20. **The two conversation shapes must stay at feature parity** — `ChoiceSpec` (flat
+    `conversation.choices:`) and `NodeChoiceSpec` (node `choices:`) are two spellings of one idea,
+    and authors reasonably assume anything one supports the other does too. `rewards:` was added
+    to the flat form only, and because the loader runs `IgnoreUnmatchedProperties()` a reward
+    written on a node choice was thrown away at parse time with no warning and no reward — for
+    every release from 0.1.0 to 0.14.0. This is invariant 16 with worse consequences: a missing
+    *label* is visible the moment you look at the button, a missing *reward* is invisible forever.
+    Any field added to either choice type belongs on both, granted from both paths
+    (`OnChoiceSelected` and `OnNodeChoiceSelected`), or the loader must be made to complain about
+    the orphan. See CRIT-17/CRIT-22.

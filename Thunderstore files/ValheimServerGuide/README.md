@@ -41,7 +41,7 @@ Your server also keeps each character's quest progress in `BepInEx/config/Valhei
 - Opens a chest
 - And many more...
 
-**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (F3 → **Pin to Tracker**) and follow their progress on a draggable on-screen panel (F10). The Codex list scrolls, and finished guides can be hidden to keep it short.
+**Multi-step quests** — Chain triggers into a quest with steps. "Gather 10 wood → craft a workbench → build a wall." Each step has its own trigger. Players pin the quests they care about from the in-game Codex (the **Quests** button on the inventory screen, or F3 → **Pin to Tracker**) and follow their progress on a draggable on-screen panel (F10). The Codex list scrolls, and finished guides can be hidden to keep it short.
 
 **NPC conversations** — Shift + E on Haldor, Hildir, or BogWitch to open a dialogue panel. Give them choices. Fire quests. Grant rewards.
 
@@ -90,6 +90,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.15.0:_ **rewards on a dialogue choice now actually happen.** If you put a `rewards:` block on a choice inside a node-based conversation it was thrown away while the file was being read — no error, no log line, no reward, in every version up to 0.14.0. Flat `conversation.choices:` were always fine, so quest chains built the newer way quietly never paid out. Your YAML needs no changes; a node choice now rewards the moment it is picked, whether it ends the conversation or carries on to another node, and pays at most once per conversation so a looping tree cannot be farmed. Also new: a **Quests button on the inventory screen** opens the Guide Codex, which until now was reachable only by a hotkey nobody had been told about. F3 still works.
+
 _New in 0.14.0:_ **NPC dialogue options with no text are fixed**, and the choice buttons now match Valheim's own dialog buttons. A node choice written `text:` used to render a blank button (only `label:` was accepted there); both spellings work now, in every conversation shape. Choices also get one full-width row each instead of being packed three across, which is what used to wrap an ordinary reply onto three lines and inflate the button to match. Bounty triggers gained an optional `tier:` filter (1–5) plus the `{tier}`, `{tierName}`, `{method}` and `{bountyBiome}` tokens.
 
 _Fixed in 0.13.1:_ **`type: distance` entries now fire on dedicated servers.** Valheim only builds its list of world locations on the machine that generated the world, so a player connected to a dedicated server never received it and the trigger sat silent no matter how close they walked. It now also spots locations standing in the world around the player, and map-icon locations (boss altars, vendors) at any range. On a dedicated server, a very large `radius:` on a location with no map icon is still bounded by how much world the player has loaded.
@@ -134,5 +136,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.14.0
+**Version:** 0.15.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide
