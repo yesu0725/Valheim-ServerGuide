@@ -20,10 +20,12 @@
 #
 # Both are Valheim unique keys, so they persist per character with the save.
 #
-# WHY HALDOR, AND WHY hold-[E]
-# ----------------------------
+# WHY HALDOR, AND WHY Shift + E
+# -----------------------------
 # `npc_conversation` patches Trader.Interact: a SHORT press opens the vanilla
-# store, HOLDING [E] (~0.5s) opens the conversation. Haldor is used because he
+# store, SHIFT + E opens the conversation. (ServerGuide used hold-[E] for this
+# before 0.14.0; if you edit this text, match whatever NpcConversationTrigger
+# actually listens for.) Haldor is used because he
 # exists in every world with no extra dependency. (The server previously ran
 # ProfMags-HaldorBounties on the same NPC; it is being retired in favour of this
 # system, so there is no longer a conflict to avoid.)
@@ -60,7 +62,7 @@ guidances:
       mode: conversation
       topic: "The Warden's Commission"
     description: >-
-      Haldor keeps a list of Dvergr that no one will go near. Hold [E] to ask him
+      Haldor keeps a list of Dvergr that no one will go near. Shift + E to ask him
       about it.
     conversation:
       resume_on_return: true
