@@ -125,4 +125,23 @@ The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATU
 12. **Never touch `Player.m_customData` for quest state** — progress lives in a server-owned per-character file. Go through `PlayerProgress` (`TryGet`/`Set`/`Remove`/`KeysWithPrefix`/`RemoveWithPrefix`); `m_customData` is now a read-only pre-migration backup. See CRIT-26.
 13. **Canvas `sortingOrder` comes from `UiLayers`, and mouse wheels come from `WheelScroller`** — never hard-code a sorting number "just above" the vanilla element you collided with (vanilla's orders live in scene data and are not uniform), and never rely on `ScrollRect.scrollSensitivity` (Valheim's input module normalises the wheel delta to a fraction of a unit). See CRIT-03.
 14. **Vanilla art is read off the live game, never loaded** — `VanillaUi` takes the inventory window's sprites and font from `InventoryGui`'s own components (Jötunn's `GUIManager` woodpanel is a *bundled* copy and is off-limits). Every slot degrades to a flat fill, and fixed-aspect panel art is fitted to its own aspect rather than stretched. See CRIT-14.
-15. **Nothing may fire while `PlayerProgress.IsReady` is false** — an unbound store reads as "this player has done nothing", so every `once` quest would re-run *and persist the duplicate fires to the server*. Any new trigger that marks a guard key before dispatching must check `IsReady` itself, and any new spawn-time work belongs in `PlayerProgress.OnBecameReady()`. See CRIT-26.
+15. **A location lookup must never rely on `ZoneSystem.m_locationInstances` alone** — world
+    generation runs server-side, so that dictionary is permanently EMPTY on a dedicated-server
+    client (vanilla itself branches on `ZNet.IsServer()` before reading it). Poll
+    `Location.s_allLocations` for what is spawned nearby and `ZoneSystem.m_locationIcons` for
+    icon POIs at any range, and de-duplicate by prefab name. See CRIT-02 (`distance`).
+16. **The two conversation shapes name the choice label differently** — flat
+    `conversation.choices:` uses `text:`, node `choices:` uses `label:`. `NodeChoiceSpec` accepts
+    both, because the loader runs `IgnoreUnmatchedProperties()` and silently drops the other
+    spelling. Any new YAML field with a synonym in a sibling type needs the same alias, or
+    authors get a silently empty value. See CRIT-22.
+17. **Never size a control from `TMP_Text.preferredHeight` during a layout pass** — it reports the
+    wrap at whatever width the rect holds at that instant, which mid-layout can be near zero, and
+    the control freezes many lines tall. Measure with `GetPreferredValues(text, knownWidth, 0f)`
+    against a width computed from constants, and write `minHeight` alongside `preferredHeight` (a
+    `VerticalLayoutGroup` compresses toward min). See CRIT-22/CRIT-25.
+18. **A release has four version strings, not three** — csproj `<Version>`, `Plugin.PluginVersion`,
+    the Thunderstore `manifest.json`, and the `manifest.json` at each deploy target (the one mod
+    managers actually display). The first three are guarded at build time; the fourth is deployed
+    by `DeployManifest`. Verify every zip in the tree, not just the release zip. See CRIT-10.
+19. **Nothing may fire while `PlayerProgress.IsReady` is false** — an unbound store reads as "this player has done nothing", so every `once` quest would re-run *and persist the duplicate fires to the server*. Any new trigger that marks a guard key before dispatching must check `IsReady` itself, and any new spawn-time work belongs in `PlayerProgress.OnBecameReady()`. See CRIT-26.

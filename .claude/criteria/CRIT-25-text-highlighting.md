@@ -108,6 +108,21 @@ A `LayoutElement` outranks TMP's own `preferredHeight` (priority 1 vs 0), so a w
 a layout group only gets its extra lines if something writes the measured height back onto the
 `LayoutElement` — that is what `SizeRow` (tracker) and `MeasureRow` (codex) are for.
 
+### Measure at a width you computed, never off the live rect
+
+Write the measured height back — but do not *obtain* it from `label.preferredHeight`. That
+property reports the wrap at whatever width the label's rect holds **at that instant**, and a
+measuring pass usually runs mid-layout, when the rect can still be near zero (or the
+`RectTransform` default 100×100). The text then "wraps" onto many lines and the row freezes
+several times taller than the text it holds — which is exactly what produced the runaway
+conversation buttons fixed in 0.14.0.
+
+Use `GetPreferredValues(text, knownWidth, 0f)` with a width derived from constants
+(`PanelWidth - 2*PanelPadX - 2*ChoicePadX`), the way `SetBody` always has. It cannot drift with
+layout timing. Write the result to **both** `minHeight` and `preferredHeight`: a
+`VerticalLayoutGroup` compresses toward `minHeight`, so a wrapped row left at a one-line minimum
+can still be squeezed and clip its own label.
+
 ---
 
 ## Part 2 — `highlight:`
