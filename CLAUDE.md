@@ -50,6 +50,7 @@ src/
 │   ├── RunePanel.cs                 Custom themed rune-reading panel (header/body/list, configurable fonts/colors; CRIT-03)
 │   ├── GuidanceHudTracker.cs        Progress panel: F10 cycles Collapsed→Titles→Full (descriptions inline); Codex-pinned quests only, drag-to-move, no input lock
 │   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); drawn in the vanilla inventory window's art (VanillaUi); scrolling guide list, "Pin to Tracker" + "Hide from list" toggles; suppresses ZInput's wheel while open
+│   ├── InventoryCodexButton.cs      "Quests" button on the inventory screen; Take-All clone parked one row under Lost Scrolls II's "Tournaments", opens the Codex
 │   ├── NpcConversationPanel.cs      Hold-E conversation panel; content-sized + scrolling, wrapped choice rows (CRIT-17/22/25)
 │   ├── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)
 │   ├── UiLayers.cs                  Canvas sortingOrder for every VSG surface + crosshair suppression (CRIT-03)
