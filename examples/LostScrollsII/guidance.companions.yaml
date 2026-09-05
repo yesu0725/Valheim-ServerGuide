@@ -72,54 +72,54 @@ guidances:
   - id: ls_chore_fire
     category: Companions
     title: "Chores — Fire Mage (heat)"
-    version: 1
+    version: 2
     trigger:
       type: dvergr_recruited
       caste: FireMage
     display:
       mode: raven
       topic: "Chores — Fire Mage"
-    message: "A Fire Mage tends heat: smelters, blast furnaces, charcoal kilns and forges. Put a chest holding the ore AND coal within ~8 m of the station, stand the mage nearby, hover the station and press [H] — it ferries ore in and feeds fuel on its own, stopping at each cap. Press [H] on the station (or on the mage) to recall it. Only a Fire Mage can run these."
-    summary: "Fire Mage → smelters / blast furnaces / kilns / forges. Chest of ore + coal within ~8 m, hover the station, press [H]."
+    message: "A Fire Mage tends heat: smelters, blast furnaces, charcoal kilns and forges. Hover any one of them and press [H] — that spot becomes its post, and it works EVERY heat station within ~20 m of it, walking from one to the next. Keep a chest of ore AND coal within ~10 m; it ferries ore in, feeds fuel, stops at each cap, and stows the finished bars in the nearest chest that already holds them. Press [H] on a station (or on the mage) to recall it. Only a Fire Mage can run these."
+    summary: "Fire Mage → every smelter / blast furnace / kiln / forge within ~20 m of where you posted it. Chest of ore + coal within ~10 m."
 
   - id: ls_chore_ice
     category: Companions
     title: "Chores — Ice Mage (refining)"
-    version: 1
+    version: 2
     trigger:
       type: dvergr_recruited
       caste: IceMage
     display:
       mode: raven
       topic: "Chores — Ice Mage"
-    message: "An Ice Mage runs the refineries: the Eitr Refinery and the Spinning Wheel. Keep a chest with the inputs within ~8 m, stand the mage nearby, hover the station and press [H] — it loads and tends it for you. Press [H] on the station (or the mage) to recall it. Only an Ice Mage can run these."
-    summary: "Ice Mage → Eitr Refinery / Spinning Wheel. Chest of inputs within ~8 m, hover the station, press [H]."
+    message: "An Ice Mage runs the refineries: the Eitr Refinery and the Spinning Wheel. Hover one and press [H] — that spot becomes its post, and it works every refinery within ~20 m of it. Keep a chest of the inputs within ~10 m; it loads them, tends the stations and stows what they produce. Press [H] on a station (or the mage) to recall it. Only an Ice Mage can run these."
+    summary: "Ice Mage → every Eitr Refinery / Spinning Wheel within ~20 m of where you posted it. Chest of inputs within ~10 m."
 
   - id: ls_chore_support
     category: Companions
-    title: "Chores — Support Mage (provisioning)"
-    version: 1
+    title: "Chores — Support Mage (provisioning and the fields)"
+    version: 5
     trigger:
       type: dvergr_recruited
       caste: SupportMage
     display:
       mode: raven
       topic: "Chores — Support Mage"
-    message: "A Support Mage keeps the home fires: it can FARM, COOK, BREW and TEND TAMED ANIMALS. Keep a stocked chest within ~8 m, then hover the target and press [H] — a cooking station or Stone Oven (chest of raw food), a fermenter (chest of mead base), a tamed animal (chest of its food), or a crop / a Cultivator on an item stand by a field (chest of seeds). It plants, harvests, cooks, taps and feeds on its own. Press [H] on the target (or the mage) to recall it."
-    summary: "Support Mage → farm / cook / brew / feed tamed animals. Stocked chest within ~8 m, hover the crop/animal/station, press [H]."
+    message: "A Support Mage keeps the home fires: it can FARM, COOK and BREW. Hover a cooking station, a Stone Oven or a fermenter and press [H]. It then works EVERY station OF THAT KIND within ~20 m — cooking stations (wood and iron), or ovens, or fermenters, but not a mix: a cook that wanders is never where the food is. Put a second and third mage on the other two. It pulls food off before it burns, loads the next batch, KEEPS THE COOKFIRE FED with wood from a chest, and taps the mead when it is ready. FARMING works differently, because a field has nothing to point at: put a CULTIVATOR in the mage's own pack (open it with [Y]), then hover the MAGE and press [H] — the ground it is standing on becomes its field, ~20 m across. It keeps one crop per field, plants several at a time in a tidy square (bigger as it levels), takes seed from its own pack or a chest by the soil, and stores the harvest. Take the cultivator back and it stops. Keep a stocked chest within ~10 m; everything it makes goes back into a chest. Press [H] on the mage to recall it."
+    summary: "Support Mage → the whole kitchen within ~20 m of where you posted it. For farming, give it a CULTIVATOR and press [H] on the mage itself."
 
   - id: ls_chore_rogue
     category: Companions
-    title: "Chores — Rogue (hauling)"
-    version: 1
+    title: "Chores — Rogue (the herds, and the ground)"
+    version: 3
     trigger:
       type: dvergr_recruited
       caste: Rogue
     display:
       mode: raven
       topic: "Chores — Rogue"
-    message: "A Rogue hauls. Drop loose items on the ground within ~10 m of a chest, hover the CHEST and press [H] — the Rogue holds its post by the chest and pulls nearby drops straight in, one at a time. Press [H] on the chest (or the Rogue) to recall it. Only a Rogue can haul."
-    summary: "Rogue → haul loose drops into a chest. Drop items within ~10 m of a chest, hover the chest, press [H]."
+    message: "A Rogue keeps the herds AND clears the ground, both at once. Hover a tamed animal or a CHEST and press [H] — that spot becomes its post, and within ~20 m of it the Rogue feeds hungry animals from a chest of their food, CULLS the surplus, and sweeps loose items into your chests. It leaves three grown animals of each kind, spares the young and the pregnant, kills with a blade at arm's reach, and stores the meat and hides. Since Valheim stops a pen breeding at four, that turnover is what keeps it producing. The one thing it leaves lying is food the herd eats — that was put there on purpose. Press [H] on its post (or the Rogue) to recall it. Only a Rogue does this work."
+    summary: "Rogue → feeds and culls the herd AND hauls loose items into chests, everything within ~20 m of where you posted it. Post it at an animal or at a chest."
 
   # -------------------------------------------------------------------
   # ADVENTURES — taking companions with you.
