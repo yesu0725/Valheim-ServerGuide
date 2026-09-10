@@ -8,10 +8,11 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.15.0` |
+| Version | `0.16.0` |
+| Game target | Valheim **1.0** (Unity 6000.0.75f1) — see invariant 21; older builds are not supported |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
-| BepInEx dep | `5.x` (HarmonyX included) |
+| BepInEx dep | `5.x` (HarmonyX included). The 1.0 update wiped `<game>\BepInEx`; the csproj now resolves `BEPINEX_DIR` from the first mod-manager profile that has one |
 | Jötunn dep | `[BepInDependency(Jotunn.Main.ModGuid)]` |
 | YAML lib | YamlDotNet 16.3.0 (UnderscoredNamingConvention) |
 | Publicizer | BepInEx.AssemblyPublicizer.MSBuild 0.4.2 (Publicize=true on assembly_valheim) |
@@ -156,3 +157,16 @@ The full multi-phase plan lives in [`.claude/FEATURE_ROADMAP.md`](/.claude/FEATU
     Any field added to either choice type belongs on both, granted from both paths
     (`OnChoiceSelected` and `OnNodeChoiceSelected`), or the loader must be made to complain about
     the orphan. See CRIT-17/CRIT-22.
+21. **This build requires Valheim 1.0 and cannot run on anything older.** 1.0 *appended*
+    parameters to `MessageHud.ShowMessage`, `SEMan.AddStatusEffect`, `EffectList.Create` and
+    `ConsoleCommand`'s constructor. Those four need no source change — the compiler fills the new
+    defaults in — but it fills them *at our call sites*, so the new signature is baked into our IL
+    and the DLL throws `MissingMethodException` against a pre-1.0 assembly. There is no one binary
+    that serves both; update the dedicated server to 1.0 before deploying to it.
+    `Inventory.AddItem` is the fifth and the dangerous one: 1.0 *inserted* a required `cheated`
+    **before** `pickedUp`, so a positional `true` that used to mean "picked up" now means
+    "cheated". Pass it by name and pass `false` — a reward earned through play is not cheated, and
+    marking it so flags the character's save. Anything new that grants items goes through the same
+    rule. Verified by diffing every vanilla member the built DLL references against both
+    assemblies; all 168 resolve on 1.0, and 60/60 Harmony patch targets are signature-identical
+    (parameter names included, so name-based injection is unaffected).

@@ -139,7 +139,11 @@ namespace ValheimServerGuide.Rewards
             }
 
             int quality = Mathf.Clamp(reward.Quality, 1, itemDrop.m_itemData.m_shared.m_maxQuality);
-            var added = player.GetInventory().AddItem(reward.Item, reward.Amount, quality, 0, 0L, player.GetPlayerName());
+            // Valheim 1.0 made `cheated` a required argument on this overload. A guidance
+            // reward is earned through play, so it is emphatically not cheated — marking
+            // it true would flag the character's save as cheated and void achievements.
+            var added = player.GetInventory().AddItem(reward.Item, reward.Amount, quality, 0, 0L,
+                player.GetPlayerName(), cheated: false);
             if (added == null)
             {
                 var pos = player.transform.position + player.transform.forward * 1.5f;

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>ValheimServerGuide</AssemblyName>
     <RootNamespace>ValheimServerGuide</RootNamespace>
-    <Version>0.15.0</Version>
+    <Version>0.16.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the
@@ -16,8 +16,6 @@
     <!-- Override on other machines: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim" -->
     <VALHEIM_INSTALL Condition=" '$(VALHEIM_INSTALL)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
     <ManagedDir>$(VALHEIM_INSTALL)\valheim_Data\Managed</ManagedDir>
-    <BepInExDir>$(VALHEIM_INSTALL)\BepInEx</BepInExDir>
-    <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
     <!-- Test client: the Gale profile "HB Test" (replaced the old r2modman profile).
          Override on other machines: dotnet build -p:TEST_PROFILE_DIR="..." -->
     <TEST_PROFILE_DIR Condition=" '$(TEST_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test</TEST_PROFILE_DIR>
@@ -26,6 +24,15 @@
     <VALHEIM_DEDICATED_SERVER_DIR Condition=" '$(VALHEIM_DEDICATED_SERVER_DIR)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server</VALHEIM_DEDICATED_SERVER_DIR>
     <DedicatedServerInstallDir>$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</DedicatedServerInstallDir>
     <!-- The Thunderstore package folder: the single source of truth for manifest.json. -->
+    <!-- BepInEx is NOT part of the game install any more: the Valheim 1.0 update wiped
+         `<game>\BepInEx`, and the mod managers keep their own copy per profile. Resolve
+         the first root that actually has the core assemblies.
+         Override on other machines: dotnet build -p:BEPINEX_DIR="..." -->
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll') ">$(VALHEIM_INSTALL)\BepInEx</BEPINEX_DIR>
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(TEST_PROFILE_DIR)\BepInEx\core\BepInEx.dll') ">$(TEST_PROFILE_DIR)\BepInEx</BEPINEX_DIR>
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\core\BepInEx.dll') ">$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx</BEPINEX_DIR>
+    <BepInExDir>$(BEPINEX_DIR)</BepInExDir>
+    <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
     <ThunderstorePackageDir>$(MSBuildProjectDirectory)\..\Thunderstore files\ValheimServerGuide</ThunderstorePackageDir>
   </PropertyGroup>
 
@@ -146,14 +153,24 @@
        and THAT is the version Gale / r2modman show in their mod list — not the assembly. The
        DLL-only copy below used to leave it untouched, so a freshly built target kept reporting
        the previous release. Keep the manifest in step with the DLL wherever one exists. -->
+  <!-- Gale (and r2modman) install a mod by HARD-LINKING one cached copy into every profile
+       that uses it, so all those paths share a single inode. MSBuild's Copy overwrites a
+       destination in place, which writes THROUGH the link: deploying a dev build to the test
+       profile silently replaced the published DLL in the download cache and in every other
+       profile - including live ones - with no sign that anything had happened. Deleting the
+       destination first breaks it out of the link group, so a deploy only touches its own
+       target. Every Copy into a mod-manager-managed folder must be preceded by this. -->
   <Target Name="DeployManifest" AfterTargets="Build"
           Condition="Exists('$(ThunderstorePackageDir)\manifest.json')">
+    <Delete Files="$(TestProfileInstallDir)\manifest.json" Condition="Exists('$(TestProfileInstallDir)\manifest.json')" />
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(TestProfileInstallDir)"
           Condition="Exists('$(TestProfileInstallDir)\manifest.json')" />
+    <Delete Files="$(DedicatedServerInstallDir)\manifest.json" Condition="Exists('$(DedicatedServerInstallDir)\manifest.json')" />
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(DedicatedServerInstallDir)"
           Condition="Exists('$(DedicatedServerInstallDir)\manifest.json')" />
+    <Delete Files="$(PluginInstallDir)\manifest.json" Condition="Exists('$(PluginInstallDir)\manifest.json')" />
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(PluginInstallDir)"
           Condition="Exists('$(PluginInstallDir)\manifest.json')" />
@@ -168,14 +185,17 @@
        binary must never end up in the published package. -->
   <Target Name="DeployToThunderstorePackage" AfterTargets="Build"
           Condition="'$(Configuration)' == 'Release' And Exists('$(ThunderstorePackageDir)')">
+    <Delete Files="$(ThunderstorePackageDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ThunderstorePackageDir)" />
     <Message Text="Deployed ValheimServerGuide to $(ThunderstorePackageDir)" Importance="high" />
   </Target>
 
   <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
        ValheimModding-YamlDotNet package that's a transitive dep of Jötunn. -->
-  <Target Name="DeployToBepInEx" AfterTargets="Build" Condition="Exists('$(BepInExDir)')">
+  <Target Name="DeployToBepInEx" AfterTargets="Build"
+          Condition="Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll')">
     <MakeDir Directories="$(PluginInstallDir)" />
+    <Delete Files="$(PluginInstallDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginInstallDir)" />
     <Message Text="Deployed ValheimServerGuide to $(PluginInstallDir)" Importance="high" />
   </Target>
@@ -185,12 +205,14 @@
        duplicate of the Thunderstore-installed one and one of them would be skipped. -->
   <Target Name="DeployToTestProfile" AfterTargets="Build" Condition="Exists('$(TEST_PROFILE_DIR)')">
     <MakeDir Directories="$(TestProfileInstallDir)" />
+    <Delete Files="$(TestProfileInstallDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(TestProfileInstallDir)" />
     <Message Text="Deployed ValheimServerGuide to $(TestProfileInstallDir)" Importance="high" />
   </Target>
 
   <Target Name="DeployToDedicatedServer" AfterTargets="Build" Condition="Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')">
     <MakeDir Directories="$(DedicatedServerInstallDir)" />
+    <Delete Files="$(DedicatedServerInstallDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DedicatedServerInstallDir)" />
     <Message Text="Deployed ValheimServerGuide to $(DedicatedServerInstallDir)" Importance="high" />
   </Target>
