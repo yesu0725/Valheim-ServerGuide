@@ -20,6 +20,62 @@ namespace ValheimServerGuide.Triggers
     /// via ChainState -> PlayerProgress and streams to the server on each advance.
     public static class GuidanceDispatcher
     {
+        // ---- Candidate index -----------------------------------------------------
+        //
+        // Raise() used to walk every entry in the config on every event. That is fine at a
+        // dozen quests and silly at two hundred: opening a chest evaluated all 197 entries to
+        // discover that none of them listen for `chest_opened` at all.
+        //
+        // MatchesTrigger's very first test is `t.Type == evt.Type`, and the one special case
+        // above it (`timed` with no trigger.id) also requires the entry's own type to be
+        // `timed`. So trigger type is a hard precondition for every non-chain match, and
+        // bucketing by it cannot change which entries fire. Entries with no trigger, or no
+        // trigger type, are dropped from the buckets outright - Matches() returns false for
+        // them regardless.
+        //
+        // Chains are deliberately NOT bucketed. Which trigger a chain listens for depends on
+        // the step the player has reached, so its effective type changes as it advances, and
+        // HandleChain carries a repair path (MarkComplete on an out-of-range step index) that
+        // ran on every event before. They stay in every candidate list, exactly as before.
+        //
+        // The lists are built in config order, chains interleaved with singles where the YAML
+        // declares them, because firing order feeds completedIds and therefore the order of
+        // the entry_finished events raised at the end of Raise().
+        private static GuidanceConfig _indexedConfig;
+        private static readonly Dictionary<string, List<GuidanceEntry>> _candidates =
+            new Dictionary<string, List<GuidanceEntry>>(System.StringComparer.OrdinalIgnoreCase);
+
+        /// Entries worth evaluating for `eventType`, in config order. Cached per event type and
+        /// rebuilt whenever Plugin.CurrentConfig is replaced - which is the only way the config
+        /// ever changes (the loader builds a fresh object; nothing mutates Guidances in place),
+        /// so a reference check cannot silently miss a reload the way a manual invalidation hook
+        /// could. See invariant 11.
+        private static List<GuidanceEntry> CandidatesFor(GuidanceConfig config, string eventType)
+        {
+            if (!ReferenceEquals(_indexedConfig, config))
+            {
+                _indexedConfig = config;
+                _candidates.Clear();
+            }
+
+            var key = eventType ?? string.Empty;
+            if (_candidates.TryGetValue(key, out var cached)) return cached;
+
+            var list = new List<GuidanceEntry>();
+            foreach (var entry in config.Guidances)
+            {
+                if (entry == null) continue;
+                if (entry.Steps != null && entry.Steps.Count > 0) { list.Add(entry); continue; }
+                var type = entry.Trigger?.Type;
+                if (!string.IsNullOrEmpty(type) &&
+                    string.Equals(type, key, System.StringComparison.OrdinalIgnoreCase))
+                    list.Add(entry);
+            }
+
+            _candidates[key] = list;
+            return list;
+        }
+
         public static void Raise(TriggerEvent evt)
         {
             var player = Player.m_localPlayer;
@@ -48,7 +104,7 @@ namespace ValheimServerGuide.Triggers
             var fired = 0;
             var completedIds = new List<string>();
 
-            foreach (var entry in config.Guidances)
+            foreach (var entry in CandidatesFor(config, evt.Type))
             {
                 // Chain entries are handled separately from single entries.
                 if (entry.Steps != null && entry.Steps.Count > 0)

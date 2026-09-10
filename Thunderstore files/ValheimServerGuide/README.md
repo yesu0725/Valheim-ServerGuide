@@ -90,6 +90,10 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.16.1:_ **guidance now reaches your players no matter how big your config gets.** The server used to send the whole config as one network message, and Steam refuses any message over 512 KiB — so once a config crossed that line (197 entries was enough) it was rejected and retried every frame, forever. Players got no guidance at all, the server console filled with send errors, and because everything else to that player queued behind the stuck message, the game appeared to pause whenever anyone opened a chest or a crafting station. The config is now compressed and sent in chunks. **Update your server and your players together for this one** — older clients cannot read the new format. Also: entries are indexed by trigger type, so an interaction only checks the quests that could actually match it instead of all of them.
+
+_New in 0.16.0:_ **Valheim 1.0 (Unity 6) support.** This release and everything after it require Valheim 1.0 and cannot run against an older game — update your dedicated server before your players. Reward granting was corrected for a changed game function that would otherwise have flagged earned rewards as cheated, and the BepInEx/Jötunn dependency pins were moved to their Unity 6 builds.
+
 _New in 0.15.0:_ **rewards on a dialogue choice now actually happen.** If you put a `rewards:` block on a choice inside a node-based conversation it was thrown away while the file was being read — no error, no log line, no reward, in every version up to 0.14.0. Flat `conversation.choices:` were always fine, so quest chains built the newer way quietly never paid out. Your YAML needs no changes; a node choice now rewards the moment it is picked, whether it ends the conversation or carries on to another node, and pays at most once per conversation so a looping tree cannot be farmed. Also new: a **Quests button on the inventory screen** opens the Guide Codex, which until now was reachable only by a hotkey nobody had been told about. F3 still works.
 
 _New in 0.14.0:_ **NPC dialogue options with no text are fixed**, and the choice buttons now match Valheim's own dialog buttons. A node choice written `text:` used to render a blank button (only `label:` was accepted there); both spellings work now, in every conversation shape. Choices also get one full-width row each instead of being packed three across, which is what used to wrap an ordinary reply onto three lines and inflate the button to match. Bounty triggers gained an optional `tier:` filter (1–5) plus the `{tier}`, `{tierName}`, `{method}` and `{bountyBiome}` tokens.
@@ -136,5 +140,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.15.0
+**Version:** 0.16.1
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

@@ -16,13 +16,34 @@ namespace ValheimServerGuide.State
             return true;
         }
 
+        // `Exists(e => e.Id == reqId)` walked all 197 entries and allocated a delegate every
+        // time a requirement came back unsatisfied - which is the normal case for a quest the
+        // player has not finished, on every event, for every chain still in flight. That scan
+        // outweighed everything the trigger-type index in GuidanceDispatcher saves, so it gets
+        // the same treatment: a set built once per config and rebuilt on reference change.
+        private static GuidanceConfig _idsFor;
+        private static HashSet<string> _ids;
+
+        private static bool KnownId(GuidanceConfig config, string id)
+        {
+            if (config == null) return false;
+            if (!ReferenceEquals(_idsFor, config))
+            {
+                _idsFor = config;
+                _ids = new HashSet<string>(System.StringComparer.Ordinal);
+                if (config.Guidances != null)
+                    foreach (var e in config.Guidances)
+                        if (!string.IsNullOrEmpty(e?.Id)) _ids.Add(e.Id);
+            }
+            return _ids.Contains(id);
+        }
+
         private static bool IsSatisfied(string reqId, Player player, GuidanceConfig config)
         {
             if (ChainState.IsComplete(player, reqId)) return true;
             if (SeenTracker.HasFired(player, reqId, "player")) return true;
 
-            var exists = config?.Guidances?.Exists(e => e.Id == reqId) ?? false;
-            if (!exists)
+            if (!KnownId(config, reqId))
                 Plugin.Log.LogWarning($"[prereq] '{reqId}' not found in config — treating as unsatisfied.");
             return false;
         }

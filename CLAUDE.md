@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.16.0` |
+| Version | `0.16.1` |
 | Game target | Valheim **1.0** (Unity 6000.0.75f1) — see invariant 21; older builds are not supported |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |

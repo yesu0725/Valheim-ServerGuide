@@ -1,4 +1,67 @@
 # Changelog
+## 0.16.1
+
+A fix for a bug that could stop guidance reaching your players at all, and a large cut in the work
+every interaction does. No quest progress is touched and no YAML changes.
+
+**Update the server and your players together this time.** The config now travels compressed and
+split into chunks, and a client still on 0.16.0 or earlier cannot read the new format — it will log
+`Failed to apply synced config` and show no guidance. This is the one release where the usual "any
+order" rule does not apply.
+
+### Guidance silently stopped arriving once the config grew past a certain size
+
+The server sent your whole config to each joining player as a single network message. Steam refuses
+any reliable message over 512 KiB, and a config of 197 entries — 351 KB of YAML as you write it —
+arrives at 539,881 bytes once it is serialised, because the wire form re-emits every field your
+files leave at its default. That is 3% over the line.
+
+Nothing warned. It simply stopped working when one more quest file tipped it over, and it failed in
+the worst possible way: Steam rejected the message, Valheim left it at the head of that player's
+send queue, and retried it every frame for as long as they stayed connected — about 1,500 failed
+sends a second, each one a line in your server console.
+
+Because that queue is ordered, everything else waiting to reach that player queued up behind a
+message that could never leave. Chest contents, crafting stations, doors, item ownership — all of
+it arrives over the same queue, which is why the game appeared to pause whenever anyone opened
+anything, on a server that was otherwise idle. And the config itself never arrived, so those
+players had no guidance at all.
+
+The config is now compressed before it is sent — the same config drops from 539,881 to 110,733
+bytes — and then split into 128 KiB chunks that the client reassembles. Compression alone would
+have been enough today, but it only moves the cliff; chunking removes it, so no amount of authored
+YAML can jam a connection again. Each push logs one line with the sizes, which is also the early
+warning if it ever creeps back up.
+
+### Every interaction checked every quest
+
+Opening a chest evaluated all 197 entries to discover that none of them listen for chests. Entries
+are now indexed by trigger type, so an event only walks the entries that could possibly match it
+plus any quest chains in flight — a chest goes from 197 checks to 7, a kill from 197 to 40.
+Prerequisite lookups got the same treatment: checking whether a quest's `requires:` is satisfied
+used to scan the whole config each time, on every event, for every chain a player had open.
+
+This is headroom rather than a fix for the stalls above — those were the network queue — but it is
+the difference between a config you can keep growing and one that starts costing you frames.
+
+## 0.16.0
+
+Valheim 1.0 support.
+
+Valheim 1.0 moved to Unity 6 and changed five of the game functions this mod calls. Four of them
+only gained optional arguments and needed no changes here, but the new shapes are baked into the
+build, so **this release and everything after it require Valheim 1.0** — it cannot run against an
+older game. Update your dedicated server before your players.
+
+The fifth needed care: the function that puts a reward in a player's inventory gained a `cheated`
+flag inserted ahead of an existing one, which means the old call would have started marking every
+granted reward as cheated. Guidance rewards are earned through play, so they are passed as not
+cheated and your players' saves stay clean.
+
+Also updated the dependency pins to the Unity 6 builds of BepInEx and Jötunn. If you install
+through a mod manager, this is the part that matters: the previous pins would have handed you a
+loader that cannot start under Valheim 1.0.
+
 ## 0.15.0
 
 One quest-breaking fix and one new way into the codex. No quest progress is touched, and every

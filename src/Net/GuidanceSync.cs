@@ -44,6 +44,12 @@ namespace ValheimServerGuide.Net
         private const string RpcAdminPlayerResetOut = "VSG_APResetOut";
         private static bool _registered;
         private static bool _rpcsBound;
+        // Server: bumped per config push (see SendConfig). Client: the transfer currently
+        // being reassembled, and its chunk slots.
+        private static int _transferSeq;
+        private static int _rxTransferId = -1;
+        private static byte[][] _rxChunks;
+        private static int _rxReceived;
         // Server-side: peer uid -> progress file key, so a disconnect can flush and unload that
         // character's file without waiting for the periodic save.
         private static readonly Dictionary<long, string> _peerFileKeys = new Dictionary<long, string>();
@@ -94,7 +100,65 @@ namespace ValheimServerGuide.Net
             // Clients receive from the server; the server itself ignores incoming syncs.
             if (ZNet.instance != null && ZNet.instance.IsServer()) return;
 
-            var yaml = pkg.ReadString();
+            try
+            {
+                int transferId = pkg.ReadInt();
+                int index      = pkg.ReadInt();
+                int count      = pkg.ReadInt();
+                var chunk      = pkg.ReadByteArray();
+
+                if (count <= 0 || index < 0 || index >= count)
+                {
+                    Plugin.Log.LogError($"[sync] discarding malformed config chunk {index}/{count}.");
+                    ResetTransfer();
+                    return;
+                }
+
+                // A new transfer supersedes whatever was half-assembled: a hot-reload broadcast
+                // that lands while an earlier push is still arriving must replace it, never
+                // interleave with it.
+                if (transferId != _rxTransferId)
+                {
+                    if (_rxChunks != null && _rxReceived < _rxChunks.Length)
+                        Plugin.Log.LogWarning($"[sync] config transfer {_rxTransferId} abandoned at " +
+                            $"{_rxReceived}/{_rxChunks.Length} chunks - superseded by {transferId}.");
+                    _rxTransferId = transferId;
+                    _rxChunks     = new byte[count][];
+                    _rxReceived   = 0;
+                }
+
+                // Indexed rather than appended, so a re-sent chunk overwrites instead of
+                // corrupting the stream and arrival order does not matter.
+                if (_rxChunks[index] == null) _rxReceived++;
+                _rxChunks[index] = chunk;
+                if (_rxReceived < count) return;
+
+                int total = 0;
+                foreach (var c in _rxChunks) total += c.Length;
+                var packed = new byte[total];
+                int at = 0;
+                foreach (var c in _rxChunks) { System.Array.Copy(c, 0, packed, at, c.Length); at += c.Length; }
+                ResetTransfer();
+
+                var yaml = System.Text.Encoding.UTF8.GetString(global::Utils.Decompress(packed));
+                ApplyConfig(yaml, count, packed.Length);
+            }
+            catch (System.Exception ex)
+            {
+                Plugin.Log.LogError($"Failed to apply synced config: {ex.Message}");
+                ResetTransfer();
+            }
+        }
+
+        private static void ResetTransfer()
+        {
+            _rxTransferId = -1;
+            _rxChunks     = null;
+            _rxReceived   = 0;
+        }
+
+        private static void ApplyConfig(string yaml, int chunkCount, int packedBytes)
+        {
             try
             {
                 var config = Deserialize(yaml);
@@ -106,7 +170,8 @@ namespace ValheimServerGuide.Net
                 // player-scope timer silently did nothing on a dedicated-server setup.
                 // (Plugin.OnConfigChanged also calls this, but returns early on any client.)
                 Triggers.TimedTrigger.OnConfigChanged(config);
-                Plugin.Log.LogInfo($"Received guidance config from server: {config.Guidances.Count} entries.");
+                Plugin.Log.LogInfo($"Received guidance config from server: {config.Guidances.Count} entries " +
+                    $"({packedBytes:N0} B compressed over {chunkCount} chunk(s)).");
 
                 // The HUD is built at Hud.Awake, which can run before this push lands (and runs
                 // again on every hot-reload broadcast). Repaint both surfaces so an already-open
@@ -142,21 +207,80 @@ namespace ValheimServerGuide.Net
             Plugin.Log.LogInfo($"[sync] re-sent config to peer {sender} on request.");
         }
 
+        // ---- Config push: compressed, then chunked ------------------------------
+        //
+        // WHY THIS IS NOT ONE PACKAGE ANY MORE. The config used to go out as a single
+        // `pkg.Write(Serialize(config))` - one YAML string, one routed RPC, per joining peer.
+        // That works right up until the serialized config crosses Steam's reliable-message
+        // ceiling of 512 KiB, and then it fails in the worst possible way: Steam rejects the
+        // message with k_EResultInvalidParam, Valheim leaves it at the HEAD of that peer's send
+        // queue, and retries it every frame forever. On the Hearthbound server that was ~1,500
+        // failed sends per second for as long as the peer stayed connected - a log line each -
+        // and because the queue is head-of-line blocked, every other packet to that player (ZDO
+        // ownership, container contents, interaction acks) waited behind a message that could
+        // never leave. The symptoms were console spam on join and a game that stalled whenever
+        // anyone opened a chest or a crafting station. The config also never arrived, so those
+        // clients silently had no guidance at all.
+        //
+        // The config that broke it was only 3% over the line: 351 KB of authored YAML
+        // round-trips to 539,881 bytes on the wire, because re-serializing the object graph
+        // re-emits every default field the source omitted. Nothing warned - it simply stopped
+        // working when one more quest file tipped it over.
+        //
+        // So: compress first, then chunk. Compression alone would be enough today (YAML is
+        // repetitive and packs roughly 10:1, which puts this config back into a single chunk),
+        // but it only moves the cliff instead of removing it. Chunking makes the transfer
+        // independent of config size, so no amount of authored YAML can jam a socket again.
+
+        /// Payload bytes per chunk. Steam's reliable ceiling is 512 KiB; this leaves room for the
+        /// ZPackage header, the routed-RPC envelope and the socket's own framing written on top.
+        private const int MaxChunkBytes = 128 * 1024;
+
         public static void BroadcastToClients(GuidanceConfig config)
         {
-            if (ZRoutedRpc.instance == null) return;
-            var pkg = new ZPackage();
-            pkg.Write(Serialize(config));
-            // 0L = broadcast to everyone connected.
-            ZRoutedRpc.instance.InvokeRoutedRPC(0L, RpcName, pkg);
+            // 0L = every connected peer.
+            SendConfig(0L, config);
         }
 
         public static void SendToPeer(long peerId, GuidanceConfig config)
         {
+            SendConfig(peerId, config);
+        }
+
+        private static void SendConfig(long target, GuidanceConfig config)
+        {
             if (ZRoutedRpc.instance == null) return;
-            var pkg = new ZPackage();
-            pkg.Write(Serialize(config));
-            ZRoutedRpc.instance.InvokeRoutedRPC(peerId, RpcName, pkg);
+
+            var raw    = System.Text.Encoding.UTF8.GetBytes(Serialize(config));
+            var packed = global::Utils.Compress(raw);
+
+            int chunkCount = packed.Length <= 0
+                ? 1
+                : (packed.Length + MaxChunkBytes - 1) / MaxChunkBytes;
+            int transferId = ++_transferSeq;
+
+            for (int i = 0; i < chunkCount; i++)
+            {
+                int offset = i * MaxChunkBytes;
+                int size   = System.Math.Min(MaxChunkBytes, packed.Length - offset);
+                if (size < 0) size = 0;
+                var chunk = new byte[size];
+                if (size > 0) System.Array.Copy(packed, offset, chunk, 0, size);
+
+                var pkg = new ZPackage();
+                pkg.Write(transferId);
+                pkg.Write(i);
+                pkg.Write(chunkCount);
+                pkg.Write(chunk);
+                ZRoutedRpc.instance.InvokeRoutedRPC(target, RpcName, pkg);
+            }
+
+            // Logged once per push, not per chunk: this is the line to look at when a client
+            // reports missing guidance, and it is the early warning if the payload ever creeps
+            // back toward the ceiling.
+            Plugin.Log.LogInfo($"[sync] config -> {(target == 0L ? "all peers" : target.ToString())}: " +
+                $"{config?.Guidances?.Count ?? 0} entries, {raw.Length:N0} B raw -> " +
+                $"{packed.Length:N0} B compressed in {chunkCount} chunk(s).");
         }
 
         // ---- Global-scope guidance broadcast ----
