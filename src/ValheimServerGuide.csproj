@@ -166,14 +166,15 @@
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(TestProfileInstallDir)"
           Condition="Exists('$(TestProfileInstallDir)\manifest.json')" />
-    <Delete Files="$(DedicatedServerInstallDir)\manifest.json" Condition="Exists('$(DedicatedServerInstallDir)\manifest.json')" />
+    <!-- The two below follow the deploy policy above: only with DEPLOY_ALL_TARGETS=true. -->
+    <Delete Files="$(DedicatedServerInstallDir)\manifest.json" Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(DedicatedServerInstallDir)\manifest.json')" />
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(DedicatedServerInstallDir)"
-          Condition="Exists('$(DedicatedServerInstallDir)\manifest.json')" />
-    <Delete Files="$(PluginInstallDir)\manifest.json" Condition="Exists('$(PluginInstallDir)\manifest.json')" />
+          Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(DedicatedServerInstallDir)\manifest.json')" />
+    <Delete Files="$(PluginInstallDir)\manifest.json" Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(PluginInstallDir)\manifest.json')" />
     <Copy SourceFiles="$(ThunderstorePackageDir)\manifest.json"
           DestinationFolder="$(PluginInstallDir)"
-          Condition="Exists('$(PluginInstallDir)\manifest.json')" />
+          Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(PluginInstallDir)\manifest.json')" />
   </Target>
 
   <!-- Release only: put the built DLL straight into the Thunderstore package folder, so that
@@ -190,10 +191,19 @@
     <Message Text="Deployed ValheimServerGuide to $(ThunderstorePackageDir)" Importance="high" />
   </Target>
 
+  <!-- DEPLOY POLICY: a plain `dotnet build` copies the DLL to ONE place - the Gale "HB Test"
+       profile (DeployToTestProfile). Nothing else. The dedicated server and the game-install
+       BepInEx folder are opt-in:  dotnet build -p:DEPLOY_ALL_TARGETS=true
+       Why: the server and the other Gale profiles run the PUBLISHED build that Gale installs
+       from Thunderstore, and a dev build landing there silently replaced it - the server was
+       running unreleased code with nobody's say-so. Only the test profile should ever receive a
+       build that has not been through a release. (Gale hard-links one cached copy into every
+       profile; the Delete-before-Copy below is what stops a test-profile deploy writing through
+       that link into the live profiles as well.) -->
   <!-- YamlDotNet.dll is intentionally NOT copied: r2modman pulls it in via the
        ValheimModding-YamlDotNet package that's a transitive dep of Jötunn. -->
   <Target Name="DeployToBepInEx" AfterTargets="Build"
-          Condition="Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll')">
+          Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll')">
     <MakeDir Directories="$(PluginInstallDir)" />
     <Delete Files="$(PluginInstallDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginInstallDir)" />
@@ -210,7 +220,8 @@
     <Message Text="Deployed ValheimServerGuide to $(TestProfileInstallDir)" Importance="high" />
   </Target>
 
-  <Target Name="DeployToDedicatedServer" AfterTargets="Build" Condition="Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')">
+  <Target Name="DeployToDedicatedServer" AfterTargets="Build"
+          Condition="'$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')">
     <MakeDir Directories="$(DedicatedServerInstallDir)" />
     <Delete Files="$(DedicatedServerInstallDir)\ValheimServerGuide.dll" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DedicatedServerInstallDir)" />

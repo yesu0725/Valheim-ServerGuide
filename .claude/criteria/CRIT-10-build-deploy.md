@@ -107,9 +107,28 @@ This is the DLL used by the compiler (and Mono.Cecil reflection) to verify metho
 
 ## Deploy Targets (all `AfterTargets="Build"`)
 
-### 1. DeployToBepInEx
+**Policy (2026-09-18): a plain `dotnet build` deploys to exactly one place — the Gale "HB Test"
+profile.** Nothing else. The dedicated server and the game-install BepInEx folder are opt-in:
+
 ```
-Condition: Exists('$(BepInExDir)')
+dotnet build -p:DEPLOY_ALL_TARGETS=true
+```
+
+Why: the dedicated server and every other Gale profile run the *published* build that Gale
+installs from Thunderstore. When the build auto-deployed to the server, a dev DLL silently
+replaced the released one and the server ran unreleased code with nobody having decided that.
+Only the test profile should ever receive a build that has not been through a release. A build
+log with a single "Deployed" line is now the correct outcome.
+
+Gale hard-links one cached copy of an installed mod into every profile that uses it. The
+`Delete`-before-`Copy` in each target is what breaks HB Test out of that link group, so a
+test-profile deploy cannot write through into the live profiles. Verified 2026-09-18: after a
+dev build, HB Test's link count is 1 and the other four profiles keep the published copy.
+
+
+### 1. DeployToBepInEx — opt-in
+```
+Condition: '$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll')
 Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\ValheimServerGuide
 Override: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim"
 ```
@@ -127,9 +146,9 @@ mod's own `TaegukGaming-ValheimServerGuide` subfolder, overwriting the Thunderst
 copy — not loose in `plugins/`, where BepInEx's recursive scan would see two copies of the same
 GUID and skip one.
 
-### 3. DeployToDedicatedServer
+### 3. DeployToDedicatedServer — opt-in
 ```
-Condition: Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')
+Condition: '$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')
 Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server\BepInEx\plugins\TaegukGaming-ValheimServerGuide
 Override: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..."
 ```
@@ -143,6 +162,7 @@ Each of the three:
 ```
 Condition: the canonical Thunderstore manifest exists, AND the destination already has a manifest.json
 Copies:    Thunderstore files/ValheimServerGuide/manifest.json -> each deploy target that has one
+           (the dedicated-server and game-install copies follow the policy above: opt-in only)
 ```
 `manifest.json` is what Gale and r2modman **display**; the assembly version is not. The DLL-only
 copy above left it frozen at whatever the mod manager last installed, so 0.13.1 shipped with every
@@ -191,7 +211,9 @@ in `Thunderstore files/`. Check the DLL inside each one, not just its `manifest.
 - [ ] `DeployToThunderstorePackage` never runs for a Debug build.
 - [ ] `YamlDotNet.dll` is NOT copied to any deploy target.
 - [ ] YamlDotNet `PackageReference` version must match the version bundled with the installed Jötunn.
-- [ ] All three deploy targets use `Condition="Exists(...)"` so they skip gracefully on machines where the target path doesn't exist.
+- [ ] A plain `dotnet build` deploys to the Gale "HB Test" profile and **nowhere else**; the dedicated server and game-install targets run only with `-p:DEPLOY_ALL_TARGETS=true`.
+- [ ] Every deploy target still uses `Condition="Exists(...)"` so it skips gracefully on machines where the path doesn't exist.
+- [ ] After a dev build, only HB Test's DLL timestamp changes; the other Gale profiles keep the published copy (hard link broken by Delete-before-Copy).
 - [ ] Only `$(TargetPath)` (the plugin DLL) and `manifest.json` are deployed — not assemblies from `CopyLocalLockFileAssemblies`.
 - [ ] The publicized DLL path (`src/obj/Debug/publicized/assembly_valheim.dll`) is used for Mono.Cecil reflection and Harmony patch verification.
 - [ ] Adding a new Unity module reference requires adding it to `<ItemGroup>` as `<Private>false</Private>`.
