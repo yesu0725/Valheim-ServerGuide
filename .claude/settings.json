@@ -7,7 +7,7 @@
           {
             "type": "command",
             "shell": "powershell",
-            "command": "$j = [Console]::In.ReadToEnd() | ConvertFrom-Json; $fp = $j.tool_input.file_path; if ($fp -and ($fp -like '*hearthbound_guides.yaml')) { Copy-Item -Path $fp -Destination 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim dedicated server\\BepInEx\\config\\ValheimServerGuide\\hearthbound_guides.yaml' -Force }",
+            "command": "$j = [Console]::In.ReadToEnd() | ConvertFrom-Json; $fp = $j.tool_input.file_path; if ($fp -and ($fp -like '*hearthbound_guides.yaml')) { Copy-Item -Path $fp -Destination 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Valheim dedicated modded test server\\BepInEx\\config\\ValheimServerGuide\\hearthbound_guides.yaml' -Force }",
             "statusMessage": "Syncing hearthbound_guides.yaml to dedicated server..."
           },
           {

@@ -146,12 +146,15 @@ mod's own `TaegukGaming-ValheimServerGuide` subfolder, overwriting the Thunderst
 copy — not loose in `plugins/`, where BepInEx's recursive scan would see two copies of the same
 GUID and skip one.
 
-### 3. DeployToDedicatedServer — opt-in
+### 3. DeployToDedicatedServer — opt-in, the MODDED TEST server
 ```
 Condition: '$(DEPLOY_ALL_TARGETS)' == 'true' And Exists('$(VALHEIM_DEDICATED_SERVER_DIR)')
-Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated server\BepInEx\plugins\TaegukGaming-ValheimServerGuide
+Default: C:\Program Files (x86)\Steam\steamapps\common\Valheim dedicated modded test server\BepInEx\plugins\TaegukGaming-ValheimServerGuide
 Override: dotnet build -p:VALHEIM_DEDICATED_SERVER_DIR="..."
 ```
+Retargeted 2026-09-25 to `Valheim dedicated modded test server`. The plain
+`Valheim dedicated server` install is no longer a deploy target at all — BepInEx was
+removed from it, so it has no `BepInEx\plugins` folder and is a bare vanilla server.
 
 Each of the three:
 1. `MakeDir` on the install directory.
