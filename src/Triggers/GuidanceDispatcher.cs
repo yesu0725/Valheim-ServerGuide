@@ -230,6 +230,7 @@ namespace ValheimServerGuide.Triggers
             if (stepIndex == 0) MaybeLogQuestStart(player, entry);
             FireStepDisplay(entry, step, stepIndex, evt, player);
             AdvanceChain(entry, stepIndex, player, completedIds);
+            if (stepIndex == 0) AutoPinOnStart(player, entry);
             return true;
         }
 
@@ -275,6 +276,7 @@ namespace ValheimServerGuide.Triggers
                     ChainState.ClearCounter(player, entry.Id, stepIndex);
                     AdvanceChain(entry, stepIndex, player, completedIds);
                 }
+                if (stepIndex == 0) AutoPinOnStart(player, entry);
                 return true;
             }
             else
@@ -468,6 +470,27 @@ namespace ValheimServerGuide.Triggers
                         s => TextHighlighter.Apply(s, entry));
 
             Raise(new TriggerEvent { Type = "entry_finished", Subject = entry.Id });
+        }
+
+        /// Pins a chain to the HUD tracker the moment it starts (its first step fired, or its first
+        /// counter step activated), so the player sees the new quest on the progress panel without
+        /// having to find it in the Codex first. Only ever called for step 0, which runs once per
+        /// chain, so a player who unpins the quest is never overruled. Skipped when the chain
+        /// finished in the same event (a one-step chain, or a counter seeded straight to its goal):
+        /// the tracker never shows a complete chain, and the pin would just linger in the save.
+        private static void AutoPinOnStart(Player player, GuidanceEntry entry)
+        {
+            if (player == null || entry == null || !entry.AutoTrack) return;
+            if (!(Plugin.AutoPinNewQuests?.Value ?? true)) return;
+            if (string.IsNullOrEmpty(entry.Title)) return;          // the tracker cannot show an untitled row
+            if (ChainState.IsComplete(player, entry.Id)) return;
+            if (TrackedQuestState.IsTracked(player, entry.Id)) return;
+
+            Plugin.Log.LogInfo($"[chain] '{entry.Id}' started — auto-pinned to the tracker.");
+            if (GuidanceHudTracker.Instance != null)
+                GuidanceHudTracker.Instance.SetTracked(entry.Id, true); // also opens the panel to Titles
+            else
+                TrackedQuestState.SetTracked(player, entry.Id, true);
         }
 
         /// Quest-start debug log (separate Discord webhook). Fires exactly once per character

@@ -1,4 +1,33 @@
 # Changelog
+## 0.17.0
+
+New multi-step quests now pin themselves to the tracker. No quest progress is touched, and existing
+YAML needs no changes. Server and players can update in any order.
+
+### A quest you can't see on F10 is a quest nobody follows
+
+The progress panel (F10) only ever showed quests a player had pinned from the Codex, and nothing in
+the game told them the Codex existed or that pinning was a thing. In practice the panel stayed empty,
+the badge said "Show Quests", and pressing F10 showed "No pinned quests".
+
+Now, the moment a chain's first step fires (or its first counter starts), the quest is pinned and the
+panel opens to its titles view so the player sees it arrive. It happens once per quest: a player who
+unpins it is never overruled, and a chain that finishes in the same event it started is not pinned.
+
+- **Per quest:** `auto_track: false` on a chain keeps it out of the tracker until the player pins it.
+- **Per player:** `HudTracker → AutoPinNewQuests` (default `true`) turns the behaviour off entirely.
+
+Only chains are auto-pinned. Single counted entries (a `kill` with a `count`, a multi-count
+`npc_item_submit`) can still be pinned from the Codex by hand.
+
+### The Codex's "Upcoming Steps" list shows what each step asks for
+
+Locked steps were listed by the message they show on *completion*, so a quest whose final step
+opens a long story panel printed that whole panel, in advance, as one line of the list — spoiling
+it and hiding what the player actually had to do next. The list now uses each step's
+`description:` (the same "what to do" text the tracker shows) and falls back to the message only
+when a step has no description.
+
 ## 0.16.1
 
 A fix for a bug that could stop guidance reaching your players at all, and a large cut in the work

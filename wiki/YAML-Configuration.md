@@ -45,7 +45,7 @@ tracker:
   completion_vfx_enabled: true  # spawn level-up VFX on the player when a chain completes
 ```
 
-> The progress panel is **hidden by default** and only shows quests the player pins from the Codex (F3 → *Show on Tracker*). Once a player drags the panel (while the inventory or ESC menu is open), their saved position overrides `anchor`/`offset_x`/`offset_y`. See [HUD Tracker & Codex](HUD-Tracker-and-Codex) for the full behaviour.
+> The progress panel is **hidden by default** and only shows pinned quests. Chains pin themselves when they start (unless `auto_track: false`); anything else is pinned from the Codex (F3 → *Pin to Tracker*). Once a player drags the panel (while the inventory or ESC menu is open), their saved position overrides `anchor`/`offset_x`/`offset_y`. See [HUD Tracker & Codex](HUD-Tracker-and-Codex) for the full behaviour.
 
 ---
 

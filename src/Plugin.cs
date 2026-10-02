@@ -22,7 +22,7 @@ namespace ValheimServerGuide
         /// The version players see: BepInEx registers the plugin under it, the startup log line
         /// reports it, and mod managers display it. Must match <Version> in the .csproj — the
         /// VerifyPluginVersion build target fails the build if it does not.
-        public const string PluginVersion = "0.16.1";
+        public const string PluginVersion = "0.17.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -48,6 +48,7 @@ namespace ValheimServerGuide
         public static ConfigEntry<int> TrackerMaxVisible { get; private set; }
         public static ConfigEntry<string> TrackerHotkey { get; private set; }
         public static ConfigEntry<bool> TrackerBadgeEnabled { get; private set; }
+        public static ConfigEntry<bool> AutoPinNewQuests { get; private set; }
 
         // Player progress storage (server-side quest progress files)
         public static ConfigEntry<string> ProgressPath { get; private set; }
@@ -127,6 +128,12 @@ namespace ValheimServerGuide
                 "HudTracker", "TrackerBadgeEnabled", true,
                 "Show the persistent corner hint badge (e.g. '[F9] Quests (2)') even when the " +
                 "main tracker panel is hidden. YAML tracker.badge_enabled wins when set.");
+            AutoPinNewQuests = Config.Bind(
+                "HudTracker", "AutoPinNewQuests", true,
+                "Pin a multi-step quest to the tracker the moment it starts, so it appears on the " +
+                "progress panel without opening the Codex first. Unpinning in the Codex still works " +
+                "and is remembered. Set false to pin every quest by hand. A quest whose YAML sets " +
+                "auto_track: false is never auto-pinned.");
 
             CodexEnabled = Config.Bind(
                 "Codex", "CodexEnabled", true,

@@ -38,6 +38,9 @@ guidances:
                                 # for non-chain quests (kill counts, item submits, collections).
     summary: string             # optional — short recap shown in Codex body when entry is complete;
                                 # takes priority over the final step's message
+    auto_track: bool            # chains only; default true — pin to the F10 tracker when step 0
+                                # fires (once; a player's unpin is never overruled). Needs `title`.
+                                # Client config HudTracker.AutoPinNewQuests=false disables it for all.
     highlight: [HighlightSpec]  # optional — same shape as the top-level block, scoped to this
                                 # entry. Runs before the server-wide rules. Steps may carry
                                 # their own list, which outranks the entry's. See CRIT-25.

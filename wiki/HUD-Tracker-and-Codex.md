@@ -2,12 +2,13 @@
 
 ## Progress Panel (HUD Tracker)
 
-The progress panel is an on-screen widget that shows the quests a player has chosen to track, with their current progress. Unlike earlier versions, **it no longer shows every active quest automatically** — the player picks which quests to follow by pinning them from the Codex.
+The progress panel is an on-screen widget that shows the quests a player has chosen to track, with their current progress. It does not show every active quest: only pinned ones. Since 0.17.0 a multi-step quest pins itself when it starts; everything else the player pins (or unpins) from the Codex.
 
 ### Pin model — how quests get on the panel
 
-- The panel is **hidden by default**, even when the player has quests in progress.
-- To show a quest, open the **Codex (F3)**, select an in-progress quest, and click the **`Show on Tracker`** pill. This pins the quest and **unhides the panel**.
+- The panel starts **hidden** each login (collapsed to its badge).
+- **Auto-pin (0.17.0):** a guide chain pins itself the moment its first step fires (or its first counter starts), and the panel opens to its titles view so the player sees it arrive. It happens once per chain, so a player who unpins it is never overruled. Opt a chain out with `auto_track: false`; a player opts out of all of it with `AutoPinNewQuests = false`. Single counted entries are never auto-pinned.
+- To show a quest, open the **Codex (F3)**, select an in-progress quest, and click the **`Pin to Tracker`** pill. This pins the quest and **unhides the panel**.
 - Only **in-progress, trackable** quests have the pill: guide chains, multi-count `kill` quests, multi-count `npc_item_submit` quests, and `item_acquired` count/goal quests. Finished quests and one-off tip entries have **no pill**.
 - Pins are **persistent** per character — a pinned quest stays pinned across the play session and survives a relog (though the panel itself starts hidden each login until shown).
 - When a pinned quest **completes**, it loses its pill in the Codex and automatically drops off the panel.
@@ -46,6 +47,7 @@ The panel can be configured in two places:
 | `TrackerMaxVisible` | `3` | Max pinned quests shown before "+N more" |
 | `TrackerHotkey` | `F10` | Show/hide hotkey |
 | `TrackerBadgeEnabled` | `true` | Show corner badge |
+| `AutoPinNewQuests` | `true` | Pin a guide chain to the panel when it starts (per player) |
 
 **2. YAML `tracker:` section** — applies live on YAML reload (wins over BepInEx config):
 
@@ -116,7 +118,7 @@ being covered.
 When you select an **in-progress, trackable** quest, a **`Pin to Tracker`** pill appears in the right pane:
 
 - Click it to **pin** the quest to the [Progress Panel](#progress-panel-hud-tracker) (F10). Pinning also unhides the panel.
-- Click again to **unpin** it.
+- Click again to **unpin** it. Unpinning an auto-pinned quest sticks — it is never re-pinned for you.
 - The pill only appears for quest types that can show progress on the panel: guide chains, multi-count `kill` quests, multi-count `npc_item_submit` quests, and `item_acquired` count/goal quests — and only while they are in progress. **Finished quests and one-off tips show no pill.**
 
 This lets each player curate their own objective list instead of seeing every active quest at once.

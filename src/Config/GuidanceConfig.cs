@@ -128,6 +128,11 @@ namespace ValheimServerGuide.Config
         /// Ordered steps. When present, this is a chain entry and Trigger/Display/Once
         /// on the parent are ignored — each step governs its own trigger and display.
         public List<GuidanceStep> Steps { get; set; }
+        /// Chains only: pin this quest to the HUD tracker the moment its first step fires, so a
+        /// player sees it on F10 without first finding it in the Codex. Default true. A player can
+        /// still unpin it, and it is never re-pinned after that. The client-side
+        /// HudTracker.AutoPinNewQuests setting turns the behaviour off for every quest.
+        public bool AutoTrack { get; set; } = true;
         /// NPC conversation data: the choices shown when the conversation panel opens.
         public ConversationSpec Conversation { get; set; }
         public List<RewardSpec> Rewards { get; set; } = new List<RewardSpec>();

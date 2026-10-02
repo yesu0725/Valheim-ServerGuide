@@ -87,11 +87,11 @@ The **server** loads `BepInEx/config/ValheimServerGuide/guidance.yaml`, watches 
 
 ### Guide Chains
 
-Multi-step quests where each step has its own trigger. Progress is tracked in the HUD tracker and Codex. Steps can have progress counters (e.g. "Collect 5 trophies"). The chain only advances once the current step's trigger fires.
+Multi-step quests where each step has its own trigger. Progress is tracked in the HUD tracker and Codex — a chain pins itself to the tracker the moment it starts (opt out per chain with `auto_track: false`, or per player with `HudTracker → AutoPinNewQuests`). Steps can have progress counters (e.g. "Collect 5 trophies"). The chain only advances once the current step's trigger fires.
 
 ### HUD Tracker & Codex
 
-A progress panel (default `F10`) shows the quests the player has **pinned** from the Codex, with live progress. The panel is hidden by default — players open the Codex (the **Quests** button on the inventory screen, or default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
+A progress panel (default `F10`) shows the quests the player has **pinned**, with live progress. A multi-step quest pins itself when it starts and opens the panel to its titles view; any other trackable quest is pinned by hand — players open the Codex (the **Quests** button on the inventory screen, or default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
 
 ### NPC Conversations
 

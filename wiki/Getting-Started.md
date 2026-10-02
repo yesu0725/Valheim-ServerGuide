@@ -80,7 +80,7 @@ Players can open the in-game guide browser at any time by pressing **F3** (defau
 
 ## The Progress Panel
 
-The progress panel (top-right by default) shows the quests a player has **pinned**, with a `current/goal` count for counter steps. It is **hidden by default** — players pin an in-progress quest from the Codex (F3 → **Show on Tracker**), which unhides the panel. Press **F10** (default) to show/hide it. It doesn't lock movement or show the cursor, and players can drag it anywhere while the inventory or ESC menu is open. See [HUD Tracker & Codex](HUD-Tracker-and-Codex) for details.
+The progress panel (top-right by default) shows the quests a player has **pinned**, with a `current/goal` count for counter steps. It is **hidden by default**. A multi-step quest pins itself the moment it starts, which opens the panel; any other quest is pinned from the Codex (F3 → **Pin to Tracker**). Press **F10** (default) to show/hide it. It doesn't lock movement or show the cursor, and players can drag it anywhere while the inventory or ESC menu is open. See [HUD Tracker & Codex](HUD-Tracker-and-Codex) for details.
 
 ---
 

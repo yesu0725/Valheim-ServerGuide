@@ -8,7 +8,7 @@ Uses **vanilla assets only**. Built on BepInEx 5 + HarmonyX + Jötunn.
 | Field | Value |
 |---|---|
 | GUID | `com.valheimserverguide` |
-| Version | `0.16.1` |
+| Version | `0.17.0` |
 | Game target | Valheim **1.0** (Unity 6000.0.75f1) — see invariant 21; older builds are not supported |
 | Model | `claude-sonnet-4-6` |
 | Framework | net48 |
@@ -49,8 +49,8 @@ src/
 │   ├── GuidanceDisplay.cs           Mode dispatch (raven/message/chat/rune/intro/conversation/bubble) + patches
 │   ├── CenterToast.cs               Sole writer of the vanilla centre message; merges a frame's lines into one multi-line toast (CRIT-03)
 │   ├── RunePanel.cs                 Custom themed rune-reading panel (header/body/list, configurable fonts/colors; CRIT-03)
-│   ├── GuidanceHudTracker.cs        Progress panel: F10 cycles Collapsed→Titles→Full (descriptions inline); Codex-pinned quests only, drag-to-move, no input lock
-│   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); drawn in the vanilla inventory window's art (VanillaUi); scrolling guide list, "Pin to Tracker" + "Hide from list" toggles; suppresses ZInput's wheel while open
+│   ├── GuidanceHudTracker.cs        Progress panel: F10 cycles Collapsed→Titles→Full (descriptions inline); pinned quests only (chains auto-pin on start unless `auto_track: false` / `AutoPinNewQuests`), drag-to-move, no input lock
+│   ├── GuidanceCodex.cs             In-game Guide Codex panel (F3); drawn in the vanilla inventory window's art (VanillaUi); scrolling guide list, "Pin to Tracker" + "Hide from list" toggles; Upcoming Steps lists each step's `description` (message only as fallback); suppresses ZInput's wheel while open
 │   ├── InventoryCodexButton.cs      "Quests" button on the inventory screen; Take-All clone parked one row under Lost Scrolls II's "Tournaments", opens the Codex
 │   ├── NpcConversationPanel.cs      Hold-E conversation panel; content-sized + scrolling, wrapped choice rows (CRIT-17/22/25)
 │   ├── NpcChatBubble.cs             World-space NPC bubble + vanilla-bubble suppression (CRIT-24)

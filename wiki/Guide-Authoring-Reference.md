@@ -121,6 +121,7 @@ Each step fires only after the previous step has fired.
   category: Exploration
   version: 1
   discord_on_complete: true
+  auto_track: true                  # default; false = don't auto-pin to the F10 tracker on start
   steps:
     - trigger:
         type: first_login           # step 1 — raven (first_login rule)

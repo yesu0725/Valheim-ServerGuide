@@ -36,6 +36,24 @@ The view resets to `Collapsed` each session (as the old hidden flag did). Pinnin
 Codex opens the panel to at least `Titles`, but never pulls a player who is reading descriptions
 back down to titles.
 
+### Auto-pin on chain start (0.17.0)
+
+An empty tracker was the common case: nothing told players the Codex existed or that pinning was a
+thing, so F10 showed "No pinned quests". `GuidanceDispatcher.AutoPinOnStart` now pins a chain the
+moment step 0 fires (normal step) or its step-0 counter activates, through
+`GuidanceHudTracker.SetTracked` — the same call the Codex pill makes, so the Collapsed → Titles rule
+above applies unchanged. It is skipped when:
+
+- the entry sets `auto_track: false` (`GuidanceEntry.AutoTrack`, default `true`, chains only);
+- the player sets `HudTracker → AutoPinNewQuests = false` (client BepInEx config, default `true`);
+- the entry has no `title` (the tracker cannot draw an untitled row);
+- the chain completed in the same event (one-step chain, counter seeded straight to its goal);
+- the quest is already pinned.
+
+Step 0 runs once per chain, so a player who unpins an auto-pinned quest is never re-pinned. Single
+counted entries (`kill` with `count`, multi-count `npc_item_submit`) are never auto-pinned. With no
+live tracker instance the pin is written straight to `TrackedQuestState`.
+
 ---
 
 ## Badge: says what the key does NEXT
@@ -143,3 +161,7 @@ objective there) and fall back to the description only when there is nothing to 
 - [ ] Dragging works by grabbing either the panel or the badge, and only with the cursor free.
 - [ ] Pinning from the Codex opens Collapsed → Titles, and leaves Full alone.
 - [ ] View resets to Collapsed on a new session.
+- [ ] A titled chain is pinned when step 0 fires (or its counter activates), and the panel opens Collapsed → Titles.
+- [ ] Unpinning an auto-pinned chain is never overruled by a later step.
+- [ ] `auto_track: false`, `AutoPinNewQuests = false`, an untitled chain, and a chain completed in its first event are each left unpinned.
+- [ ] Single counted entries are not auto-pinned.

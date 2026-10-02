@@ -1681,7 +1681,11 @@ namespace ValheimServerGuide.Display
             for (var i = currentStep + 1; i < entry.Steps.Count; i++)
             {
                 var step   = entry.Steps[i];
-                var label  = "  Step " + (i + 1) + ": " + StepTitle(StepMessage(entry, step)) + "   (locked)";
+                // What the step asks the player to DO (its description), not the message it shows on
+                // completion — that message is often a long payoff panel, and listing it here spoiled
+                // it and buried the order of events. Falls back to the message when a step has no
+                // description, so older YAML reads exactly as before.
+                var label  = "  Step " + (i + 1) + ": " + StepTitle(StepDescription(entry, step)) + "   (locked)";
 
                 var rowGo = new GameObject("VSG_UpRow");
                 rowGo.transform.SetParent(_upcomingContent, false);

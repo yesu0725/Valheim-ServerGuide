@@ -34,7 +34,10 @@ guide they've unlocked, and check their chain progress. Vanilla UI components on
 - Left panel: category list (one entry per unique `category:` value in YAML).
 - Right panel (top): selected guide title + `step N / total` badge.
 - Right panel (middle): current step `description` (if set) or `message` — scrollable. Shows `message` when the chain is complete.
-- Right panel (bottom): upcoming steps listed as locked if not yet reached.
+- Right panel (bottom): upcoming steps listed as locked if not yet reached. Each row is labelled
+  with the step's `description` (what to do), falling back to its `message` only when there is no
+  description (0.17.0). The message is what a step shows on *completion* — often a long payoff
+  panel — so labelling by it spoiled the payoff and hid the next objective.
 - Completed guides show a checkmark badge next to the title.
 - Locked/unseen guides are hidden entirely (players cannot see guides they haven't triggered yet).
 
@@ -178,6 +181,7 @@ Clicking on a visible guide in the Codex:
 - [x] Completed guides display a visual checkmark and are still browsable.
 - [x] Current step `description` is shown in the right panel for in-progress chains; falls back to `message` when `description` is absent.
 - [x] Upcoming (locked) steps are listed but clearly marked as not yet unlocked.
+- [ ] Each upcoming step is labelled by its `description`, and by its `message` only when it has none.
 - [x] The codex is read-only — it cannot advance chains or re-fire triggers.
 - [x] Codex uses only vanilla UI sprites and fonts. No custom assets. See CRIT-14.
 - [ ] The codex window is drawn in the vanilla player-inventory frame, with vanilla interior boxes and vanilla buttons (hover/press states included) — no flat boxes while the inventory UI is available.

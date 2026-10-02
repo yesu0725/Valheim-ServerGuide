@@ -2,7 +2,7 @@
 
 A guide chain is a multi-step quest. Each step has its own trigger. The chain advances one step at a time — step 2 only becomes active after step 1 fires, and so on. The chain is complete when the final step fires.
 
-Active chains appear in the **HUD tracker** and in the **Codex**.
+Active chains appear in the **Codex**, and pin themselves to the **HUD tracker** the moment they start (see [Auto-pin](#auto-pin-to-the-hud-tracker)).
 
 ---
 
@@ -36,7 +36,7 @@ Each step in the `steps` list supports:
 | `trigger` | TriggerSpec | What causes this step to advance. |
 | `message` | string | Text shown when this step fires. Supports `{playerName}` etc. |
 | `display` | DisplaySpec | Override the default display mode for this step (optional). |
-| `description` | string | Tooltip shown when hovering the HUD tracker row for this step. |
+| `description` | string | What the step asks the player to do. Shown on the HUD tracker row (tooltip / Full view) and as the step's line in the Codex's **Upcoming Steps** list (which falls back to `message` when absent). |
 | `progress_goal` | int | If > 0, this is a counter step — fires only after this many trigger events. |
 | `progress_trigger` | TriggerSpec | The trigger counted toward `progress_goal`. Required when `progress_goal > 0`. |
 | `progress_label` | string | Label for the counter (e.g. `"Trophies"`, `"Kills"`). |
@@ -115,6 +115,22 @@ Set `discord_on_complete: true` to post a Discord webhook when the chain finishe
   steps:
     ...
 ```
+
+---
+
+## Auto-pin to the HUD Tracker
+
+Since 0.17.0 a chain pins itself to the tracker when its first step fires (or its first counter step starts), and the panel opens to its titles view so the player sees the quest arrive. It happens once per chain: a player who unpins it is never overruled. A chain with no `title` is not pinned (the tracker cannot show it), and neither is one that completes in the same event it started.
+
+```yaml
+- id: background_lore
+  title: "Old Stories"
+  auto_track: false        # stays off the tracker until the player pins it from the Codex
+  steps:
+    ...
+```
+
+Players can turn auto-pinning off for every quest with `HudTracker → AutoPinNewQuests = false` in their BepInEx config. Only chains auto-pin; single counted entries are pinned from the Codex by hand.
 
 ---
 
