@@ -93,6 +93,8 @@ Multi-step quests where each step has its own trigger. Progress is tracked in th
 
 A progress panel (default `F10`) shows the quests the player has **pinned**, with live progress. A multi-step quest pins itself when it starts and opens the panel to its titles view; any other trackable quest is pinned by hand — players open the Codex (the **Quests** button on the inventory screen, or default `F3`), select an in-progress quest, and click **Pin to Tracker** to pin it. Pinning unhides the panel; `F10` hides/shows it; pinned quests persist across the session. The panel no longer locks movement or shows the cursor, and it can be dragged anywhere while the inventory or ESC menu is open. The Codex itself shows all guidance entries organised by category with full descriptions and completion status.
 
+Each player can tune both from the Codex header: `A-`/`A+` text size (60–200%, Codex and tracker), `Tracker: On/Off` to hide the tracker, and `Quests button: On/Off` to hide the inventory button (F3 still works). The Quests button can be dragged anywhere on the inventory screen and keeps its spot across logins.
+
 ### NPC Conversations
 
 Holding E (≥ 0.5 s) near Haldor, Hildir, or BogWitch opens a dialogue panel instead of the store. Choice buttons can fire other entries or grant rewards. Input is locked while the panel is open — no movement, no attacks, no pause menu.
@@ -170,8 +172,12 @@ See [`examples/`](examples) for a full set of fully-commented, live-server guida
 | `TrackerPosition` | `TopRight` | Tracker anchor: `TopRight`, `TopLeft`, `BottomRight`, `BottomLeft` |
 | `TrackerMaxVisible` | `3` | Max chains shown before "+N more" |
 | `TrackerHotkey` | `F10` | Toggle hotkey for tracker panel |
+| `TrackerVisible` | `true` | Player preference: show the tracker. Also toggled in game from the Codex header |
 | `CodexEnabled` | `true` | Enable Codex panel |
 | `CodexKey` | `F3` | Toggle hotkey for Codex |
+| `CodexFontScale` | `100` | Text size (%) for the Codex and the HUD tracker, 60–200. Also set in game from the Codex header |
+| `InventoryButtonEnabled` | `true` | Show the inventory-screen Quests button (F3 still works when off) |
+| `InventoryButtonPosition` | *(empty)* | Written when the player drags the Quests button; clear to reset |
 | `WebhookUrl` | *(empty)* | Discord webhook URL (server only) |
 | `DefaultTemplate` | see cfg | Default Discord message template |
 
@@ -225,6 +231,7 @@ guidances:
                                 #  both expand in the Codex/tracker/hover text too, not just
                                 #  in the message shown when the entry fires)
       position: TopLeft         # for message mode: TopLeft | Center
+      compendium: true          # raven mode: false = don't file a page in the vanilla Raven tab
 
     message: "Short text"       # alternative to display.text for single-entry entries
     once: true                  # fire once per character (player scope) or world (global)
@@ -323,7 +330,8 @@ src/
 │   ├── GuidanceDisplay.cs           All display modes + Harmony patches for raven/intro/music
 │   ├── GuidanceHudTracker.cs        Objective tracker widget (HUD)
 │   ├── GuidanceCodex.cs             Codex browser panel (F3)
-│   ├── InventoryCodexButton.cs      "Quests" button on the inventory screen; opens the Codex
+│   ├── InventoryCodexButton.cs      "Quests" button on the inventory screen; opens the Codex, drag to move
+│   ├── RavenCompendium.cs           Keeps the vanilla compendium's Raven tab in step with the YAML
 │   └── NpcConversationPanel.cs      Hold-E conversation panel with choice navigation
 ├── Rewards/
 │   ├── RewardDispatcher.cs          Grant items / skill exp / buffs on entry completion

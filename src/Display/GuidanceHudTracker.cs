@@ -294,12 +294,12 @@ namespace ValheimServerGuide.Display
             textGo.transform.SetParent(_tooltipPanel.transform, worldPositionStays: false);
 
             var le = textGo.AddComponent<LayoutElement>();
-            le.preferredWidth = 280f;
+            le.preferredWidth = 280f * Scale;
             le.flexibleWidth  = 0f;
 
             _tooltipText = textGo.AddComponent<TextMeshProUGUI>();
             if (_font != null) _tooltipText.font = _font;
-            _tooltipText.fontSize           = 13f;
+            _tooltipText.fontSize           = 13f * Scale;
             _tooltipText.color              = new Color(0.9f, 0.88f, 0.82f);
             _tooltipText.alignment          = TextAlignmentOptions.TopLeft;
             _tooltipText.enableWordWrapping = true;
@@ -410,7 +410,19 @@ namespace ValheimServerGuide.Display
 
         /// Panel width available to a row: the configured width minus the layout group's
         /// left + right padding. Rows wrap at this measure.
-        private static float RowInnerWidth() => Mathf.Max(40f, Mathf.Max(60f, EffectiveSpec().Width) - 16f);
+        private static float RowInnerWidth() => Mathf.Max(40f, PanelWidth() - 16f);
+
+        /// The player's text-size preference, shared with the Codex (`Codex -> CodexFontScale`).
+        /// It multiplies the server's `tracker.font_size` and `tracker.width` together: scaling
+        /// the font alone would wrap every title a word per line at 200%.
+        private static float Scale => GuidanceCodex.FontScale;
+
+        private static float PanelWidth() => Mathf.Max(60f, EffectiveSpec().Width) * Scale;
+
+        /// False when the player has hidden the tracker (`TrackerVisible`) or the server has
+        /// switched it off (`tracker.enabled` / `TrackerEnabled`). The player can only hide.
+        private static bool IsShown()
+            => EffectiveSpec().Enabled && (Plugin.TrackerVisible?.Value ?? true);
 
         /// Pin a row's LayoutElement to the height its text actually needs once wrapped at the
         /// panel width. Rows word-wrap, so the fixed one-line height SetRow seeds would clip
@@ -450,13 +462,19 @@ namespace ValheimServerGuide.Display
 
             var spec = EffectiveSpec();
 
-            _panelRect.sizeDelta = new Vector2(Mathf.Max(60f, spec.Width), 0f);
+            _panelRect.sizeDelta = new Vector2(PanelWidth(), 0f);
             if (_hasCustomPos)
                 ApplyCustomPos();
             else
                 ApplyAnchor(_panelRect, spec.Anchor, spec.OffsetX, spec.OffsetY);
 
-            var fs = Mathf.Max(6f, spec.FontSize);
+            var fs = Mathf.Max(6f, spec.FontSize * Scale);
+            if (_tooltipText != null) _tooltipText.fontSize = 13f * Scale;
+            if (_tooltipText != null)
+            {
+                var tle = _tooltipText.GetComponent<LayoutElement>();
+                if (tle != null) tle.preferredWidth = 280f * Scale;
+            }
             // Font size AND row height scale together. The LayoutElement.preferredHeight set in
             // MakeText is just a seed — here we recompute each row's height from the live font
             // size so larger fonts (e.g. font_size: 16) are not vertically clipped by a fixed
@@ -490,9 +508,9 @@ namespace ValheimServerGuide.Display
 
             var spec = EffectiveSpec();
             if (_badgeText != null)
-                _badgeText.fontSize = Mathf.Max(6f, spec.FontSize - 1f);
+                _badgeText.fontSize = Mathf.Max(6f, (spec.FontSize - 1f) * Scale);
             if (_badgeHintText != null)
-                _badgeHintText.fontSize = Mathf.Max(5f, spec.FontSize - 4f);
+                _badgeHintText.fontSize = Mathf.Max(5f, (spec.FontSize - 4f) * Scale);
 
             PositionBadge();
         }
@@ -647,8 +665,8 @@ namespace ValheimServerGuide.Display
                 return;
             }
 
-            // Enabled gate (YAML section wins, else BepInEx).
-            if (!EffectiveSpec().Enabled)
+            // Enabled gate (YAML section wins, else BepInEx), then the player's own hide.
+            if (!IsShown())
             {
                 _panel.SetActive(false);
                 HideTooltip();
@@ -960,6 +978,9 @@ namespace ValheimServerGuide.Display
             if (_font == null) { _badgePanel.SetActive(false); return; }
             if (GuidanceDisplay.IntroLockActive) { _badgePanel.SetActive(false); return; }
             if (!EffectiveBadgeEnabled()) { _badgePanel.SetActive(false); return; }
+            // Hidden means hidden: the badge is the tracker's title bar, and it advertising
+            // "Show Quests [F10]" would promise a key that a hidden tracker ignores.
+            if (!IsShown()) { _badgePanel.SetActive(false); return; }
 
             // Resolve hotkey label: YAML tracker.hotkey wins; fall back to BepInEx.
             var yamlTracker = Plugin.CurrentConfig?.Tracker;
@@ -1232,7 +1253,9 @@ namespace ValheimServerGuide.Display
 
             // Hotkey toggle — fires only on the initial KeyDown frame, no repeat.
             var hotkey = ResolveHotkey();
-            if (hotkey != KeyCode.None && Input.GetKeyDown(hotkey))
+            // A hidden tracker ignores F10: cycling a view nobody can see would only surprise
+            // the player with a different view when they unhide it.
+            if (hotkey != KeyCode.None && Input.GetKeyDown(hotkey) && IsShown())
                 CycleView();
 
             // Drag-to-move (only while the cursor is free — inventory or ESC menu open).

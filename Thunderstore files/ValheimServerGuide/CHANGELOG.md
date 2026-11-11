@@ -1,4 +1,55 @@
 # Changelog
+## 0.18.0
+
+Player comfort settings, all reachable in game, and the vanilla Raven tab finally keeps up with
+your YAML. No quest progress is touched and existing YAML needs no changes. Server and players can
+update in any order.
+
+### Settings in the Codex header — no config editor needed
+
+The Guide Codex (F3, or the inventory's **Quests** button) now carries its own controls along the
+top, next to **Close**:
+
+`Text  A-  100%  A+  |  Tracker: On  |  Quests button: On  |  Close`
+
+- **Text size** — `A-` / `A+` step the text by 10% (60–200%). It applies to the Codex *and* the
+  F10 quest tracker, live, and the Codex stays on the guide you were reading. The tracker widens
+  with its text instead of wrapping every title a word per line.
+- **Tracker: On/Off** — hide the F10 quest tracker entirely (panel and badge). F10 does nothing
+  while it is hidden; turn it back on from the same button. On by default. A player can only hide
+  it — a server that has switched the tracker off still wins.
+- **Quests button: On/Off** — hide the inventory's Quests button. F3 still opens the Codex.
+
+Every choice saves the moment you click and survives a relog. The same settings are in the BepInEx
+config for anyone who prefers it: `Codex → CodexFontScale`, `Codex → InventoryButtonEnabled`,
+`HudTracker → TrackerVisible`.
+
+### Move the Quests button
+
+Click and drag the Quests button anywhere on the inventory screen (a short drag threshold keeps a
+plain click working). Where you drop it is saved (`Codex → InventoryButtonPosition`) and reused on
+every login; clear the value to put it back in its default spot.
+
+### The Raven tab follows your YAML
+
+Reading a raven makes Valheim file its text as a page in the compendium's Raven tab (Tab key). The
+game only ever *adds* those pages — so editing a raven entry never reached its page, and deleting
+the entry left the page there for good, even though the Guide Codex looked right.
+
+The mod now owns its raven pages:
+
+- **Edited** text or topic → the page is rewritten (or moved to the new title) on the next login
+  or config reload.
+- **Deleted** entry, or one moved off `mode: raven` → its page is removed.
+- **`display: { compendium: false }`** → the raven still shows, but files no page (and removes
+  one it filed before).
+- **`raven_compendium_remove: ["Old title", …]`** at the top of any YAML file deletes pages by
+  title — for leftovers whose entries were deleted before this release.
+
+Pages written by older versions are picked up automatically when their entry still exists.
+Vanilla and other mods' Raven pages are never touched, and a character that visits a second server
+keeps the first server's pages.
+
 ## 0.17.0
 
 New multi-step quests now pin themselves to the tracker. No quest progress is touched, and existing

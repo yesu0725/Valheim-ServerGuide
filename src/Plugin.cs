@@ -22,7 +22,7 @@ namespace ValheimServerGuide
         /// The version players see: BepInEx registers the plugin under it, the startup log line
         /// reports it, and mod managers display it. Must match <Version> in the .csproj — the
         /// VerifyPluginVersion build target fails the build if it does not.
-        public const string PluginVersion = "0.17.0";
+        public const string PluginVersion = "0.18.0";
 
         public static Plugin Instance { get; private set; }
         public static ManualLogSource Log { get; private set; }
@@ -41,9 +41,13 @@ namespace ValheimServerGuide
         // Codex (Phase 05)
         public static ConfigEntry<bool> CodexEnabled { get; private set; }
         public static ConfigEntry<string> CodexKey { get; private set; }
+        public static ConfigEntry<int> CodexFontScale { get; private set; }
+        public static ConfigEntry<bool> InventoryButtonEnabled { get; private set; }
+        public static ConfigEntry<string> InventoryButtonPosition { get; private set; }
 
         // HUD Tracker (Phase 04 / 04b)
         public static ConfigEntry<bool> TrackerEnabled { get; private set; }
+        public static ConfigEntry<bool> TrackerVisible { get; private set; }
         public static ConfigEntry<string> TrackerPosition { get; private set; }
         public static ConfigEntry<int> TrackerMaxVisible { get; private set; }
         public static ConfigEntry<string> TrackerHotkey { get; private set; }
@@ -112,6 +116,12 @@ namespace ValheimServerGuide
                 "HudTracker", "TrackerEnabled", true,
                 "Show the objective tracker widget on the HUD. Set false to hide it entirely " +
                 "(the widget GameObject remains in the scene — just inactive).");
+            TrackerVisible = Config.Bind(
+                "HudTracker", "TrackerVisible", true,
+                "Player preference: show the quest tracker (the F10 panel and its badge). Set false " +
+                "to hide it; flip it back in game from the Guide Codex header ('Tracker: On/Off'). " +
+                "Unlike TrackerEnabled this is never overridden by the server's YAML tracker " +
+                "section - but if the server turns the tracker off, this cannot turn it on.");
             TrackerPosition = Config.Bind(
                 "HudTracker", "TrackerPosition", "TopRight",
                 "Corner the tracker widget anchors to: TopRight | TopLeft | BottomRight | BottomLeft. " +
@@ -143,6 +153,33 @@ namespace ValheimServerGuide
                 "Codex", "CodexKey", "F3",
                 "KeyCode name for the Codex toggle hotkey (e.g. F2, F3). " +
                 "See UnityEngine.KeyCode enum for valid values.");
+            CodexFontScale = Config.Bind(
+                "Codex", "CodexFontScale", 100,
+                new ConfigDescription(
+                    "Text size in the Guide Codex AND the HUD quest tracker (F10), as a percentage of " +
+                    "the default (100). Raise it if they are hard to read; rows, headers and buttons " +
+                    "grow with the text, and the tracker widens with it. Adjustable in game with the " +
+                    "A-/A+ buttons in the Codex header. " +
+                    "Applies immediately, even with the Codex open.",
+                    new AcceptableValueRange<int>(60, 200)));
+            InventoryButtonEnabled = Config.Bind(
+                "Codex", "InventoryButtonEnabled", true,
+                "Show the 'Quests' button on the inventory screen. Set false to hide it; the Codex " +
+                "still opens with CodexKey.");
+            InventoryButtonPosition = Config.Bind(
+                "Codex", "InventoryButtonPosition", "",
+                "Where the inventory 'Quests' button sits, written automatically when you drag it " +
+                "(click and drag the button with the inventory open). Clear it to put the button " +
+                "back in its default spot, under Lost Scrolls II's 'Tournaments' button.");
+            CodexFontScale.SettingChanged += (_, __) =>
+            {
+                GuidanceCodex.Instance?.Rebuild();
+                Display.GuidanceHudTracker.Instance?.ApplyLayout();
+                Display.GuidanceHudTracker.Instance?.Refresh();
+            };
+            TrackerVisible.SettingChanged += (_, __) => Display.GuidanceHudTracker.Instance?.Refresh();
+            InventoryButtonEnabled.SettingChanged += (_, __) => InventoryCodexButton.Refresh();
+            InventoryButtonPosition.SettingChanged += (_, __) => InventoryCodexButton.Refresh();
 
             ProgressPath = Config.Bind(
                 "PlayerProgress", "ProgressPath", "",
@@ -253,6 +290,7 @@ namespace ValheimServerGuide
 
             CurrentConfig = newConfig;
             GuidanceDisplay.RegisterTutorials(newConfig);
+            RavenCompendium.Reconcile("config reloaded");
             TimedTrigger.OnConfigChanged(newConfig);
 
             // Server pushes the new config to all connected clients.

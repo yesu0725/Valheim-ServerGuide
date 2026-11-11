@@ -107,8 +107,8 @@ This is the DLL used by the compiler (and Mono.Cecil reflection) to verify metho
 
 ## Deploy Targets (all `AfterTargets="Build"`)
 
-**Policy (2026-09-18): a plain `dotnet build` deploys to exactly one place — the Gale "HB Test"
-profile.** Nothing else. The dedicated server and the game-install BepInEx folder are opt-in:
+**Policy (2026-09-18): a plain `dotnet build` deploys to exactly one place — the Gale test
+profile, "TG Mods Only" since 2026-11-11 (it was "HB Test" until that profile was deleted).** Nothing else. The dedicated server and the game-install BepInEx folder are opt-in:
 
 ```
 dotnet build -p:DEPLOY_ALL_TARGETS=true
@@ -121,7 +121,7 @@ Only the test profile should ever receive a build that has not been through a re
 log with a single "Deployed" line is now the correct outcome.
 
 Gale hard-links one cached copy of an installed mod into every profile that uses it. The
-`Delete`-before-`Copy` in each target is what breaks HB Test out of that link group, so a
+`Delete`-before-`Copy` in each target is what breaks the test profile out of that link group, so a
 test-profile deploy cannot write through into the live profiles. Verified 2026-09-18: after a
 dev build, HB Test's link count is 1 and the other four profiles keep the published copy.
 
@@ -136,12 +136,18 @@ Override: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim"
 ### 2. DeployToTestProfile — the test client
 ```
 Condition: Exists('$(TEST_PROFILE_DIR)')
-Default: C:\Users\<user>\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test
+Default: C:\Users\<user>\AppData\Roaming\com.kesomannen.gale\valheim\profiles\TG Mods Only
 Installs to: $(TEST_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide
 Override: dotnet build -p:TEST_PROFILE_DIR="..."
 ```
-The test client is the **Gale** profile "HB Test" (it replaced the old r2modman
-`Hearthbound Valheim - Test` profile; that path is no longer written to). The DLL lands in the
+The test client is the **Gale** profile "TG Mods Only" (2026-11-11). It replaced "HB Test",
+which was deleted — the deploy is skipped *silently* when the profile folder is missing, which is
+how that went unnoticed. "HB Test" had itself replaced the old r2modman
+`Hearthbound Valheim - Test` profile. Neither old path is written to.
+
+If VSG is **disabled** in the profile in Gale, Gale has renamed its files to `*.old`; the dev DLL
+still loads (it sits beside them under its real name), but toggling the mod back on in Gale
+restores the `.old` copy over it — rebuild after enabling. The DLL lands in the
 mod's own `TaegukGaming-ValheimServerGuide` subfolder, overwriting the Thunderstore-installed
 copy — not loose in `plugins/`, where BepInEx's recursive scan would see two copies of the same
 GUID and skip one.
@@ -214,9 +220,9 @@ in `Thunderstore files/`. Check the DLL inside each one, not just its `manifest.
 - [ ] `DeployToThunderstorePackage` never runs for a Debug build.
 - [ ] `YamlDotNet.dll` is NOT copied to any deploy target.
 - [ ] YamlDotNet `PackageReference` version must match the version bundled with the installed Jötunn.
-- [ ] A plain `dotnet build` deploys to the Gale "HB Test" profile and **nowhere else**; the dedicated server and game-install targets run only with `-p:DEPLOY_ALL_TARGETS=true`.
+- [ ] A plain `dotnet build` deploys to the Gale test profile ("TG Mods Only") and **nowhere else**; the dedicated server and game-install targets run only with `-p:DEPLOY_ALL_TARGETS=true`.
 - [ ] Every deploy target still uses `Condition="Exists(...)"` so it skips gracefully on machines where the path doesn't exist.
-- [ ] After a dev build, only HB Test's DLL timestamp changes; the other Gale profiles keep the published copy (hard link broken by Delete-before-Copy).
+- [ ] After a dev build, only the test profile's DLL timestamp changes; the other Gale profiles keep the published copy (hard link broken by Delete-before-Copy).
 - [ ] Only `$(TargetPath)` (the plugin DLL) and `manifest.json` are deployed — not assemblies from `CopyLocalLockFileAssemblies`.
 - [ ] The publicized DLL path (`src/obj/Debug/publicized/assembly_valheim.dll`) is used for Mono.Cecil reflection and Harmony patch verification.
 - [ ] Adding a new Unity module reference requires adding it to `<ItemGroup>` as `<Private>false</Private>`.

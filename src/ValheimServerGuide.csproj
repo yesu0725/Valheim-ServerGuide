@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <AssemblyName>ValheimServerGuide</AssemblyName>
     <RootNamespace>ValheimServerGuide</RootNamespace>
-    <Version>0.17.0</Version>
+    <Version>0.18.0</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- CS0618: TMP_Text.enableWordWrapping is flagged obsolete in this TMP build but the
@@ -16,9 +16,12 @@
     <!-- Override on other machines: dotnet build -p:VALHEIM_INSTALL="D:\Games\Valheim" -->
     <VALHEIM_INSTALL Condition=" '$(VALHEIM_INSTALL)' == '' ">C:\Program Files (x86)\Steam\steamapps\common\Valheim</VALHEIM_INSTALL>
     <ManagedDir>$(VALHEIM_INSTALL)\valheim_Data\Managed</ManagedDir>
-    <!-- Test client: the Gale profile "HB Test" (replaced the old r2modman profile).
+    <!-- Test client: the Gale profile "TG Mods Only" (since 2026-11-11; "HB Test" was deleted,
+         and before it the old r2modman profile). The deploy is skipped SILENTLY when this
+         folder is missing - a build log with no test-profile "Deployed" line means the profile
+         is gone, not that the build failed.
          Override on other machines: dotnet build -p:TEST_PROFILE_DIR="..." -->
-    <TEST_PROFILE_DIR Condition=" '$(TEST_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\com.kesomannen.gale\valheim\profiles\HB Test</TEST_PROFILE_DIR>
+    <TEST_PROFILE_DIR Condition=" '$(TEST_PROFILE_DIR)' == '' ">C:\Users\yesu0725\AppData\Roaming\com.kesomannen.gale\valheim\profiles\TG Mods Only</TEST_PROFILE_DIR>
     <TestProfileInstallDir>$(TEST_PROFILE_DIR)\BepInEx\plugins\TaegukGaming-ValheimServerGuide</TestProfileInstallDir>
     <!-- The modded TEST server. The plain "Valheim dedicated server" install is no longer a
          target: BepInEx was removed from it entirely, so it is a bare vanilla server now.
@@ -29,11 +32,14 @@
     <!-- The Thunderstore package folder: the single source of truth for manifest.json. -->
     <!-- BepInEx is NOT part of the game install any more: the Valheim 1.0 update wiped
          `<game>\BepInEx`, and the mod managers keep their own copy per profile. Resolve
-         the first root that actually has the core assemblies.
+         the first root that actually has the core assemblies AND an enabled Jotunn.dll. Both
+         are required: a mod manager disables a mod by renaming its files to *.old, so a profile
+         with Jotunn switched off has BepInEx core but no Jotunn.dll, and resolving to it fails
+         the build with CS0103 'Jotunn does not exist' (seen 2026-11-11 on "TG Mods Only").
          Override on other machines: dotnet build -p:BEPINEX_DIR="..." -->
-    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll') ">$(VALHEIM_INSTALL)\BepInEx</BEPINEX_DIR>
-    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(TEST_PROFILE_DIR)\BepInEx\core\BepInEx.dll') ">$(TEST_PROFILE_DIR)\BepInEx</BEPINEX_DIR>
-    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\core\BepInEx.dll') ">$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx</BEPINEX_DIR>
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_INSTALL)\BepInEx\core\BepInEx.dll') AND Exists('$(VALHEIM_INSTALL)\BepInEx\plugins\ValheimModding-Jotunn\Jotunn.dll') ">$(VALHEIM_INSTALL)\BepInEx</BEPINEX_DIR>
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(TEST_PROFILE_DIR)\BepInEx\core\BepInEx.dll') AND Exists('$(TEST_PROFILE_DIR)\BepInEx\plugins\ValheimModding-Jotunn\Jotunn.dll') ">$(TEST_PROFILE_DIR)\BepInEx</BEPINEX_DIR>
+    <BEPINEX_DIR Condition=" '$(BEPINEX_DIR)' == '' AND Exists('$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\core\BepInEx.dll') AND Exists('$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx\plugins\ValheimModding-Jotunn\Jotunn.dll') ">$(VALHEIM_DEDICATED_SERVER_DIR)\BepInEx</BEPINEX_DIR>
     <BepInExDir>$(BEPINEX_DIR)</BepInExDir>
     <PluginInstallDir>$(BepInExDir)\plugins\ValheimServerGuide</PluginInstallDir>
     <ThunderstorePackageDir>$(MSBuildProjectDirectory)\..\Thunderstore files\ValheimServerGuide</ThunderstorePackageDir>
@@ -194,8 +200,8 @@
     <Message Text="Deployed ValheimServerGuide to $(ThunderstorePackageDir)" Importance="high" />
   </Target>
 
-  <!-- DEPLOY POLICY: a plain `dotnet build` copies the DLL to ONE place - the Gale "HB Test"
-       profile (DeployToTestProfile). Nothing else. The dedicated server and the game-install
+  <!-- DEPLOY POLICY: a plain `dotnet build` copies the DLL to ONE place - the Gale test
+       profile, "TG Mods Only" (DeployToTestProfile). Nothing else. The dedicated server and the game-install
        BepInEx folder are opt-in:  dotnet build -p:DEPLOY_ALL_TARGETS=true
        Why: the server and the other Gale profiles run the PUBLISHED build that Gale installs
        from Thunderstore, and a dev build landing there silently replaced it - the server was

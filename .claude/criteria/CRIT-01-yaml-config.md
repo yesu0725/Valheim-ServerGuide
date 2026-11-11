@@ -22,6 +22,11 @@ highlight:
     whole_word: bool            # default: auto — word-bounded when the phrase starts and
                                 # ends with a letter/digit, literal substring otherwise
 
+# Optional. Labels to delete from every player's vanilla compendium Raven tab (Tab key) —
+# for pages written before 0.18.0 whose entries are already gone from the YAML. Lists from
+# every loaded YAML file are concatenated. See CRIT-11.
+raven_compendium_remove: [string]
+
 guidances:
   - id: string                  # required; unique key for this entry
     trigger: TriggerSpec
@@ -77,6 +82,7 @@ All string matching is **case-insensitive** in the dispatcher.
 | `topic` | string | — | Header/label shown in raven & rune/intro viewers |
 | `text` | string | — | Body text; supports template tokens (see CRIT-13) |
 | `position` | string | `"TopLeft"` | `TopLeft` \| `Center` — only used by `message` mode |
+| `compendium` | bool | `true` | `raven` mode only: file the text under the vanilla compendium's Raven tab. `false` files nothing and removes an existing page. See CRIT-11 |
 
 ---
 

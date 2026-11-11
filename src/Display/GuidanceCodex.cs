@@ -30,7 +30,15 @@ namespace ValheimServerGuide.Display
         /// this much so nothing is drawn on top of the border; the live value (`_frameInset`) is
         /// scaled with the panel, since the frame art scales with it too.
         private const float BaseFrameInset = 22f;
-        private const float HeaderHeight   = 48f;
+        private static float HeaderHeight => 48f * FontScale;
+
+        /// The player's text-size preference (`Codex → CodexFontScale`, a percentage). Every font
+        /// size below scales with it, and so does every height that holds exactly one line of
+        /// text — a bigger font in a box sized for the default would be clipped (CRIT-25). Widths
+        /// deliberately do not scale: the panel keeps the inventory frame's aspect, and longer
+        /// text wraps, which every row, pill and footer here already measures and grows for.
+        internal static float FontScale
+            => Mathf.Clamp((Plugin.CodexFontScale?.Value ?? 100) / 100f, 0.6f, 2f);
         /// Gap between the two panes, and the width the vertical rule occupies inside it.
         private const float PaneGap      = 8f;
         /// Used until the vanilla sprite resolves, and whenever it turns out to be 9-sliceable
@@ -74,12 +82,12 @@ namespace ValheimServerGuide.Display
         // ── Left panel list ───────────────────────────────────────────────────────────────────
         // Row metrics. They must match the LayoutElement heights set in BuildQuestRow /
         // BuildCategoryRow, which is what the scroll content is sized from.
-        private const float CatRowHeight   = 26f;
-        private const float QuestRowHeight = 24f;
+        private static float CatRowHeight   => 26f * FontScale;
+        private static float QuestRowHeight => 24f * FontScale;
         private const float RowSpacing     = 1f;
         /// Height of the left pane's footer while its label fits on one line: a line of FsFooter
         /// text, ButtonPadY either side, and the button's own inset inside the footer rect.
-        private const float FooterBaseHeight = 50f;
+        private static float FooterBaseHeight => 50f * FontScale;
         /// Vertical space the footer button gives up to the footer rect (4 below, 6 above).
         private const float FooterButtonInset = 10f;
         /// The footer's live height — LayoutFooter raises it when the label wraps.
@@ -96,16 +104,16 @@ namespace ValheimServerGuide.Display
         // Matched to the vanilla inventory window, which titles at ~20 and labels at ~16 in the
         // same serif face. The old sizes were tuned for a sans fallback and read a step too small
         // in the game's own font.
-        private const float FsWindowTitle = 20f;
-        private const float FsPaneHeader  = 15f;
-        private const float FsCategory    = 14f;
-        private const float FsQuestRow    = 14f;
-        private const float FsEntryTitle  = 18f;
-        private const float FsBadge       = 15f;
-        private const float FsBody        = 16f;
-        private const float FsButton      = 16f;
-        private const float FsFooter      = 15f;
-        private const float FsUpcoming    = 13f;
+        private static float FsWindowTitle => 20f * FontScale;
+        private static float FsPaneHeader  => 15f * FontScale;
+        private static float FsCategory    => 14f * FontScale;
+        private static float FsQuestRow    => 14f * FontScale;
+        private static float FsEntryTitle  => 18f * FontScale;
+        private static float FsBadge       => 15f * FontScale;
+        private static float FsBody        => 16f * FontScale;
+        private static float FsButton      => 16f * FontScale;
+        private static float FsFooter      => 15f * FontScale;
+        private static float FsUpcoming    => 13f * FontScale;
 
         /// Padding between a button's edge and its label, on both axes. Every button is sized so
         /// this survives even when the label wraps: the text never sits on the sprite's carved
@@ -149,16 +157,19 @@ namespace ValheimServerGuide.Display
         private RectTransform _titleAreaRect;
         private RectTransform _titleDivRect;
         private RectTransform _bodyScrollRect;
-        private const float TitleAreaBaseHeight = 54f;
+        private static float TitleAreaBaseHeight => 54f * FontScale;
         /// Height of the toggle-pill bar under the title while both labels fit on one line: a
         /// line of FsButton text plus ButtonPadY above and below it.
-        private const float ToggleBarBaseHeight = 44f;
+        private static float ToggleBarBaseHeight => 44f * FontScale;
         /// The bar's live height. MeasureToggleBar raises it above the base whenever a pill's
         /// label wraps, so a two-line "Pinned to Tracker" still sits inside its button.
         private float _toggleBarHeight = ToggleBarBaseHeight;
         /// Height reserved at the bottom of the right pane for the "Upcoming Steps" section while
         /// it has anything to show. The body scroll takes the space back when it does not.
-        private const float UpcomingHeight = 150f;
+        private static float UpcomingHeight => 150f * FontScale;
+        /// One-line pane headers: "Categories" over the guide list, "Upcoming Steps" over its rows.
+        private static float CatHeaderHeight => 28f * FontScale;
+        private static float UpHeaderHeight  => 22f * FontScale;
         private ScrollRect _upcomingScroll;
         private Transform _upcomingContent;
         /// The whole "Upcoming Steps" section, hidden for entries that have none.
@@ -293,13 +304,89 @@ namespace ValheimServerGuide.Display
             closeRect.anchorMin = new Vector2(1f, 0.5f);
             closeRect.anchorMax = new Vector2(1f, 0.5f);
             closeRect.pivot     = new Vector2(1f, 0.5f);
-            closeRect.sizeDelta = new Vector2(140f, 40f);
+            closeRect.sizeDelta = new Vector2(120f * HdrScale, HdrButtonHeight);
             closeRect.anchoredPosition = new Vector2(-2f, 0f);
             var closeImg = closeGo.AddComponent<Image>();
             var closeBtn = closeGo.AddComponent<Button>();
             closeBtn.onClick.AddListener(Close);
             RegisterButton(closeBtn, closeImg);
-            BuildButtonLabel(closeGo.transform, "Close", FsButton, ColText);
+            var closeLbl = BuildButtonLabel(closeGo.transform, "Close", HdrFont, ColText);
+            ((RectTransform)closeLbl.transform).offsetMin = new Vector2(6f, 4f);
+            ((RectTransform)closeLbl.transform).offsetMax = new Vector2(-6f, -4f);
+
+            // In-game settings, right to left beside Close: the inventory "Quests" button toggle,
+            // then the text-size stepper. Both write the BepInEx config entries (which save
+            // themselves), so the choice survives relogs exactly as if edited in the .cfg.
+            var x = -2f - closeRect.sizeDelta.x - HdrGap;
+
+            x = BuildHeaderButton(hdrGo.transform, "VSG_CodexTrackerToggle",
+                TrackerToggleLabel(), 130f, x,
+                () =>
+                {
+                    if (Plugin.TrackerVisible == null) return;
+                    Plugin.TrackerVisible.Value = !Plugin.TrackerVisible.Value;
+                    if (_trackerToggleText != null) _trackerToggleText.text = TrackerToggleLabel();
+                }, out _trackerToggleText);
+
+            var btnOn = Plugin.InventoryButtonEnabled?.Value ?? true;
+            x = BuildHeaderButton(hdrGo.transform, "VSG_CodexInvBtnToggle",
+                btnOn ? "Quests button: On" : "Quests button: Off", 190f, x,
+                () =>
+                {
+                    if (Plugin.InventoryButtonEnabled == null) return;
+                    Plugin.InventoryButtonEnabled.Value = !Plugin.InventoryButtonEnabled.Value;
+                    if (_invBtnToggleText != null)
+                        _invBtnToggleText.text = Plugin.InventoryButtonEnabled.Value
+                            ? "Quests button: On" : "Quests button: Off";
+                }, out _invBtnToggleText) - HdrGap * 2f;
+
+            x = BuildHeaderButton(hdrGo.transform, "VSG_CodexFontUp", "A+", 46f, x,
+                () => StepFontScale(+10), out _) ;
+
+            // Current size, between the two steppers.
+            var pctGo = new GameObject("VSG_CodexFontPct");
+            pctGo.transform.SetParent(hdrGo.transform, false);
+            var pctRect = pctGo.AddComponent<RectTransform>();
+            pctRect.anchorMin = new Vector2(1f, 0.5f);
+            pctRect.anchorMax = new Vector2(1f, 0.5f);
+            pctRect.pivot     = new Vector2(1f, 0.5f);
+            pctRect.sizeDelta = new Vector2(58f * HdrScale, HdrButtonHeight);
+            pctRect.anchoredPosition = new Vector2(x, 0f);
+            var pctTmp = pctGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(pctTmp);
+            pctTmp.text      = $"{Plugin.CodexFontScale?.Value ?? 100}%";
+            pctTmp.fontSize  = HdrFont;
+            pctTmp.color     = ColText;
+            pctTmp.alignment = TextAlignmentOptions.Center;
+            pctTmp.enableWordWrapping = false;
+            pctTmp.raycastTarget = false;
+            x -= pctRect.sizeDelta.x + HdrGap;
+
+            x = BuildHeaderButton(hdrGo.transform, "VSG_CodexFontDown", "A-", 46f, x,
+                () => StepFontScale(-10), out _);
+
+            // Small caption so the stepper reads as "text size", not as two stray letters.
+            var capGo = new GameObject("VSG_CodexFontCaption");
+            capGo.transform.SetParent(hdrGo.transform, false);
+            var capRect = capGo.AddComponent<RectTransform>();
+            capRect.anchorMin = new Vector2(1f, 0.5f);
+            capRect.anchorMax = new Vector2(1f, 0.5f);
+            capRect.pivot     = new Vector2(1f, 0.5f);
+            capRect.sizeDelta = new Vector2(52f * HdrScale, HdrButtonHeight);
+            capRect.anchoredPosition = new Vector2(x, 0f);
+            var capTmp = capGo.AddComponent<TextMeshProUGUI>();
+            ApplyFont(capTmp);
+            capTmp.text      = "Text";
+            capTmp.fontSize  = HdrFont;
+            capTmp.color     = ColText;
+            capTmp.alignment = TextAlignmentOptions.Right;
+            capTmp.enableWordWrapping = false;
+            capTmp.raycastTarget = false;
+            x -= capRect.sizeDelta.x + HdrGap;
+
+            // The heading gets whatever the controls leave.
+            titleRect.anchorMax = new Vector2(1f, 1f);
+            titleRect.offsetMax = new Vector2(x, 0f);
 
             // Rule closing off the title band — the same plain thin line vanilla's own windows
             // separate their sections with.
@@ -313,6 +400,55 @@ namespace ValheimServerGuide.Display
             var sepImg = sepGo.AddComponent<Image>();
             sepImg.color = ColDivider;
             sepImg.raycastTarget = false;
+        }
+
+        /// Header controls grow with the text size, but only to 130% — past that the row of
+        /// buttons would no longer fit beside the heading in the default-width panel.
+        private static float HdrScale        => Mathf.Min(FontScale, 1.3f);
+        private static float HdrButtonHeight => 36f * HdrScale;
+        private static float HdrFont         => 15f * HdrScale;
+        private const float HdrGap = 6f;
+
+        private TMP_Text _invBtnToggleText;
+        private TMP_Text _trackerToggleText;
+
+        private static string TrackerToggleLabel()
+            => (Plugin.TrackerVisible?.Value ?? true) ? "Tracker: On" : "Tracker: Off";
+
+        /// A compact vanilla-styled button in the header row, right-anchored with its right edge
+        /// at <paramref name="rightX"/>. Returns the x of its left edge, for the next control.
+        private float BuildHeaderButton(Transform parent, string name, string label, float width,
+            float rightX, UnityEngine.Events.UnityAction onClick, out TMP_Text text)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var rect = go.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0.5f);
+            rect.anchorMax = new Vector2(1f, 0.5f);
+            rect.pivot     = new Vector2(1f, 0.5f);
+            rect.sizeDelta = new Vector2(width * HdrScale, HdrButtonHeight);
+            rect.anchoredPosition = new Vector2(rightX, 0f);
+            var img = go.AddComponent<Image>();
+            var btn = go.AddComponent<Button>();
+            btn.onClick.AddListener(onClick);
+            RegisterButton(btn, img);
+            text = BuildButtonLabel(go.transform, label, HdrFont, ColText);
+            text.enableWordWrapping = false;
+            // These buttons are far narrower than the footer/pill buttons BuildButtonLabel's
+            // padding was sized for; at the default 20 px a side "A+" would have no room at all.
+            var lr = (RectTransform)text.transform;
+            lr.offsetMin = new Vector2(4f, 2f);
+            lr.offsetMax = new Vector2(-4f, -2f);
+            return rightX - rect.sizeDelta.x - HdrGap;
+        }
+
+        /// The header's A-/A+ stepper. Writing the config entry fires its SettingChanged, which
+        /// rebuilds the panel at the new size (Plugin wires that), and BepInEx saves the .cfg.
+        private static void StepFontScale(int delta)
+        {
+            if (Plugin.CodexFontScale == null) return;
+            var next = Mathf.Clamp(Plugin.CodexFontScale.Value + delta, 60, 200);
+            if (next != Plugin.CodexFontScale.Value) Plugin.CodexFontScale.Value = next;
         }
 
         /// Centred label inside a button. Buttons carry a sprite on their own Image, so the text
@@ -411,7 +547,7 @@ namespace ValheimServerGuide.Display
             catHdrRect.anchorMin        = new Vector2(0f, 1f);
             catHdrRect.anchorMax        = new Vector2(1f, 1f);
             catHdrRect.pivot            = new Vector2(0.5f, 1f);
-            catHdrRect.sizeDelta        = new Vector2(0f, 28f);
+            catHdrRect.sizeDelta        = new Vector2(0f, CatHeaderHeight);
             catHdrRect.anchoredPosition = Vector2.zero;
             var catHdrTmp = catHdrGo.AddComponent<TextMeshProUGUI>();
             ApplyFont(catHdrTmp);
@@ -442,7 +578,7 @@ namespace ValheimServerGuide.Display
             listRect.anchorMin = new Vector2(0f, 0f);
             listRect.anchorMax = new Vector2(1f, 1f);
             listRect.offsetMin = new Vector2(0f, _footerHeight);
-            listRect.offsetMax = new Vector2(0f, -28f); // below the 28px Categories header
+            listRect.offsetMax = new Vector2(0f, -CatHeaderHeight); // below the Categories header
             listGo.AddComponent<RectMask2D>();
 
             _listScroll = listGo.AddComponent<ScrollRect>();
@@ -796,7 +932,7 @@ namespace ValheimServerGuide.Display
             hdrRect.anchorMin        = new Vector2(0f, 1f);
             hdrRect.anchorMax        = new Vector2(1f, 1f);
             hdrRect.pivot            = new Vector2(0.5f, 1f);
-            hdrRect.sizeDelta        = new Vector2(0f, 22f);
+            hdrRect.sizeDelta        = new Vector2(0f, UpHeaderHeight);
             hdrRect.anchoredPosition = Vector2.zero;
             var hdrTmp = hdrGo.AddComponent<TextMeshProUGUI>();
             ApplyFont(hdrTmp);
@@ -815,7 +951,7 @@ namespace ValheimServerGuide.Display
             divRect.anchorMax        = new Vector2(1f, 1f);
             divRect.pivot            = new Vector2(0.5f, 1f);
             divRect.sizeDelta        = new Vector2(0f, 1f);
-            divRect.anchoredPosition = new Vector2(0f, -22f);
+            divRect.anchoredPosition = new Vector2(0f, -UpHeaderHeight);
             var upDivImg = divGo.AddComponent<Image>();
             upDivImg.color = ColDivider;
             upDivImg.raycastTarget = false;
@@ -829,7 +965,7 @@ namespace ValheimServerGuide.Display
             scrollRect.anchorMin = new Vector2(0f, 0f);
             scrollRect.anchorMax = new Vector2(1f, 1f);
             scrollRect.offsetMin = Vector2.zero;
-            scrollRect.offsetMax = new Vector2(0f, -24f);
+            scrollRect.offsetMax = new Vector2(0f, -(UpHeaderHeight + 2f));
             _upcomingBgImg = scrollGo.AddComponent<Image>();
             _upcomingBgImg.color = ColPanelBg;
             scrollGo.AddComponent<RectMask2D>();
@@ -1694,7 +1830,7 @@ namespace ValheimServerGuide.Display
                 // compress every step row to nothing (same failure as the guide list). Height is
                 // the wrapped measurement, so a long step title takes the lines it needs and the
                 // section scrolls rather than clipping it.
-                rowLe.minHeight       = MeasureRow(label, UpcomingRowWidth, 22f, FsUpcoming);
+                rowLe.minHeight       = MeasureRow(label, UpcomingRowWidth, 22f * FontScale, FsUpcoming);
                 rowLe.preferredHeight = rowLe.minHeight;
                 var rowTmp = rowGo.AddComponent<TextMeshProUGUI>();
                 ApplyFont(rowTmp);
@@ -1978,6 +2114,11 @@ namespace ValheimServerGuide.Display
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible   = true;
             if (GameCamera.instance != null) GameCamera.instance.m_mouseCapture = false;
+            // The setting can also change from the .cfg / a config manager while closed.
+            if (_invBtnToggleText != null)
+                _invBtnToggleText.text = (Plugin.InventoryButtonEnabled?.Value ?? true)
+                    ? "Quests button: On" : "Quests button: Off";
+            if (_trackerToggleText != null) _trackerToggleText.text = TrackerToggleLabel();
             PopulatePanel();
         }
 
@@ -1999,6 +2140,9 @@ namespace ValheimServerGuide.Display
         public void Rebuild()
         {
             var wasOpen = IsOpen;
+            // The A-/A+ stepper rebuilds the panel under the player's cursor; keep them on the
+            // guide they were reading rather than snapping back to the first one.
+            var keepId = _selected?.Id;
             if (wasOpen) Close();
 
             if (_uiRoot != null)
@@ -2059,8 +2203,17 @@ namespace ValheimServerGuide.Display
             _font              = null;
             _fontFromInventory = false;
 
+            _invBtnToggleText = null;
+            _trackerToggleText = null;
+
             BuildPanel();
-            if (wasOpen) Open();
+            if (wasOpen)
+            {
+                Open();
+                if (keepId != null)
+                    foreach (var (entry, _, _) in _guideRows)
+                        if (entry.Id == keepId) { SelectGuide(entry); break; }
+            }
         }
 
         public void Close()

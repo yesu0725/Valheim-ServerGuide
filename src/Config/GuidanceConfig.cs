@@ -16,6 +16,13 @@ namespace ValheimServerGuide.Config
         /// whatever that entry declares itself. Lists from every loaded YAML file are merged.
         /// Use this for vocabulary that should always pop — hotkeys, item names, warnings.
         public List<HighlightSpec> Highlight { get; set; }
+
+        /// Labels to delete from every player's vanilla compendium (Tab → Raven tab). For raven
+        /// texts VSG wrote before it kept track of them (pre-0.18.0): when such an entry was
+        /// deleted from the YAML, nothing records that its leftover page was VSG's, so the
+        /// operator names it here instead. Use the label exactly as the Raven tab shows it — the
+        /// entry's `display.topic`. Lists from every loaded YAML file are merged.
+        public List<string> RavenCompendiumRemove { get; set; }
     }
 
     /// One highlight rule: find a word or phrase in the rendered text and re-style just that
@@ -388,6 +395,11 @@ namespace ValheimServerGuide.Config
         /// rune mode: optional styling overrides for the custom rune-reading panel
         /// (header/body/list fonts, colors, bullet list). Null/absent = themed defaults.
         public RuneStyleSpec Rune { get; set; }
+        /// raven mode: also file the text under the vanilla compendium's Raven tab (Tab key), as
+        /// vanilla does for its own ravens. Default true. VSG keeps that page in step with the
+        /// YAML — edited text is rewritten, and a deleted entry's page is removed. Set false for
+        /// one-off notices that should not linger there; an existing page is removed too.
+        public bool Compendium { get; set; } = true;
     }
 
     /// Per-entry styling for the `rune` display mode's custom themed panel.

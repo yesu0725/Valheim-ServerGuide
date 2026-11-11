@@ -169,6 +169,12 @@ Clicking on a visible guide in the Codex:
 |---|---|---|
 | `CodexEnabled` | `true` | Enable/disable the codex feature entirely |
 | `CodexKey` | `F2` | Keyboard shortcut to open the codex |
+| `CodexFontScale` | `100` | Codex text size in percent (60–200). Every font and every one-line height (header, rows, pane headers, pill bar, footer, Upcoming section) scales; widths do not, so longer text wraps. Live: rebuilds the panel. |
+| `InventoryButtonEnabled` | `true` | Show the inventory-screen "Quests" button. `false` hides it; `CodexKey` still works. |
+| `InventoryButtonPosition` | `""` | Written when the player drags the Quests button (`x,y`, top-centre anchored, clamped on-screen). Empty = default spot under LSII's "Tournaments". |
+
+The Quests button drags by mouse polling (as the HUD tracker does), with an 8 px threshold so a
+click still opens the Codex; a press that became a drag swallows the click its release produces.
 
 ---
 
@@ -182,6 +188,17 @@ Clicking on a visible guide in the Codex:
 - [x] Current step `description` is shown in the right panel for in-progress chains; falls back to `message` when `description` is absent.
 - [x] Upcoming (locked) steps are listed but clearly marked as not yet unlocked.
 - [ ] Each upcoming step is labelled by its `description`, and by its `message` only when it has none.
+- [ ] `CodexFontScale` resizes every Codex text live, and no text is clipped at 60% or 200%.
+- [ ] The Quests button drags with the inventory open, stays inside the screen, and keeps its spot after relogging.
+- [ ] A plain click on the Quests button still opens the Codex; ending a drag does not.
+- [ ] `InventoryButtonEnabled = false` hides the button live; `CodexKey` still opens the Codex.
+- [ ] Both settings are reachable in game from the Codex header (no Configuration Manager needed):
+      `Text  A-  NNN%  A+` steps `CodexFontScale` by 10 (rebuilds live, keeps the selected guide),
+      `Quests button: On/Off` flips `InventoryButtonEnabled`, and `Tracker: On/Off` flips
+      `[HudTracker] TrackerVisible` (see phase-04f). All save to the .cfg at once; the size
+      applies to the HUD tracker too.
+      Header controls scale with the text only up to 130% so the row still fits beside the heading.
+- [ ] Clearing `InventoryButtonPosition` puts the button back under "Tournaments".
 - [x] The codex is read-only — it cannot advance chains or re-fire triggers.
 - [x] Codex uses only vanilla UI sprites and fonts. No custom assets. See CRIT-14.
 - [ ] The codex window is drawn in the vanilla player-inventory frame, with vanilla interior boxes and vanilla buttons (hover/press states included) — no flat boxes while the inventory UI is available.

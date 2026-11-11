@@ -106,6 +106,40 @@ internal static void RemoveAllVanillaTempTexts()
 
 ---
 
+## The Raven Tab (vanilla compendium) — `RavenCompendium`
+
+Reading a raven makes vanilla file its text as a page in the compendium's Raven tab:
+`Raven.Talk → Player.AddKnownText(label, text)`, stored in the character save
+(`Player.m_knownTexts`). `AddKnownText` only **adds** — an existing label keeps its old text —
+and nothing ever removes a page. A VSG raven's page therefore froze at the first text read:
+editing the entry never reached it and deleting the entry left it forever, while the Guide
+Codex (which re-reads the YAML) looked right.
+
+`Display/RavenCompendium.cs` owns that page:
+
+| When | What |
+|---|---|
+| Read (`Raven.Talk` brackets `AddKnownText`) | VSG raven + `compendium: false` (or entry gone) → nothing filed. Otherwise record `VSG.rc.<ravenKey>` = label + source hash, and overwrite a stale page. Vanilla ravens untouched. |
+| Config load / progress ready / spawn | Rewrite pages whose source (topic + text) hash changed, re-file pages whose label changed, remove pages whose entry was deleted, left raven mode, or opted out. |
+| `raven_compendium_remove:` | Delete the named labels — the way out for pages written before records existed. |
+
+Rules that are easy to break:
+
+- **Ownership comes from the record, never from the page.** Vanilla strips `\u0016` from labels
+  on save, so no marker survives in the page itself. A page with no record is touched only when
+  (a) a raven in the current config files under that label **and** the player has been shown
+  that raven (`m_shownTutorials`) — "adoption" of pre-0.18.0 pages — or (b) the operator names it.
+- **Records live in the server-side progress file, not the character.** A character that visits a
+  second VSG server must not lose the first server's pages because the second server's config
+  does not contain them.
+- **Never reconcile against a config that is not this server's.** Until a client receives the
+  server's config, `Plugin.CurrentConfig` is the main-menu local YAML; reconciling then would
+  delete every page the server wrote. `ConfigTrusted` = host/single-player, or a config received
+  in the current `ZNet` session.
+- **An unchanged source keeps its page text.** A page rendered at fire time can hold event tokens
+  (`{creatureName}`) that `TemplateLocal` cannot fill; only a changed source is re-rendered.
+- Two entries may share a topic: a label still claimed by a live entry is never deleted.
+
 ## Criteria
 
 - [x] When vanilla "Tutorials Enabled" is OFF, our raven hints still show if `RavenEnabled = true`.
@@ -116,3 +150,11 @@ internal static void RemoveAllVanillaTempTexts()
 - [x] Tutorial entries are never added to `m_texts` more than once (deduped via `RegisteredTutorialNames`).
 - [x] Harmony patch parameter `text` must match the actual method signature (not `raventext`).
 - [x] Stale `RavenText` entries are evicted from `Raven.m_tempTexts` before re-show and on all reset paths so a reset entry can always re-fire.
+- [ ] Editing a raven entry's text updates its Raven-tab page on the next login / config reload.
+- [ ] Changing a raven entry's topic moves its page to the new label (old label gone).
+- [ ] Deleting a raven entry removes its page; vanilla and other-mod pages are untouched.
+- [ ] `display.compendium: false` files no page on read and removes an existing one.
+- [ ] Re-reading a raven replaces its page's text instead of keeping the first version.
+- [ ] Pages written before 0.18.0 are adopted and updated when their entry still exists.
+- [ ] `raven_compendium_remove:` deletes the listed labels.
+- [ ] A client never reconciles before it has received the server's config.

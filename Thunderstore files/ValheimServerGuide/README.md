@@ -90,6 +90,8 @@ A world event when the first boss falls:
 
 Text tokens such as `{playerName}` (or `{player_name}` — the two are aliases), `{creatureName}`, `{itemName}`, and `{biome}` are substituted when the entry fires.
 
+_New in 0.18.0:_ **player settings in the Codex, and a Raven tab that keeps up.** The Guide Codex header now has `A-`/`A+` text size (60–200%, for the Codex *and* the F10 quest tracker), a `Tracker: On/Off` toggle to hide the quest tracker, and a `Quests button: On/Off` toggle — all saved per player, no config editor needed. The inventory's Quests button can be **dragged** anywhere and stays there across logins. And the vanilla compendium's **Raven tab** now follows your YAML: edited ravens update their page, deleted ones are removed, `display.compendium: false` keeps a raven out of it, and `raven_compendium_remove:` cleans up old leftovers.
+
 _New in 0.17.0:_ **new quests pin themselves to the tracker.** When a multi-step quest starts, it now appears on the F10 progress panel straight away, and the panel opens far enough to show it — players no longer have to discover the Codex and pin it by hand before the tracker shows anything. Unpinning still works and is never overruled. Turn it off per quest with `auto_track: false`, or per player with `HudTracker → AutoPinNewQuests`.
 
 _New in 0.16.1:_ **guidance now reaches your players no matter how big your config gets.** The server used to send the whole config as one network message, and Steam refuses any message over 512 KiB — so once a config crossed that line (197 entries was enough) it was rejected and retried every frame, forever. Players got no guidance at all, the server console filled with send errors, and because everything else to that player queued behind the stuck message, the game appeared to pause whenever anyone opened a chest or a crafting station. The config is now compressed and sent in chunks. **Update your server and your players together for this one** — older clients cannot read the new format. Also: entries are indexed by trigger type, so an interaction only checks the quests that could actually match it instead of all of them.
@@ -142,5 +144,5 @@ This mod is **free to use as is**. Voluntary support is appreciated.
 
 ---
 
-**Version:** 0.17.0
+**Version:** 0.18.0
 **Source / issues / wiki:** https://github.com/yesu0725/Valheim-ServerGuide

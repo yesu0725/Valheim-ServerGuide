@@ -147,6 +147,20 @@ objective there) and fall back to the description only when there is nothing to 
 
 ---
 
+## Player text size and hide (0.18.0)
+
+- **Text size** — the tracker shares the Codex's `CodexFontScale` (60–200%, the Codex header's
+  `A-`/`A+`). It multiplies `tracker.font_size` (panel rows, description rows, overflow line,
+  badge, badge hint, hover tooltip) **and** `tracker.width` / the tooltip's 280 px, so a larger
+  size widens the panel rather than wrapping every title a word per line. Live: the setting's
+  `SettingChanged` runs `ApplyLayout()` + `Refresh()`.
+- **Hide** — `[HudTracker] TrackerVisible` (bool, default `true`) is a *player* preference,
+  toggled in game from the Codex header (`Tracker: On/Off`). It is AND-ed with the server's
+  `tracker.enabled` / `TrackerEnabled` (`IsShown()`): a player can hide the tracker, never force
+  it on. Hidden means the panel, its badge and its tooltip are all down, and F10 does nothing
+  (so the view does not silently change while unseen). Unlike `TrackerEnabled`, the YAML
+  `tracker:` section never overrides it.
+
 ## Criteria
 
 - [ ] F10 cycles Collapsed → Titles → Full → Collapsed and wraps.
@@ -165,3 +179,7 @@ objective there) and fall back to the description only when there is nothing to 
 - [ ] Unpinning an auto-pinned chain is never overruled by a later step.
 - [ ] `auto_track: false`, `AutoPinNewQuests = false`, an untitled chain, and a chain completed in its first event are each left unpinned.
 - [ ] Single counted entries are not auto-pinned.
+- [ ] `CodexFontScale` resizes the tracker's rows, badge and tooltip live, and widens the panel with them.
+- [ ] `Tracker: Off` in the Codex header hides the panel and badge at once; F10 is ignored while hidden.
+- [ ] `Tracker: On` brings it back in the view it was in; the choice survives a relog.
+- [ ] A server with `tracker.enabled: false` keeps it hidden whatever `TrackerVisible` says.

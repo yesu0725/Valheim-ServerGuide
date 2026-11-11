@@ -187,6 +187,12 @@ namespace ValheimServerGuide.Config
                     if (merged.Highlight == null) merged.Highlight = new List<HighlightSpec>();
                     merged.Highlight.AddRange(part.Highlight);
                 }
+
+                if (part.RavenCompendiumRemove != null && part.RavenCompendiumRemove.Count > 0)
+                {
+                    if (merged.RavenCompendiumRemove == null) merged.RavenCompendiumRemove = new List<string>();
+                    merged.RavenCompendiumRemove.AddRange(part.RavenCompendiumRemove);
+                }
             }
 
             Plugin.Log.LogInfo($"VSG: merged {merged.Guidances.Count} raw entries from {files.Count} YAML file(s).");
@@ -200,7 +206,12 @@ namespace ValheimServerGuide.Config
 
         private static GuidanceConfig Validate(GuidanceConfig raw)
         {
-            var result = new GuidanceConfig { Tracker = raw.Tracker, Highlight = raw.Highlight };
+            var result = new GuidanceConfig
+            {
+                Tracker = raw.Tracker,
+                Highlight = raw.Highlight,
+                RavenCompendiumRemove = raw.RavenCompendiumRemove,
+            };
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var entry in raw.Guidances)

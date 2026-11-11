@@ -164,6 +164,7 @@ namespace ValheimServerGuide.Net
                 var config = Deserialize(yaml);
                 Plugin.CurrentConfig = config;
                 GuidanceDisplay.RegisterTutorials(config);
+                RavenCompendium.OnConfigReceived();
                 // Player-scope `timed` entries are owned by the CLIENT — the dedicated server
                 // deliberately skips them. This is the only place a client ever learns about the
                 // config, so without this call no client ever scheduled one and every

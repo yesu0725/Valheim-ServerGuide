@@ -310,6 +310,8 @@ namespace ValheimServerGuide.State
                 Triggers.ItemAcquiredTrigger.CheckAllCountGoals();
                 // Re-deliver any completed chain whose guide version was bumped since completion.
                 Triggers.GuidanceDispatcher.CheckVersionUpdates(player, Plugin.CurrentConfig);
+                // Bring the vanilla Raven tab in line with the YAML; its records live in this store.
+                Display.RavenCompendium.Reconcile("progress ready");
             }
 
             Display.GuidanceHudTracker.Instance?.Refresh();
