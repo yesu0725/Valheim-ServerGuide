@@ -361,4 +361,4 @@ src/
 
 Free to use. No other mods were copied during development.
 
-> Created for the **TaegukGaming** community server running the **Hearthbound** modpack.
+> Created for the **TaegukGaming** community server.
