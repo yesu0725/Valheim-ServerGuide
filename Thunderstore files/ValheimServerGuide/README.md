@@ -128,14 +128,6 @@ Full configuration guides, all trigger types, display mode options, quest chains
 
 ---
 
-## Try it out
-
-This mod was built for the **TaegukGaming community server** running the **Hearthbound modpack**. If you want to see it in action:
-
-**[Hearthbound Valheim Modpack](https://thunderstore.io/c/valheim/p/TaegukGaming/Hearthbound_Valheim_Modpack/)**
-
----
-
 ## Disclaimer
 
 This mod is **created using AI**. No other mods were copied during the process. All feature ideas come from the uploader and are mainly to cater to the needs of the **TaegukGaming community server**. If any features or ideas look similar to other mods, these are not intentional.
